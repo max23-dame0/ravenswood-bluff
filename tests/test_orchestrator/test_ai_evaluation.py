@@ -13,6 +13,7 @@ def test_ai_evaluation_script_runs_and_reports_metrics():
         capture_output=True,
         text=True,
         check=False,
+        timeout=180,
     )
 
     assert result.returncode == 0, result.stderr or result.stdout

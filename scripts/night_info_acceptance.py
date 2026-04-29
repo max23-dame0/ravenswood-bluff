@@ -20,6 +20,12 @@ from src.state.game_state import GamePhase, GameState, PlayerState, PlayerStatus
 
 
 class DummyStoryteller:
+    async def decide_initial_setup_info(self, game_state):
+        return game_state
+
+    async def analyze_game_situation(self, game_state):
+        return None
+
     async def decide_drunk_role(self, script, role_ids):
         return "washerwoman"
 

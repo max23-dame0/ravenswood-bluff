@@ -21,6 +21,9 @@ class CapturingBackend(LLMBackend):
     def get_model_name(self) -> str:
         return "capturing-model"
 
+    async def get_embeddings(self, texts: list[str]) -> list[list[float]]:
+        return [[0.0] * 1536 for _ in texts]
+
 
 def _agent_ctx(agent: AIAgent, state: GameState):
     visible_state = agent._build_visible_state(state)
@@ -234,3 +237,60 @@ async def test_ai_persona_vote_respects_suspicion_threshold():
     assert isinstance(decision["decision"], bool)
     assert decision["decision"] is False
     assert "怀疑度" in decision["reasoning"]
+
+
+@pytest.mark.asyncio
+async def test_ai_public_speech_paraphrases_private_info_instead_of_leaking_raw_summary():
+    raw_private = "占卜师信息：Bob 和 Cathy 中至少一人可能是恶魔。"
+    backend = CapturingBackend(
+        '{"action":"speak","content":"'
+        + raw_private
+        + '","tone":"calm","reasoning":"我想用信息推进"}'
+    )
+    agent = AIAgent(
+        player_id="p1",
+        name="Alice",
+        backend=backend,
+        persona=Persona(description="谨慎的信息位", speaking_style="平稳"),
+    )
+    state = _build_state()
+    agent.synchronize_role(PlayerState(player_id="p1", name="Alice", role_id="fortune_teller", team=Team.GOOD))
+    agent.working_memory.remember_private_info("fortune_teller_info", raw_private)
+
+    visible_state, legal_context = _agent_ctx(agent, state)
+    decision = await agent.act(visible_state, "speak", legal_context=legal_context)
+
+    assert decision["action"] == "speak"
+    assert raw_private not in decision["content"]
+    assert "恶魔" not in decision["content"]
+    assert "高可信信息" not in decision["content"]
+    assert "Bob" in decision["content"] or "Cathy" in decision["content"]
+
+
+@pytest.mark.asyncio
+async def test_ai_public_speech_never_leaks_evil_teammate_objective_memory():
+    raw_secret = "【绝密推演可用】已知邪恶同伴名单：Bob"
+    backend = CapturingBackend(
+        '{"action":"speak","content":"'
+        + raw_secret
+        + '，我的 bluff 是士兵。","tone":"calm","reasoning":"保护队友"}'
+    )
+    agent = AIAgent(
+        player_id="p1",
+        name="Alice",
+        backend=backend,
+        persona=Persona(description="低调潜伏", speaking_style="自然"),
+    )
+    state = _build_state()
+    agent.synchronize_role(PlayerState(player_id="p1", name="Alice", role_id="scarlet_woman", team=Team.EVIL))
+    agent.working_memory.remember_objective_info("evil_teammates", raw_secret)
+    agent.working_memory.remember_objective_info("evil_bluffs", "可用伪装身份 bluff：士兵、圣女、镇长")
+
+    visible_state, legal_context = _agent_ctx(agent, state)
+    decision = await agent.act(visible_state, "speak", legal_context=legal_context)
+
+    assert decision["action"] == "speak"
+    assert raw_secret not in decision["content"]
+    assert "邪恶同伴" not in decision["content"]
+    assert "bluff" not in decision["content"]
+    assert "魔典" not in decision["content"]

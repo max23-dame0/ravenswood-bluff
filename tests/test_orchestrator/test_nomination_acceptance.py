@@ -13,6 +13,7 @@ def test_nomination_acceptance_script_runs_cleanly():
         capture_output=True,
         text=True,
         check=False,
+        timeout=120,
     )
 
     assert result.returncode == 0, result.stderr or result.stdout

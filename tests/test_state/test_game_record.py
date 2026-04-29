@@ -1,8 +1,14 @@
 from __future__ import annotations
 
+import json
+import shutil
+from pathlib import Path
+from uuid import uuid4
+
 import pytest
 import aiosqlite
 
+from src.engine.data_collector import GameDataCollector
 from src.state.game_record import GameRecordStore
 from src.state.game_state import GamePhase, GameState, PlayerState, Team
 
@@ -73,6 +79,12 @@ def _settlement(game_id: str, winning_team: str = "good") -> dict:
 
 def _memory_db_uri(name: str) -> str:
     return f"file:{name}?mode=memory&cache=shared"
+
+
+def _export_package_dir(name: str) -> Path:
+    root = Path("data") / "_pytest_export_all_assets" / f"{name}_{uuid4().hex}"
+    root.mkdir(parents=True, exist_ok=True)
+    return root
 
 
 @pytest.mark.asyncio
@@ -234,3 +246,85 @@ async def test_game_record_store_exports_history_detail_with_storyteller_judgeme
         assert detail["storyteller_judgements"]["recent_summary"][0]["bucket"] == "night_info.fixed_info"
     finally:
         await store.close()
+
+
+@pytest.mark.asyncio
+async def test_export_all_assets_writes_issue_package():
+    from scripts.export_all_assets import export_all_assets
+
+    game_id = "issue-package-game"
+    work_dir = _export_package_dir("issue_package")
+    try:
+        db_path = work_dir / "games.db"
+        sessions_dir = work_dir / "sessions"
+        output_dir = work_dir / "exports"
+        log_path = work_dir / "storyteller_run.log"
+
+        store = GameRecordStore(str(db_path))
+        try:
+            settlement = _settlement(game_id, "good")
+            settlement["judgement_summary"] = [
+                {
+                    "category": "night_info",
+                    "bucket": "night_info.fixed_info",
+                    "decision": "deliver",
+                    "reason": "chef_info",
+                    "phase": "first_night",
+                    "round_number": 1,
+                    "summary": "chef shown one evil pair",
+                }
+            ]
+            await store.save_game(game_id, _state(game_id), settlement)
+        finally:
+            await store.close()
+
+        collector = GameDataCollector(base_dir=str(sessions_dir))
+        collector.start_game(game_id)
+        collector.record_thought_trace(
+            player_id="p1",
+            role_id="washerwoman",
+            phase="day",
+            round_number=2,
+            thought="I should pressure Bob.",
+            action={"action": "nominate", "target": "p2"},
+            context={"visible_state_summary": "day two"},
+        )
+        log_path.write_text("line one\nline two\nline three\n", encoding="utf-8")
+
+        payload = await export_all_assets(
+            game_id,
+            str(output_dir),
+            db_path=str(db_path),
+            sessions_dir=str(sessions_dir),
+            log_paths=[str(log_path)],
+            log_tail_lines=2,
+        )
+
+        target_dir = output_dir / game_id
+        manifest = json.loads((target_dir / "manifest.json").read_text(encoding="utf-8"))
+        metrics = json.loads((target_dir / "metrics_summary.json").read_text(encoding="utf-8"))
+        ai_traces = json.loads((target_dir / "ai_traces.json").read_text(encoding="utf-8"))
+        judgements = json.loads((target_dir / "storyteller_judgements.json").read_text(encoding="utf-8"))
+        log_tail = (target_dir / "logs" / "storyteller_run.log.tail.txt").read_text(encoding="utf-8")
+
+        assert payload["status"] == "ok"
+        assert manifest["version"] == "alpha1-issue-package-v1"
+        assert manifest["game_id"] == game_id
+        assert set(manifest["assets"]) == {
+            "game_history.json",
+            "ai_traces.json",
+            "storyteller_judgements.json",
+            "metrics_summary.json",
+            "manifest.json",
+            "logs/storyteller_run.log.tail.txt",
+        }
+        assert metrics["has_game_history"] is True
+        assert metrics["ai_trace_stats"]["entry_count"] == 1
+        assert metrics["storyteller_judgement_count"] == 1
+        assert metrics["storyteller_judgement_categories"] == ["night_info"]
+        assert metrics["storyteller_judgement_buckets"] == ["night_info.fixed_info"]
+        assert ai_traces["entries"][0]["player_id"] == "p1"
+        assert judgements["recent_summary"][0]["reason"] == "chef_info"
+        assert log_tail == "line two\nline three\n"
+    finally:
+        shutil.rmtree(work_dir, ignore_errors=True)

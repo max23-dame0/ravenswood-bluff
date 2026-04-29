@@ -7,6 +7,7 @@
 from __future__ import annotations
 
 import asyncio
+import copy
 import json
 import logging
 import os
@@ -21,6 +22,19 @@ import aiosqlite
 from src.state.game_state import GameState
 
 logger = logging.getLogger(__name__)
+
+PLAYER_HISTORY_SECRET_KEYS = {
+    "true_role_id",
+    "storyteller_judgements",
+    "judgement_summary",
+    "storyteller_notes",
+    "storyteller_context",
+    "truth_view",
+    "private_info",
+    "demon_bluffs",
+    "resolved_target_role",
+    "role_seen",
+}
 
 _CREATE_TABLES_SQL = """
 CREATE TABLE IF NOT EXISTS game_records (
@@ -404,7 +418,9 @@ class GameRecordStore:
                 "categories": sorted(
                     {str(item.get("category", "")) for item in summary if isinstance(item, dict) and item.get("category")}
                 ),
-                "buckets": [],
+                "buckets": sorted(
+                    {str(item.get("bucket", "")) for item in summary if isinstance(item, dict) and item.get("bucket")}
+                ),
                 "judgements": [],
                 "recent_summary": list(summary),
             }
@@ -443,6 +459,30 @@ class GameRecordStore:
             **game_history,
             "storyteller_judgements": storyteller_judgements,
         }
+
+    @classmethod
+    def _strip_player_history_secrets(cls, value: Any) -> Any:
+        if isinstance(value, dict):
+            return {
+                key: cls._strip_player_history_secrets(item)
+                for key, item in value.items()
+                if key not in PLAYER_HISTORY_SECRET_KEYS
+            }
+        if isinstance(value, list):
+            return [cls._strip_player_history_secrets(item) for item in value]
+        return value
+
+    async def export_player_history_detail(self, game_id: str, player_name: str | None = None) -> Optional[dict[str, Any]]:
+        """[A3-ST-4] 玩家视角历史详情：保留公开结算信息，剔除幕后身份与说书人裁量。"""
+        history = await self.export_game_history(game_id)
+        if history is None:
+            return None
+
+        public_history = self._strip_player_history_secrets(copy.deepcopy(history))
+        public_history["view"] = "player"
+        if player_name:
+            public_history["player_name"] = player_name
+        return public_history
 
     async def list_games(
         self, limit: int = 20, offset: int = 0

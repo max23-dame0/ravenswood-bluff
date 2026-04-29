@@ -1,0 +1,51 @@
+{
+  "game_id": "225c0271-fa41-465e-9114-dce7379c1f9f",
+  "has_game_history": true,
+  "winning_team": "good",
+  "victory_reason": "demon_executed",
+  "player_count": 5,
+  "round_count": 2,
+  "ai_trace_stats": {
+    "file_count": 1,
+    "entry_count": 45,
+    "thought_trace_count": 33,
+    "snapshot_count": 12,
+    "parse_error_count": 0,
+    "snapshot_stage_counts": {
+      "first_night_complete": 1,
+      "day_discussion_complete": 2,
+      "before_nomination": 2,
+      "nomination_window_open": 2,
+      "voting_resolved": 2,
+      "after_execution": 2,
+      "game_settlement_ready": 1
+    },
+    "retrieval_snapshot_count": 12,
+    "degraded_retrieval_snapshot_count": 0,
+    "embeddings_disabled_snapshot_count": 0
+  },
+  "storyteller_judgement_count": 20,
+  "storyteller_judgement_categories": [
+    "defense",
+    "execution",
+    "narration",
+    "night_action",
+    "nomination_choice",
+    "nomination_started",
+    "strategic_analysis",
+    "voting_resolution"
+  ],
+  "storyteller_judgement_buckets": [
+    "day_judgement",
+    "general",
+    "phase_narration"
+  ],
+  "log_files": [
+    {
+      "path": "storyteller_run.log",
+      "exists": true,
+      "line_count": 75596,
+      "tail_line_count": 200
+    }
+  ]
+}

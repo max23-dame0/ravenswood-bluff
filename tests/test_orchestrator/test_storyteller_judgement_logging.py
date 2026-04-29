@@ -249,7 +249,7 @@ async def test_storyteller_agent_records_judgement_summary_and_log(monkeypatch):
     summary = agent.summarize_recent_judgements(4)
     assert summary
     assert any(item["category"] == "human_step" for item in summary)
-    assert any("phase=" in item["summary"] for item in summary)
+    assert any(item.get("phase") is not None for item in summary)
     _close_workspace_handlers(workspace)
 
 
@@ -326,23 +326,22 @@ async def test_nomination_and_voting_emit_storyteller_judgements(monkeypatch):
     log_path = Path("storyteller_run.log")
     assert log_path.exists()
     content = log_path.read_text(encoding="utf-8")
-    assert "[judgement][nomination_window]" in content
+    assert "[judgement][nomination_started] decision=open" in content
     assert "[judgement][nomination_choice]" in content
     assert "[judgement][nomination_started]" in content
     assert "[judgement][defense]" in content
-    assert "[judgement][voting]" in content
+    assert "[judgement][voting_resolution]" in content
     assert "[judgement][execution]" in content
 
     recent = storyteller.get_recent_judgements(20)
     categories = [entry["category"] for entry in recent]
-    assert "nomination_window" in categories
     assert "nomination_started" in categories
     assert "defense" in categories
-    assert "voting" in categories
+    assert "voting_resolution" in categories
     assert "execution" in categories
 
     summary = storyteller.summarize_recent_judgements(10)
-    assert any(item["category"] == "voting" for item in summary)
+    assert any(item["category"] == "voting_resolution" for item in summary)
     assert any("yes_votes=" in item["summary"] or "votes_cast=" in item["summary"] for item in summary)
     assert orch.state.payload.get("nomination_state", {}).get("stage") == "executed"
     _close_workspace_handlers(workspace)
@@ -434,7 +433,7 @@ async def test_storyteller_marks_suppressed_fixed_info_as_distorted_bucket(monke
     assert recent[-1]["scope"] == "fixed_info.suppressed"
     assert recent[-1]["contract_mode"] == "fixed_info"
     assert recent[-1]["adjudication_path"] == "fixed_info.adjudicated"
-    assert recent[-1]["distortion_strategy"] == "empath_binary_flip"
+    assert recent[-1]["distortion_strategy"] == "empath_binary_flip.default"
     _close_workspace_handlers(workspace)
 
 
@@ -687,3 +686,119 @@ def test_build_night_order_tie_groups_resolves_by_rulebook_order():
     assert ties
     assert ties[0]["resolved_order"] == ["butler", "spy"]
     assert ties[0]["resolution"] == "canonical_rolebook_then_seat_order"
+
+
+@pytest.mark.asyncio
+async def test_storyteller_records_red_herring_selection_and_hit(monkeypatch):
+    monkeypatch.setattr(storyteller_module.random, "choice", lambda items: list(items)[0])
+    agent = storyteller_module.StorytellerAgent(MockBackend())
+    state = GameState(
+        phase=GamePhase.FIRST_NIGHT,
+        round_number=1,
+        day_number=1,
+        players=(
+            PlayerState(player_id="ft", name="Fortune", role_id="fortune_teller", team=Team.GOOD),
+            PlayerState(player_id="rh", name="Red Herring", role_id="washerwoman", team=Team.GOOD),
+            PlayerState(player_id="imp", name="Imp", role_id="imp", team=Team.EVIL),
+        ),
+        seat_order=("ft", "rh", "imp"),
+    )
+
+    state = await agent.decide_initial_setup_info(state)
+    selection = agent.get_recent_judgements(5)[-1]
+    assert state.payload["fortune_teller_red_herring"] == "rh"
+    assert selection["category"] == "red_herring"
+    assert selection["decision"] == "selected"
+    assert selection["bucket"] == "setup.red_herring"
+    assert selection["target"] == "rh"
+
+    state = state.with_event(GameEvent(
+        event_type="night_action_resolved",
+        phase=GamePhase.FIRST_NIGHT,
+        round_number=1,
+        actor="ft",
+        target="rh",
+        visibility=Visibility.STORYTELLER_ONLY,
+        payload={"role_id": "fortune_teller", "targets": ["rh", "ft"]},
+    ))
+    info = await agent.decide_night_info(state, "ft", "fortune_teller")
+    red_herring_hit = [
+        entry for entry in agent.get_recent_judgements(5)
+        if entry["category"] == "red_herring" and entry["decision"] == "hit"
+    ][-1]
+
+    assert info["has_demon"] is True
+    assert red_herring_hit["bucket"] == "night_info.red_herring"
+    assert red_herring_hit["target"] == "rh"
+    assert red_herring_hit["selected_targets"] == ["rh", "ft"]
+
+
+@pytest.mark.asyncio
+async def test_storyteller_records_misregistration_active_and_inactive(monkeypatch):
+    values = iter([0.0, 1.0])
+    monkeypatch.setattr(storyteller_module.random, "random", lambda: next(values))
+    monkeypatch.setattr(storyteller_module.random, "choice", lambda items: list(items)[0])
+    agent = storyteller_module.StorytellerAgent(MockBackend())
+    state = GameState(
+        phase=GamePhase.FIRST_NIGHT,
+        round_number=1,
+        day_number=1,
+        players=(
+            PlayerState(player_id="r", name="Recluse", role_id="recluse", team=Team.GOOD),
+            PlayerState(player_id="s", name="Spy", role_id="spy", team=Team.EVIL),
+            PlayerState(player_id="i", name="Imp", role_id="imp", team=Team.EVIL),
+            PlayerState(player_id="t", name="Town", role_id="washerwoman", team=Team.GOOD),
+        ),
+        seat_order=("r", "s", "i", "t"),
+    )
+
+    state = await agent.decide_misregistration(state)
+    recent = [entry for entry in agent.get_recent_judgements(10) if entry["category"] == "misregistration"]
+    recluse = next(entry for entry in recent if entry["role_id"] == "recluse")
+    spy = next(entry for entry in recent if entry["role_id"] == "spy")
+
+    assert recluse["decision"] == "active"
+    assert recluse["bucket"] == "registration.recluse"
+    assert state.payload["misregistration:team:r"] == "evil"
+    assert spy["decision"] == "inactive"
+    assert spy["bucket"] == "registration.spy"
+    assert "misregistration:team:s" not in state.payload
+
+
+@pytest.mark.asyncio
+async def test_mayor_redirect_records_storyteller_judgement():
+    storyteller = storyteller_module.StorytellerAgent(MockBackend())
+    state = GameState(
+        phase=GamePhase.NIGHT,
+        round_number=2,
+        day_number=2,
+        players=(
+            PlayerState(player_id="imp", name="Imp", role_id="imp", team=Team.EVIL),
+            PlayerState(player_id="mayor", name="Mayor", role_id="mayor", team=Team.GOOD),
+            PlayerState(player_id="town", name="Town", role_id="washerwoman", team=Team.GOOD),
+        ),
+        seat_order=("imp", "mayor", "town"),
+        config=GameConfig(
+            player_count=3,
+            script_id="trouble_brewing",
+            human_mode="none",
+            storyteller_mode="auto",
+            backend_mode="mock",
+            discussion_rounds=1,
+            max_nomination_rounds=1,
+        ),
+    )
+    orch = GameOrchestrator(state)
+    orch.storyteller_agent = storyteller
+    orch.register_agent(ScriptedAgent("imp", "Imp", {"night_action": [{"action": "night_action", "target": "mayor"}]}))
+    orch.register_agent(ScriptedAgent("mayor", "Mayor", {}))
+    orch.register_agent(ScriptedAgent("town", "Town", {}))
+
+    await orch._execute_night_actions(GamePhase.NIGHT)
+    redirects = [entry for entry in storyteller.get_recent_judgements(20) if entry["category"] == "mayor_redirect"]
+
+    assert redirects
+    assert redirects[-1]["decision"] == "redirect"
+    assert redirects[-1]["bucket"] == "night_kill.mayor_redirect"
+    assert redirects[-1]["original_target"] == "mayor"
+    assert redirects[-1]["target"] == "town"

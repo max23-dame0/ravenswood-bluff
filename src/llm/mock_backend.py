@@ -6,6 +6,7 @@ Mock LLM 后端实现
 
 from __future__ import annotations
 import json
+import os
 import random
 import re
 from typing import Optional
@@ -117,4 +118,5 @@ class MockBackend(LLMBackend):
 
     async def get_embeddings(self, texts: list[str]) -> list[list[float]]:
         """Mock implementation of get_embeddings."""
-        return [[0.0] * 1536 for _ in texts]
+        dimension = int(os.getenv("EMBEDDING_DIMENSION", "1536"))
+        return [[0.0] * dimension for _ in texts]

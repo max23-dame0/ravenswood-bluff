@@ -12,6 +12,9 @@ class DummyBackend(LLMBackend):
     def get_model_name(self) -> str:
         return "dummy"
 
+    async def get_embeddings(self, texts: list[str]) -> list[list[float]]:
+        return [[0.0] * 1536 for _ in texts]
+
 
 def _agent_ctx(agent: AIAgent, state: GameState):
     visible_state = agent._build_visible_state(state)

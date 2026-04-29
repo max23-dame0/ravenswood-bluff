@@ -13,6 +13,7 @@ def test_long_game_ai_acceptance_script_runs_and_reports_metrics():
         capture_output=True,
         text=True,
         check=False,
+        timeout=180,
     )
 
     assert result.returncode == 0, result.stderr or result.stdout

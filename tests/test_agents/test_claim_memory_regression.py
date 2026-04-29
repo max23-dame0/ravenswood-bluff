@@ -12,6 +12,9 @@ class DummyBackend(LLMBackend):
     def get_model_name(self) -> str:
         return "dummy"
 
+    async def get_embeddings(self, texts: list[str]) -> list[list[float]]:
+        return [[0.0] * 1536 for _ in texts]
+
 
 def _agent_ctx(agent: AIAgent, state: GameState):
     visible_state = agent._build_visible_state(state)
@@ -128,5 +131,5 @@ async def test_public_claim_remains_visible_in_summary_after_phase_archive():
 
     context = agent.working_memory.get_recent_context()
     assert "公开场上的普通信息" in context
-    assert "Bob 公开跳身份为 预言家" in context
+    assert "Bob 公开跳身份为 占卜师" in context
     assert "身份发言记录" in agent.social_graph.get_graph_summary()

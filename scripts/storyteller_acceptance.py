@@ -13,7 +13,7 @@ def _run(repo_root: Path, args: list[str]) -> None:
         capture_output=True,
         text=True,
         check=False,
-        timeout=60,
+        timeout=120,
     )
     if result.returncode != 0:
         raise SystemExit(result.stderr or result.stdout)

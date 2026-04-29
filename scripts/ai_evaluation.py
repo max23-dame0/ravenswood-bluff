@@ -33,6 +33,9 @@ class InvalidJSONBackend(LLMBackend):
     def get_model_name(self) -> str:
         return "invalid-json"
 
+    async def get_embeddings(self, texts: list[str]) -> list[list[float]]:
+        return [[0.0] * 1536 for _ in texts]
+
 
 def _game_players(game_index: int) -> tuple[PlayerState, PlayerState, PlayerState]:
     return (

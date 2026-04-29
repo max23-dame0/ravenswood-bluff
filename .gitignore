@@ -41,9 +41,17 @@ htmlcov/
 coverage.xml
 test_results.txt
 tests/test_runs/
+data/_pytest*/
+data/_api_game_record_*/
+data/_game_record_*/
+data/_test_game_record_recovery_*/
 
 # Game data
 game_records/
+data/_probe*
+data/write_probe.txt
+data/*.corrupt_*
+data/*-journal.corrupt_*
 
 # Evaluation
 storyteller_eval_samples/

@@ -1,0 +1,609 @@
+{
+  "game_id": "225c0271-fa41-465e-9114-dce7379c1f9f",
+  "started_at": "2026-04-29T18:11:54.601663",
+  "ended_at": "2026-04-29T18:11:58.372750",
+  "winning_team": "good",
+  "victory_reason": "demon_executed",
+  "player_count": 5,
+  "round_count": 2,
+  "script_id": "trouble_brewing",
+  "settlement": {
+    "game_id": "225c0271-fa41-465e-9114-dce7379c1f9f",
+    "winning_team": "good",
+    "victory_reason": "demon_executed",
+    "duration_rounds": 2,
+    "days_played": 2,
+    "players": [
+      {
+        "player_id": "p1",
+        "name": "Player 1",
+        "true_role_id": "baron",
+        "perceived_role_id": "baron",
+        "team": "evil",
+        "is_alive": false,
+        "is_human": false,
+        "stats": {
+          "nominations_made": 1,
+          "times_nominated": 0,
+          "votes_cast": 2,
+          "votes_yes": 2
+        }
+      },
+      {
+        "player_id": "p2",
+        "name": "Player 2",
+        "true_role_id": "ravenkeeper",
+        "perceived_role_id": "ravenkeeper",
+        "team": "good",
+        "is_alive": false,
+        "is_human": false,
+        "stats": {
+          "nominations_made": 0,
+          "times_nominated": 1,
+          "votes_cast": 2,
+          "votes_yes": 2
+        }
+      },
+      {
+        "player_id": "p3",
+        "name": "Player 3",
+        "true_role_id": "butler",
+        "perceived_role_id": "butler",
+        "team": "good",
+        "is_alive": true,
+        "is_human": false,
+        "stats": {
+          "nominations_made": 1,
+          "times_nominated": 0,
+          "votes_cast": 2,
+          "votes_yes": 2
+        }
+      },
+      {
+        "player_id": "p4",
+        "name": "Player 4",
+        "true_role_id": "imp",
+        "perceived_role_id": "imp",
+        "team": "evil",
+        "is_alive": false,
+        "is_human": false,
+        "stats": {
+          "nominations_made": 0,
+          "times_nominated": 1,
+          "votes_cast": 2,
+          "votes_yes": 2
+        }
+      },
+      {
+        "player_id": "p5",
+        "name": "Player 5",
+        "true_role_id": "drunken",
+        "perceived_role_id": "mayor",
+        "team": "good",
+        "is_alive": true,
+        "is_human": false,
+        "stats": {
+          "nominations_made": 0,
+          "times_nominated": 0,
+          "votes_cast": 2,
+          "votes_yes": 2
+        }
+      }
+    ],
+    "timeline": [
+      {
+        "round": 0,
+        "phase": "setup",
+        "event_type": "phase_changed",
+        "actor": null,
+        "target": null,
+        "summary": "阶段: setup",
+        "timestamp": "2026-04-29T18:11:54.601663"
+      },
+      {
+        "round": 1,
+        "phase": "first_night",
+        "event_type": "phase_changed",
+        "actor": null,
+        "target": null,
+        "summary": "第一夜",
+        "timestamp": "2026-04-29T18:11:57.607612"
+      },
+      {
+        "round": 1,
+        "phase": "day_discussion",
+        "event_type": "phase_changed",
+        "actor": null,
+        "target": null,
+        "summary": "第1天 白天讨论",
+        "timestamp": "2026-04-29T18:11:57.653757"
+      },
+      {
+        "round": 1,
+        "phase": "nomination",
+        "event_type": "phase_changed",
+        "actor": null,
+        "target": null,
+        "summary": "第1天 提名阶段",
+        "timestamp": "2026-04-29T18:11:57.711219"
+      },
+      {
+        "round": 1,
+        "phase": "nomination",
+        "event_type": "nomination_started",
+        "actor": "p1",
+        "target": "p2",
+        "summary": "Player 1 提名了 Player 2",
+        "timestamp": "2026-04-29T18:11:57.774934"
+      },
+      {
+        "round": 1,
+        "phase": "voting",
+        "event_type": "voting_resolved",
+        "actor": null,
+        "target": "p2",
+        "summary": "投票通过 (5/3票) - Player 2",
+        "timestamp": "2026-04-29T18:11:57.863470"
+      },
+      {
+        "round": 1,
+        "phase": "execution",
+        "event_type": "player_death",
+        "actor": null,
+        "target": "p2",
+        "summary": "Player 2 死亡",
+        "timestamp": "2026-04-29T18:11:57.876373"
+      },
+      {
+        "round": 1,
+        "phase": "execution",
+        "event_type": "execution_resolved",
+        "actor": null,
+        "target": "p2",
+        "summary": "Player 2 被处决",
+        "timestamp": "2026-04-29T18:11:57.876947"
+      },
+      {
+        "round": 2,
+        "phase": "night",
+        "event_type": "phase_changed",
+        "actor": null,
+        "target": null,
+        "summary": "第2天 夜晚",
+        "timestamp": "2026-04-29T18:11:57.891796"
+      },
+      {
+        "round": 2,
+        "phase": "night",
+        "event_type": "player_death",
+        "actor": null,
+        "target": "p1",
+        "summary": "Player 1 在夜晚死亡",
+        "timestamp": "2026-04-29T18:11:57.950776"
+      },
+      {
+        "round": 2,
+        "phase": "day_discussion",
+        "event_type": "phase_changed",
+        "actor": null,
+        "target": null,
+        "summary": "第2天 白天讨论",
+        "timestamp": "2026-04-29T18:11:57.962063"
+      },
+      {
+        "round": 2,
+        "phase": "nomination",
+        "event_type": "phase_changed",
+        "actor": null,
+        "target": null,
+        "summary": "第2天 提名阶段",
+        "timestamp": "2026-04-29T18:11:58.034646"
+      },
+      {
+        "round": 2,
+        "phase": "nomination",
+        "event_type": "nomination_started",
+        "actor": "p3",
+        "target": "p4",
+        "summary": "Player 3 提名了 Player 4",
+        "timestamp": "2026-04-29T18:11:58.109289"
+      },
+      {
+        "round": 2,
+        "phase": "voting",
+        "event_type": "voting_resolved",
+        "actor": null,
+        "target": "p4",
+        "summary": "投票通过 (5/2票) - Player 4",
+        "timestamp": "2026-04-29T18:11:58.309970"
+      },
+      {
+        "round": 2,
+        "phase": "execution",
+        "event_type": "player_death",
+        "actor": null,
+        "target": "p4",
+        "summary": "Player 4 死亡",
+        "timestamp": "2026-04-29T18:11:58.332714"
+      },
+      {
+        "round": 2,
+        "phase": "execution",
+        "event_type": "execution_resolved",
+        "actor": null,
+        "target": "p4",
+        "summary": "Player 4 被处决",
+        "timestamp": "2026-04-29T18:11:58.332714"
+      }
+    ],
+    "statistics": {
+      "total_nominations": 2,
+      "total_executions": 2,
+      "total_votes": 10,
+      "total_deaths": 3,
+      "days_played": 2,
+      "player_count": 5
+    },
+    "judgement_summary": [
+      {
+        "category": "night_action",
+        "bucket": "general",
+        "decision": "execute",
+        "reason": null,
+        "phase": "night",
+        "day_number": 2,
+        "round_number": 2,
+        "trace_id": "BOTC-ST-ACT-99a8c4a4",
+        "adjudication_path": null,
+        "distortion_strategy": null,
+        "summary": "actor=p3, role=butler, targets=[\"p4\"]"
+      },
+      {
+        "category": "night_action",
+        "bucket": "general",
+        "decision": "resolved",
+        "reason": null,
+        "phase": "night",
+        "day_number": 2,
+        "round_number": 2,
+        "trace_id": "BOTC-ST-ACT-99a8c4a4",
+        "adjudication_path": null,
+        "distortion_strategy": null,
+        "summary": "actor=p3, role=butler, targets=[\"p4\"]"
+      },
+      {
+        "category": "narration",
+        "bucket": "phase_narration",
+        "decision": "announce",
+        "reason": null,
+        "phase": "day_discussion",
+        "day_number": 2,
+        "round_number": 2,
+        "trace_id": null,
+        "adjudication_path": null,
+        "distortion_strategy": null,
+        "summary": "narration=晨雾散开，谎言与真相同时开口。"
+      },
+      {
+        "category": "strategic_analysis",
+        "bucket": "general",
+        "decision": "正义方小优",
+        "reason": "{\"action\": \"night_action\", \"content\": \"我是一个 Mock AI。\", \"tone\": \"calm\", \"reasoning\": \"夜晚行动模拟。\", \"target\": \"p3\"}",
+        "phase": "day_discussion",
+        "day_number": 2,
+        "round_number": null,
+        "trace_id": null,
+        "adjudication_path": null,
+        "distortion_strategy": null,
+        "summary": "advantage_score=1.0"
+      },
+      {
+        "category": "narration",
+        "bucket": "phase_narration",
+        "decision": "announce",
+        "reason": null,
+        "phase": "nomination",
+        "day_number": 2,
+        "round_number": 2,
+        "trace_id": null,
+        "adjudication_path": null,
+        "distortion_strategy": null,
+        "summary": "narration=怀疑开始聚焦，绞索在空气里慢慢收紧。"
+      },
+      {
+        "category": "strategic_analysis",
+        "bucket": "general",
+        "decision": "正义方小优",
+        "reason": "{\"action\": \"night_action\", \"content\": \"我是一个 Mock AI。\", \"tone\": \"calm\", \"reasoning\": \"夜晚行动模拟。\", \"target\": \"p1\"}",
+        "phase": "nomination",
+        "day_number": 2,
+        "round_number": null,
+        "trace_id": null,
+        "adjudication_path": null,
+        "distortion_strategy": null,
+        "summary": "advantage_score=1.0"
+      },
+      {
+        "category": "nomination_started",
+        "bucket": "day_judgement",
+        "decision": "open",
+        "reason": null,
+        "phase": "nomination",
+        "day_number": 2,
+        "round_number": 2,
+        "trace_id": null,
+        "adjudication_path": null,
+        "distortion_strategy": null,
+        "summary": "max_rounds=1, alive=3"
+      },
+      {
+        "category": "nomination_choice",
+        "bucket": "day_judgement",
+        "decision": "choose",
+        "reason": "first_legal_intent",
+        "phase": "nomination",
+        "day_number": 2,
+        "round_number": 2,
+        "trace_id": null,
+        "adjudication_path": null,
+        "distortion_strategy": null,
+        "summary": "round=1, nominator=p3, nominee=p4"
+      },
+      {
+        "category": "nomination_started",
+        "bucket": "day_judgement",
+        "decision": "start",
+        "reason": null,
+        "phase": "voting",
+        "day_number": 2,
+        "round_number": 2,
+        "trace_id": "BOTC-FLOW-NOM-45bfe87f",
+        "adjudication_path": null,
+        "distortion_strategy": null,
+        "summary": "round=1, nominator=p3, nominee=p4, threshold=2"
+      },
+      {
+        "category": "defense",
+        "bucket": "day_judgement",
+        "decision": "request",
+        "reason": null,
+        "phase": "voting",
+        "day_number": 2,
+        "round_number": 2,
+        "trace_id": "BOTC-FLOW-NOM-45bfe87f",
+        "adjudication_path": null,
+        "distortion_strategy": null,
+        "summary": "nominee=p4"
+      },
+      {
+        "category": "defense",
+        "bucket": "day_judgement",
+        "decision": "deliver",
+        "reason": null,
+        "phase": "voting",
+        "day_number": 2,
+        "round_number": 2,
+        "trace_id": "BOTC-FLOW-NOM-45bfe87f",
+        "adjudication_path": null,
+        "distortion_strategy": null,
+        "summary": "nominee=p4, content=我先把我最确认的一条线说清楚：我觉得现在别急着拆场上的每一个身份，先看发言逻辑和投票轨迹更稳。。我是好人，请不要处决我！"
+      },
+      {
+        "category": "voting_resolution",
+        "bucket": "general",
+        "decision": "open",
+        "reason": null,
+        "phase": "voting",
+        "day_number": 2,
+        "round_number": 2,
+        "trace_id": "BOTC-FLOW-NOM-45bfe87f",
+        "adjudication_path": null,
+        "distortion_strategy": null,
+        "summary": "nominee=p4, defense_text=我先把我最确认的一条线说清楚：我觉得现在别急着拆场上的每一个身份，先看发言逻辑和投票轨迹更稳。。我是好人，请不要处决我！, threshold=2"
+      },
+      {
+        "category": "voting_resolution",
+        "bucket": "general",
+        "decision": "cast_vote",
+        "reason": null,
+        "phase": "voting",
+        "day_number": 2,
+        "round_number": 2,
+        "trace_id": "BOTC-FLOW-NOM-45bfe87f",
+        "adjudication_path": null,
+        "distortion_strategy": null,
+        "summary": "voter=p1, nominee=p4, vote=True, yes_votes=1, votes_cast=1"
+      },
+      {
+        "category": "voting_resolution",
+        "bucket": "general",
+        "decision": "cast_vote",
+        "reason": null,
+        "phase": "voting",
+        "day_number": 2,
+        "round_number": 2,
+        "trace_id": "BOTC-FLOW-NOM-45bfe87f",
+        "adjudication_path": null,
+        "distortion_strategy": null,
+        "summary": "voter=p2, nominee=p4, vote=True, yes_votes=2, votes_cast=2"
+      },
+      {
+        "category": "voting_resolution",
+        "bucket": "general",
+        "decision": "cast_vote",
+        "reason": null,
+        "phase": "voting",
+        "day_number": 2,
+        "round_number": 2,
+        "trace_id": "BOTC-FLOW-NOM-45bfe87f",
+        "adjudication_path": null,
+        "distortion_strategy": null,
+        "summary": "voter=p3, nominee=p4, vote=True, yes_votes=3, votes_cast=3"
+      },
+      {
+        "category": "voting_resolution",
+        "bucket": "general",
+        "decision": "cast_vote",
+        "reason": null,
+        "phase": "voting",
+        "day_number": 2,
+        "round_number": 2,
+        "trace_id": "BOTC-FLOW-NOM-45bfe87f",
+        "adjudication_path": null,
+        "distortion_strategy": null,
+        "summary": "voter=p4, nominee=p4, vote=True, yes_votes=4, votes_cast=4"
+      },
+      {
+        "category": "voting_resolution",
+        "bucket": "general",
+        "decision": "cast_vote",
+        "reason": null,
+        "phase": "voting",
+        "day_number": 2,
+        "round_number": 2,
+        "trace_id": "BOTC-FLOW-NOM-45bfe87f",
+        "adjudication_path": null,
+        "distortion_strategy": null,
+        "summary": "voter=p5, nominee=p4, vote=True, yes_votes=5, votes_cast=5"
+      },
+      {
+        "category": "voting_resolution",
+        "bucket": "general",
+        "decision": "resolve",
+        "reason": null,
+        "phase": "nomination",
+        "day_number": 2,
+        "round_number": 2,
+        "trace_id": "BOTC-FLOW-NOM-45bfe87f",
+        "adjudication_path": null,
+        "distortion_strategy": null,
+        "summary": "nominee=p4, passed=True, votes=5, needed=2, yes_votes=5, votes_cast=5"
+      },
+      {
+        "category": "voting_resolution",
+        "bucket": "general",
+        "decision": "resolved",
+        "reason": null,
+        "phase": "nomination",
+        "day_number": 2,
+        "round_number": 2,
+        "trace_id": "BOTC-FLOW-NOM-45bfe87f",
+        "adjudication_path": null,
+        "distortion_strategy": null,
+        "summary": "round=1, nominee=p4, votes={}"
+      },
+      {
+        "category": "execution",
+        "bucket": "day_judgement",
+        "decision": "finalize",
+        "reason": null,
+        "phase": "execution",
+        "day_number": 2,
+        "round_number": 2,
+        "trace_id": "BOTC-FLOW-EXEC-17f1b1a5",
+        "adjudication_path": null,
+        "distortion_strategy": null,
+        "summary": "round=1, executed=None, votes=None"
+      }
+    ]
+  },
+  "config": {
+    "player_count": 5,
+    "script": {
+      "script_id": "trouble_brewing",
+      "name": "暗流涌动",
+      "name_en": "Trouble Brewing",
+      "roles": [
+        "washerwoman",
+        "librarian",
+        "investigator",
+        "chef",
+        "empath",
+        "fortune_teller",
+        "undertaker",
+        "monk",
+        "ravenkeeper",
+        "virgin",
+        "slayer",
+        "soldier",
+        "mayor",
+        "butler",
+        "drunken",
+        "recluse",
+        "saint",
+        "poisoner",
+        "spy",
+        "scarlet_woman",
+        "baron",
+        "imp"
+      ]
+    },
+    "script_id": "trouble_brewing",
+    "human_client_id": null,
+    "human_mode": "none",
+    "storyteller_client_id": null,
+    "human_player_ids": [],
+    "is_human_participant": false,
+    "storyteller_mode": "auto",
+    "storyteller_delegated": false,
+    "llm_model": "gpt-4o-mini",
+    "backend_mode": "mock",
+    "audit_mode": true,
+    "discussion_rounds": 1,
+    "ai_discussion_message_limit": null,
+    "max_nomination_rounds": 1,
+    "turn_timeout": 300
+  },
+  "players": [
+    {
+      "game_id": "225c0271-fa41-465e-9114-dce7379c1f9f",
+      "player_id": "p1",
+      "player_name": "Player 1",
+      "true_role_id": "baron",
+      "perceived_role_id": "baron",
+      "team": "evil",
+      "is_alive": 0,
+      "is_human": 0
+    },
+    {
+      "game_id": "225c0271-fa41-465e-9114-dce7379c1f9f",
+      "player_id": "p2",
+      "player_name": "Player 2",
+      "true_role_id": "ravenkeeper",
+      "perceived_role_id": "ravenkeeper",
+      "team": "good",
+      "is_alive": 0,
+      "is_human": 0
+    },
+    {
+      "game_id": "225c0271-fa41-465e-9114-dce7379c1f9f",
+      "player_id": "p3",
+      "player_name": "Player 3",
+      "true_role_id": "butler",
+      "perceived_role_id": "butler",
+      "team": "good",
+      "is_alive": 1,
+      "is_human": 0
+    },
+    {
+      "game_id": "225c0271-fa41-465e-9114-dce7379c1f9f",
+      "player_id": "p4",
+      "player_name": "Player 4",
+      "true_role_id": "imp",
+      "perceived_role_id": "imp",
+      "team": "evil",
+      "is_alive": 0,
+      "is_human": 0
+    },
+    {
+      "game_id": "225c0271-fa41-465e-9114-dce7379c1f9f",
+      "player_id": "p5",
+      "player_name": "Player 5",
+      "true_role_id": "drunken",
+      "perceived_role_id": "mayor",
+      "team": "good",
+      "is_alive": 1,
+      "is_human": 0
+    }
+  ]
+}

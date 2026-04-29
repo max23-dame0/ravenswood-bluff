@@ -31,5 +31,6 @@ This repository now has two layers of acceptance for the player and storyteller 
 
 ## Notes
 
+- 2026-04-28：repo-local 自动化契约已通过，`scripts/frontend_acceptance.py` 输出 `frontend acceptance: ok`，`tests/test_orchestrator/test_frontend_acceptance.py` 已纳入通过的 pytest 覆盖；浏览器级 smoke 仍待记录。
 - `playwright` is not currently installed as a Python dependency in this repo.
 - The browser smoke is therefore run through MCP/Playwright tooling, while the repo-local script and pytest case keep the acceptance contract executable inside the workspace.

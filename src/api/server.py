@@ -58,6 +58,9 @@ from src.agents.storyteller_agent import StorytellerAgent
 global_orchestrator: GameOrchestrator | None = None
 global_storyteller: StorytellerAgent | None = None
 global_game_loop_task: asyncio.Task | None = None
+global_game_loop_started_at: datetime | None = None
+global_game_loop_game_id: str | None = None
+global_last_loop_exception: dict[str, Any] | None = None
 human_agents: Dict[str, HumanAgent] = {}
 
 class ConnectionManager:
@@ -139,10 +142,12 @@ def build_fresh_orchestrator(force_backend_mode: str | None = None) -> GameOrche
 
 
 async def stop_game_loop_task() -> None:
-    global global_game_loop_task
+    global global_game_loop_task, global_game_loop_started_at, global_game_loop_game_id
 
     task = global_game_loop_task
     global_game_loop_task = None
+    global_game_loop_started_at = None
+    global_game_loop_game_id = None
     if task and not task.done():
         task.cancel()
         with suppress(asyncio.CancelledError):
@@ -150,10 +155,12 @@ async def stop_game_loop_task() -> None:
 
 
 def ensure_game_loop_running() -> bool:
-    global global_game_loop_task
+    global global_game_loop_task, global_game_loop_started_at, global_game_loop_game_id
 
     if global_game_loop_task and not global_game_loop_task.done():
         return False
+    global_game_loop_started_at = datetime.now()
+    global_game_loop_game_id = global_orchestrator.state.game_id if global_orchestrator else None
     global_game_loop_task = asyncio.create_task(run_game_loop_safe())
     return True
 
@@ -187,6 +194,10 @@ def collect_metrics(orchestrator: GameOrchestrator) -> dict[str, Any]:
         phase_duration_seconds = round((datetime.now() - last_phase_event.timestamp).total_seconds(), 2)
 
     backend = orchestrator.default_agent_backend
+    runtime = orchestrator.collect_runtime_diagnostics()
+    ai_metrics = orchestrator.collect_ai_action_metrics()
+    if global_last_loop_exception:
+        runtime["last_loop_exception"] = global_last_loop_exception
     return {
         "game_id": state.game_id,
         "backend": {
@@ -194,6 +205,14 @@ def collect_metrics(orchestrator: GameOrchestrator) -> dict[str, Any]:
             "model": backend.get_model_name() if backend else None,
         },
         "loop_running": bool(global_game_loop_task and not global_game_loop_task.done()),
+        "loop_task": {
+            "running": bool(global_game_loop_task and not global_game_loop_task.done()),
+            "done": bool(global_game_loop_task.done()) if global_game_loop_task else False,
+            "cancelled": bool(global_game_loop_task.cancelled()) if global_game_loop_task else False,
+            "game_id": global_game_loop_game_id,
+            "started_at": global_game_loop_started_at.isoformat() if global_game_loop_started_at else None,
+            "last_exception": global_last_loop_exception,
+        },
         "phase": state.phase.value,
         "day_number": state.day_number,
         "round_number": state.round_number,
@@ -214,6 +233,8 @@ def collect_metrics(orchestrator: GameOrchestrator) -> dict[str, Any]:
         "latest_execution": last_execution,
         "storyteller_delegated": getattr(orchestrator.storyteller_agent, "delegated", False) if orchestrator.storyteller_agent else False,
         "storyteller_mode": getattr(orchestrator.storyteller_agent, "mode", "manual") if orchestrator.storyteller_agent else "manual",
+        "runtime": runtime,
+        "ai_action_metrics": ai_metrics,
     }
 
 
@@ -228,14 +249,15 @@ def resolve_viewer_mode(orchestrator: GameOrchestrator, player_id: str | None) -
     if not player_id:
         return "observer"
         
-    # 后门/固定 ID 支持，确保控制台始终可用
-    if player_id in ["h1", "storyteller", "admin"]:
-        return "storyteller"
-        
     if config.storyteller_client_id and player_id == config.storyteller_client_id:
         return "storyteller"
     if config.human_mode == "player" and config.human_client_id == player_id:
         return "player"
+
+    # 后门/固定 ID 支持，确保控制台始终可用 (在没有明确配置冲突时生效)
+    if player_id in ["storyteller", "admin"]:
+        return "storyteller"
+    
     return "observer"
 
 def filter_chat_history(orchestrator: GameOrchestrator, player_id: str | None, viewer_mode: str) -> list[dict[str, Any]]:
@@ -257,7 +279,7 @@ def filter_chat_history(orchestrator: GameOrchestrator, player_id: str | None, v
         if not m.recipient_ids:
             # 公开消息
             visible = True
-        elif player_id in (m.speaker, m.target) or (m.recipient_ids and player_id in m.recipient_ids):
+        elif player_id in (m.speaker, m.target_player) or (m.recipient_ids and player_id in m.recipient_ids):
             # 涉及自己的私聊
             visible = True
         elif team == Team.EVIL and m.recipient_ids:
@@ -466,16 +488,25 @@ if os.path.exists(public_dir):
     app.mount("/ui", StaticFiles(directory=public_dir, html=True), name="ui")
 
 async def run_game_loop_safe():
+    global global_last_loop_exception
     try:
         orchestrator = global_orchestrator
         if not orchestrator:
             return
+        global_last_loop_exception = None
         logger.info("Starting safe game loop background task...")
         await orchestrator.run_game_loop()
     except asyncio.CancelledError:
         logger.info("Game loop background task cancelled.")
         raise
     except Exception as e:
+        global_last_loop_exception = {
+            "type": type(e).__name__,
+            "message": str(e),
+            "timestamp": datetime.now().isoformat(),
+        }
+        if global_orchestrator:
+            global_orchestrator._record_recent_exception("game_loop", e)
         logger.error(f"Game loop crashed: {e}", exc_info=True)
 
 @app.get("/")
@@ -524,6 +555,7 @@ async def setup_game(data: Dict[str, Any]):
     discussion_rounds = data.get("discussion_rounds")
     audit_mode = bool(data.get("audit_mode", False))
     max_nomination_rounds = data.get("max_nomination_rounds")
+    ai_discussion_message_limit = data.get("ai_discussion_message_limit")
     
     if player_count < 5 or player_count > 15:
         return {"status": "error", "message": "Player count must be between 5 and 15"}
@@ -537,6 +569,7 @@ async def setup_game(data: Dict[str, Any]):
             discussion_rounds=discussion_rounds,
             audit_mode=audit_mode,
             max_nomination_rounds=max_nomination_rounds,
+            ai_discussion_message_limit=ai_discussion_message_limit,
             backend_mode=os.getenv("BOTC_BACKEND", "auto"),
             human_mode=human_mode,
             human_client_id=human_client_id,
@@ -639,6 +672,7 @@ async def get_game_state(player_id: str = None):
         "chat_history": filter_chat_history(orchestrator, player_id, viewer_mode),
         "event_log": filter_event_log(orchestrator, player_id, viewer_mode),
         "active_action_request": None,
+        "waiting_for": getattr(orchestrator, "_current_waiting_for", None),
         "players": []
     }
     
@@ -662,9 +696,20 @@ async def get_game_state(player_id: str = None):
                 "player_id": p.player_id,
                 "name": p.name,
                 "is_alive": p.is_alive,
+                "has_used_dead_vote": getattr(p, "has_used_dead_vote", False),
+                "ghost_votes_remaining": getattr(p, "ghost_votes_remaining", 1) if not p.is_alive else 0,
             }
             # 无论是玩家还是说书人，只要是查看自己的信息，就显示其角色
-            if player_id == p.player_id:
+            if viewer_mode == "storyteller":
+                p_info.update({
+                    "role_id": p.role_id,
+                    "true_role_id": p.true_role_id,
+                    "perceived_role_id": p.perceived_role_id,
+                    "team": (p.current_team or p.team).value,
+                    "is_poisoned": p.is_poisoned,
+                    "is_drunk": p.is_drunk,
+                })
+            elif player_id == p.player_id:
                 display_role = p.perceived_role_id or p.fake_role or p.role_id
                 p_info.update({
                     "role_id": display_role,
@@ -681,8 +726,17 @@ async def get_game_state(player_id: str = None):
                 "player_id": p.player_id,
                 "name": p.name,
                 "is_alive": p.is_alive,
+                "has_used_dead_vote": getattr(p, "has_used_dead_vote", False),
+                "ghost_votes_remaining": getattr(p, "ghost_votes_remaining", 1) if not p.is_alive else 0,
             }
-            if player_id == p.player_id:
+            if viewer_mode == "storyteller":
+                p_info.update({
+                    "role_id": p.role_id,
+                    "true_role_id": p.true_role_id,
+                    "perceived_role_id": p.perceived_role_id,
+                    "team": (p.current_team or p.team).value,
+                })
+            elif player_id == p.player_id:
                 display_role = p.perceived_role_id or p.fake_role or p.role_id
                 p_info.update({
                     "role_id": display_role,
@@ -775,6 +829,23 @@ async def get_game_history_detail(game_id: str):
         raise
     except Exception as e:
         logger.error(f"Failed to fetch game record: {e}")
+        return {"status": "error", "message": str(e)}
+
+
+@app.get("/api/game/history/{game_id}/player/{player_name}")
+async def get_player_game_history_detail(game_id: str, player_name: str):
+    """获取指定对局的玩家视角历史详情，不包含说书人幕后裁量。"""
+    from src.state.game_record import GameRecordStore
+    store = GameRecordStore()
+    try:
+        record = await store.export_player_history_detail(game_id, player_name=player_name)
+        if not record:
+            raise HTTPException(status_code=404, detail="Game not found")
+        return {"status": "ok", **record}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to fetch player game record: {e}")
         return {"status": "error", "message": str(e)}
 
 

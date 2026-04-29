@@ -10,6 +10,14 @@ def _memory_db_uri(name: str) -> str:
     return f"file:{name}?mode=memory&cache=shared"
 
 
+def _contains_key(value, key: str) -> bool:
+    if isinstance(value, dict):
+        return key in value or any(_contains_key(item, key) for item in value.values())
+    if isinstance(value, list):
+        return any(_contains_key(item, key) for item in value)
+    return False
+
+
 def test_settlement_endpoint_returns_report_when_game_over(monkeypatch):
     monkeypatch.setenv("BOTC_BACKEND", "mock")
     import src.api.server as server_module
@@ -135,6 +143,16 @@ async def test_history_endpoints_read_persisted_games(monkeypatch):
             assert detail_payload["winning_team"] == "good"
             assert detail_payload["storyteller_judgements"]["game_id"] == "history-test"
             assert detail_payload["storyteller_judgements"]["judgement_count"] == 0
+
+            player_detail_response = client.get("/api/game/history/history-test/player/Alice")
+            assert player_detail_response.status_code == 200
+            player_detail_payload = player_detail_response.json()
+            assert player_detail_payload["status"] == "ok"
+            assert player_detail_payload["game_id"] == "history-test"
+            assert player_detail_payload["view"] == "player"
+            assert player_detail_payload["player_name"] == "Alice"
+            assert "storyteller_judgements" not in player_detail_payload
+            assert not _contains_key(player_detail_payload, "true_role_id")
 
             player_response = client.get("/api/game/history/player/Alice")
             assert player_response.status_code == 200

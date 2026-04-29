@@ -41,6 +41,9 @@ class MockLLMBackend(LLMBackend):
     def get_model_name(self) -> str:
         return "mock-model"
 
+    async def get_embeddings(self, texts: list[str]) -> list[list[float]]:
+        return [[0.0] * 1536 for _ in texts]
+
 
 class TestLLMModels:
     def test_message_creation(self):

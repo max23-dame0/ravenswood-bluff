@@ -28,6 +28,11 @@ class DummyBackend(LLMBackend):
         return vectors
 
 
+class BrokenDecisionBackend(DummyBackend):
+    async def generate(self, system_prompt: str, messages: list[Message], **kwargs) -> LLMResponse:
+        return LLMResponse(content="not-json", tool_calls=[], model="broken-model")
+
+
 def _agent_ctx(agent: AIAgent, state: GameState):
     visible_state = agent._build_visible_state(state)
     legal_context = agent._build_legal_action_context(state, visible_state)
@@ -68,6 +73,29 @@ async def test_agent_observe(dummy_agent, dummy_state):
     obs = dummy_agent.working_memory.observations[0]
     assert "大家好我是好人" in obs.content
     assert "Bob" in obs.content
+
+
+@pytest.mark.asyncio
+async def test_ai_action_metrics_record_fallback(dummy_state):
+    agent = AIAgent(
+        player_id="p1",
+        name="Alice",
+        backend=BrokenDecisionBackend(),
+        persona=Persona(description="谨慎村民", speaking_style="平稳"),
+    )
+    agent.synchronize_role(dummy_state.get_player("p1"))
+    visible_state, legal_context = _agent_ctx(agent, dummy_state)
+
+    decision = await agent.act(visible_state, "speak", legal_context=legal_context)
+
+    assert decision["action"] == "speak"
+    metrics = agent.export_action_metrics()
+    assert metrics[-1]["game_id"] == dummy_state.game_id
+    assert metrics[-1]["player_id"] == "p1"
+    assert metrics[-1]["action_type"] == "speak"
+    assert metrics[-1]["model"] == "broken-model"
+    assert metrics[-1]["fallback_used"] is True
+    assert metrics[-1]["fallback_reason"] == "llm_error:JSONDecodeError"
 
 
 @pytest.mark.asyncio
@@ -265,7 +293,7 @@ async def test_agent_records_public_role_claim_as_anchor_fact(dummy_agent):
     bob = dummy_agent.social_graph.get_profile("p2")
     assert bob is not None
     assert bob.claimed_role_id == "fortune_teller"
-    assert any("Bob 公开跳身份为 预言家" in fact for fact in dummy_agent.working_memory.anchor_facts)
+    assert any("Bob 公开跳身份为 占卜师" in fact for fact in dummy_agent.working_memory.anchor_facts)
 
 
 @pytest.mark.asyncio
@@ -470,7 +498,7 @@ async def test_confirmed_evil_teammate_private_info_reduces_suspicion_for_evil_a
     teammate_score = agent._target_signal_score("p2", visible_state)
     outsider_score = agent._target_signal_score("p3", visible_state)
     assert teammate_score < outsider_score
-    assert agent.working_memory.get_objective_memory_summaries("evil_teammates") == ["你的邪恶队友是：Player 2"]
+    assert agent.working_memory.get_objective_memory_summaries("evil_teammates") == ["【绝密推演可用】已知邪恶同伴名单：Player 2"]
     assert agent.working_memory.get_objective_memory_summaries("evil_bluffs")
 
 
@@ -503,7 +531,7 @@ async def test_fortune_teller_high_confidence_info_increases_suspicion_for_menti
         visibility=Visibility.PRIVATE,
         payload={
             "type": "fortune_teller_info",
-            "title": "预言家信息",
+            "title": "占卜师信息",
             "lines": ["Bob 和 Charlie 中至少有一人是恶魔或红鲱鱼。"],
         },
     )
@@ -688,7 +716,7 @@ async def test_fortune_teller_info_is_stored_as_high_confidence_memory(dummy_age
         visibility=Visibility.PRIVATE,
         payload={
             "type": "fortune_teller_info",
-            "title": "预言家信息",
+            "title": "占卜师信息",
             "lines": ["Bob 和 Charlie 中至少有一人是恶魔或红鲱鱼。"],
         },
     )
@@ -696,7 +724,7 @@ async def test_fortune_teller_info_is_stored_as_high_confidence_memory(dummy_age
     await dummy_agent.observe_event(event, visible_state)
 
     summaries = dummy_agent.working_memory.get_private_memory_summaries("fortune_teller_info")
-    assert summaries == ["预言家信息: Bob 和 Charlie 中至少有一人是恶魔或红鲱鱼。"]
+    assert summaries == ["占卜师信息: Bob 和 Charlie 中至少有一人是恶魔或红鲱鱼。"]
 
 
 @pytest.mark.asyncio
@@ -940,6 +968,9 @@ async def test_ai_agent_ignores_hidden_events_and_private_chats_in_prompt():
 
         def get_model_name(self) -> str:
             return "capturing-model"
+
+        async def get_embeddings(self, texts: list[str]) -> list[list[float]]:
+            return [[0.0] * 1536 for _ in texts]
 
     backend = CapturingBackend()
     agent = AIAgent(
@@ -1341,7 +1372,7 @@ async def test_vote_reasoning_prefers_high_confidence_evidence_over_public_claim
             visibility=Visibility.PRIVATE,
             payload={
                 "type": "fortune_teller_info",
-                "title": "预言家信息",
+                "title": "占卜师信息",
                 "lines": ["Bob 和 Charlie 中至少有一人是恶魔或红鲱鱼。"],
                 "players": ["p2", "p3"],
                 "result": True,
@@ -1599,7 +1630,9 @@ async def test_defense_fallback_uses_high_confidence_memory_before_public_noise(
 
     assert decision["action"] == "speak"
     assert "我已经确认过的线索" in decision["content"]
-    assert "至少其中一人可能是恶魔" in decision["content"]
+    assert "Bob" in decision["content"] or "Charlie" in decision["content"]
+    assert "恶魔" not in decision["content"]
+    assert "高可信信息" not in decision["content"]
 
 
 @pytest.mark.asyncio
@@ -1647,7 +1680,9 @@ async def test_speak_content_is_augmented_with_high_confidence_anchor_when_model
 
     assert decision["action"] == "speak"
     assert "我先说我更信的一条线" in decision["content"]
-    assert "Bob 可能是 投毒者" in decision["content"] or "Charlie 可能是 投毒者" in decision["content"]
+    assert "Bob" in decision["content"] or "Charlie" in decision["content"]
+    assert "投毒者" not in decision["content"]
+    assert "爪牙" not in decision["content"]
 
 
 @pytest.mark.asyncio

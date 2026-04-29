@@ -12,6 +12,7 @@ def test_ai_eval_acceptance_script_runs_cleanly():
         capture_output=True,
         text=True,
         check=False,
+        timeout=180,
     )
 
     assert result.returncode == 0, result.stderr or result.stdout
@@ -26,6 +27,7 @@ def test_wave3_acceptance_script_runs_cleanly():
         capture_output=True,
         text=True,
         check=False,
+        timeout=300,
     )
 
     assert result.returncode == 0, result.stderr or result.stdout

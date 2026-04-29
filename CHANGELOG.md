@@ -1,4 +1,34 @@
 # Changelog
+
+## [alpha1.0-candidate] - 2026-04-29
+
+Alpha 1.0 是首个正式内测候选版本，目标不是扩大功能面，而是把主流程、真人入口、AI 玩家、说书人复盘和发布门禁收束到可组织小范围内测的状态。
+
+### 新增与强化
+
+- **规则与流程封板**：补齐 Trouble Brewing 主链的夜晚、白天讨论、提名、辩解、投票、处决、结算和 rematch 验收入口。
+- **真人前端内测流**：玩家端覆盖身份查看、私密信息、聊天、提名、投票、死亡状态、结算历史；说书人端保留魔典、夜晚步骤和裁量摘要。
+- **Live backend smoke**：`simulate_game.py --stop-after` 支持短局停止点，`scripts/alpha1_acceptance.py --include-live-smoke` 可手动纳入 live smoke。
+- **说书人 judgement ledger**：固定信息、醉酒/中毒失真、隐士/间谍误注册、红鲱鱼选择与命中、市长夜杀转移均有可导出的裁量记录。
+- **AI 玩家内测体验**：公开发言边界、私密信息表达、fallback 行为、投票/提名差异和行为样本由 M5 acceptance 覆盖。
+- **问题定位包**：`scripts/export_all_assets.py` 可按 `game_id` 导出历史、AI traces、说书人裁量、metrics 摘要、日志尾片段和 manifest。
+- **发布工程**：新增 alpha1 release checklist、known issues、反馈模板、数据目录说明和聚合门禁。
+
+### 验收入口
+
+- `scripts/alpha1_acceptance.py`
+- `scripts/alpha1_rules_acceptance.py`
+- `scripts/frontend_acceptance.py`
+- `scripts/storyteller_acceptance.py`
+- `scripts/role_acceptance.py`
+- `scripts/m5_ai_player_experience_acceptance.py`
+- `scripts/export_all_assets.py`
+
+### 已知限制
+
+- Alpha 1.0 仍为内测候选，不承诺生产级稳定。
+- Live 模式耗时、token/调用量基线和浏览器级真人 smoke 记录仍需在 release checklist 中逐项确认。
+- 长局日志与 trace 体积需要按 `docs/alpha-1.0-data-operations.md` 管理。
  
 ## [alpha0.3] - 2026-04-24
  

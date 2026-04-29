@@ -96,7 +96,7 @@ def test_imp_self_kill_transfers_to_scarlet_woman_when_threshold_met() -> None:
     assert transformed is not None
     assert transformed.role_id == "imp"
     assert transformed.true_role_id == "imp"
-    assert transformed.perceived_role_id == "imp"
+    assert transformed.perceived_role_id == "scarlet_woman"
     assert transformed.current_team == Team.EVIL
     assert len(events) == 2
     assert events[0].event_type == "night_kill"
@@ -281,7 +281,9 @@ def test_recluse_registers_as_demon_for_fortune_teller() -> None:
 
     info = role.get_night_info(state, state.get_player("f"))
 
-    assert info == {"type": "fortune_teller_info", "has_demon": True}
+    assert info["type"] == "fortune_teller_info"
+    assert info["has_demon"] is True
+    assert info["players"] == ["r", "g"]
 
 
 def test_ravenkeeper_reads_true_role_on_death_trigger() -> None:
@@ -420,7 +422,8 @@ def test_recluse_registers_as_evil_for_chef() -> None:
         ),
     )
     info = role.get_night_info(state, state.get_player("g"))
-    assert info == {"type": "chef_info", "pairs": 1}
+    assert info["type"] == "chef_info"
+    assert info["pairs"] == 1
 
 def test_butler_vote_is_intercepted_if_target_does_not_vote() -> None:
     from src.engine.nomination import NominationManager

@@ -30,11 +30,11 @@ def test_history_overlay_contract_is_wired():
     assert "async function toggleHistoryOverlay(forceOpen = null)" in INDEX_HTML
     assert 'fetch(`${backendHttpOrigin()}/api/game/history?limit=20`)' in INDEX_HTML
     assert 'fetch(`${backendHttpOrigin()}/api/game/history/player/${encodeURIComponent(currentUserId)}`)' in INDEX_HTML
-    assert 'fetch(`${backendHttpOrigin()}/api/game/history/${encodeURIComponent(gameId)}`)' in INDEX_HTML
+    assert 'fetch(`${backendHttpOrigin()}/api/game/history/${encodeURIComponent(gameId)}/player/${encodeURIComponent(currentUserId)}`)' in INDEX_HTML
     assert "function openHistoryFromSettlement()" in INDEX_HTML
-    assert "const storytellerJudgements = data.storyteller_judgements || {}" in INDEX_HTML
-    assert 'id="historyJudgementBox"' in INDEX_HTML
-    assert "说书人裁量摘要" in INDEX_HTML
+    assert "data.storyteller_judgements" not in INDEX_HTML
+    assert 'id="historyJudgementBox"' not in INDEX_HTML
+    assert "说书人裁量摘要" not in INDEX_HTML
 
 
 def test_rules_overlay_includes_night_order_rulebook_contract():

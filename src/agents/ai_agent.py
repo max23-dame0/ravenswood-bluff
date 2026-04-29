@@ -7,16 +7,18 @@ AI Agent 实现
 from __future__ import annotations
 
 import hashlib
+import asyncio
 import logging
 import json
 import os
 import re
+import time
 from dataclasses import dataclass
 from typing import Any, Optional
 from src.engine.data_collector import GameDataCollector
 from src.agents.base_agent import BaseAgent
 from src.agents.memory.episodic_memory import EpisodicMemory, Episode
-from src.agents.memory.social_graph import SocialGraph
+from src.agents.memory.social_graph import ClaimRecord, SocialGraph
 from src.agents.memory.working_memory import Observation, WorkingMemory
 from src.agents.memory.vector_memory import VectorMemory
 from src.agents.persona_registry import ARCHETYPES, Archetype, get_archetype
@@ -115,7 +117,57 @@ class AIAgent(BaseAgent):
         self._last_retrieval_query: str = ""
         self._last_retrieval_items: list[dict[str, Any]] = []
         self._last_social_prime_signature: str = ""
+        self.action_metrics: list[dict[str, Any]] = []
+        self._pending_fallback_reason: str | None = None
         self._refresh_persona_profile()
+
+    def _action_timeout_seconds(self) -> float:
+        try:
+            return max(1.0, float(os.getenv("AI_ACTION_TIMEOUT_SECONDS", "45")))
+        except ValueError:
+            return 45.0
+
+    def _record_action_metric(
+        self,
+        visible_state: AgentVisibleState,
+        action_type: str,
+        *,
+        model: str = "",
+        usage: dict[str, Any] | None = None,
+        latency_ms: int = 0,
+        fallback_used: bool = False,
+        fallback_reason: str | None = None,
+    ) -> None:
+        usage = usage or {}
+        metric = {
+            "game_id": visible_state.game_id,
+            "player_id": self.player_id,
+            "role_id": self.role_id or self.perceived_role_id or "unknown",
+            "phase": visible_state.phase.value if hasattr(visible_state.phase, "value") else str(visible_state.phase),
+            "day_number": visible_state.day_number,
+            "round_number": visible_state.round_number,
+            "action_type": action_type,
+            "model": model or (self.backend.get_model_name() if self.backend else "unknown"),
+            "prompt_tokens": int(usage.get("prompt_tokens", 0) or 0),
+            "completion_tokens": int(usage.get("completion_tokens", 0) or 0),
+            "total_tokens": int(usage.get("total_tokens", 0) or 0),
+            "latency_ms": latency_ms,
+            "fallback_used": fallback_used,
+            "fallback_reason": fallback_reason,
+        }
+        self.action_metrics.append(metric)
+        self.action_metrics = self.action_metrics[-200:]
+        if fallback_used:
+            logger.warning(
+                "[%s] fallback action recorded: action_type=%s reason=%s",
+                self.name,
+                action_type,
+                fallback_reason,
+            )
+
+    def export_action_metrics(self, limit: int | None = None) -> list[dict[str, Any]]:
+        metrics = list(self.action_metrics)
+        return metrics[-limit:] if limit else metrics
 
     def synchronize_role(self, player_state: PlayerState) -> None:
         super().synchronize_role(player_state)
@@ -301,7 +353,6 @@ class AIAgent(BaseAgent):
             lines = payload.get("lines", [])
             detail = " ".join(str(line) for line in lines[:3]) if isinstance(lines, list) else ""
             remembered = f"{title}: {detail}".strip(": ")
-            self.working_memory.remember_fact(remembered or f"你收到了私密信息: {info_type}")
             self._store_private_info_memory(
                 info_type,
                 remembered or f"你收到了私密信息: {info_type}",
@@ -312,7 +363,6 @@ class AIAgent(BaseAgent):
             teammates = payload.get("teammates", [])
             if teammates:
                 teammates_str = ', '.join(teammates)
-                self.working_memory.remember_fact(f"【绝密推演可用】已知邪恶同伴名单：{teammates_str}")
                 self.working_memory.remember_objective_info(
                     "evil_teammates",
                     f"【绝密推演可用】已知邪恶同伴名单：{teammates_str}",
@@ -331,7 +381,6 @@ class AIAgent(BaseAgent):
             if bluffs:
                 bluff_names = [get_role_name(role_id) for role_id in bluffs]
                 bluffs_str = ', '.join(bluff_names)
-                self.working_memory.remember_fact(f"【伪装策略】适合邪恶阵营穿的衣服（bluff）：{bluffs_str}")
                 self.working_memory.remember_objective_info(
                     "evil_bluffs",
                     f"【伪装策略】适合邪恶阵营穿的衣服（bluff）：{bluffs_str}",
@@ -480,9 +529,20 @@ class AIAgent(BaseAgent):
                        self.name, new_role, old_perceived, bluffs)
             return
 
-        if event.event_type == "player_speaks" and event.actor and event.actor != self.player_id:
+        if event.event_type in {"player_speaks", "defense_started"} and event.actor and event.actor != self.player_id:
             actor_name = self._player_name_from_visible_state(event.actor, visible_state)
-            statements = self._extract_role_statements(event.payload.get("content", ""), event.actor, visible_state)
+            extracted = event.payload.get("extracted_claims")
+            if extracted is not None:
+                statements = [
+                    ParsedRoleStatement(
+                        role_id=c.get("role_id"),
+                        claim_type=c.get("claim_type"),
+                        subject_player_ids=tuple(c.get("subject_player_ids", [])),
+                        source_text=event.payload.get("content", "")
+                    ) for c in extracted
+                ]
+            else:
+                statements = self._extract_role_statements(event.payload.get("content", ""), event.actor, visible_state)
             for statement in statements:
                 if statement.claim_type == "self_claim":
                     self.social_graph.init_player(event.actor, actor_name)
@@ -552,6 +612,11 @@ class AIAgent(BaseAgent):
                         self.social_graph.add_note(subject_id, f"{actor_name} {verb} {get_role_name(statement.role_id)}")
 
     def _store_private_info_memory(self, info_type: str, summary: str, visible_state: AgentVisibleState) -> None:
+        summary = (summary or "").strip()
+        if summary and summary not in self.working_memory.anchor_facts:
+            self.working_memory.anchor_facts.append(summary)
+            self.working_memory.anchor_facts = self.working_memory.anchor_facts[-self.working_memory.fact_limit:]
+
         objective_info_types = {"evil_team_info", "spy_book"}
         high_confidence_info_types = {
             "washerwoman_info",
@@ -591,13 +656,11 @@ class AIAgent(BaseAgent):
 
     def _extract_role_ids_from_text(self, text: str) -> list[str]:
         haystack = (text or "").lower()
-        found: list[str] = []
-        for role_id, term in TROUBLE_BREWING_ROLE_TERMS.items():
-            zh_name = term["zh_name"].lower()
-            en_name = term["en_name"].lower()
-            if zh_name in haystack or en_name in haystack or role_id in haystack:
-                found.append(role_id)
-        return found
+        found: set[str] = set()
+        for role_id, zh_name, en_name in self._iter_role_terms():
+            if zh_name in haystack or en_name.lower() in haystack or role_id in haystack:
+                found.add(role_id)
+        return list(found)
 
     def _role_team_hint(self, role_id: str) -> Team | None:
         from src.engine.roles.base_role import get_role_class
@@ -847,6 +910,17 @@ class AIAgent(BaseAgent):
         legal_context = legal_context or AgentActionLegalContext()
         self._prime_social_graph_from_state(visible_state)
 
+        if self._should_use_local_low_value_action(action_type):
+            decision = self._local_low_value_decision(visible_state, legal_context, action_type)
+            self._record_action_metric(
+                visible_state,
+                action_type,
+                model="local-heuristic",
+                latency_ms=0,
+                fallback_used=False,
+            )
+            return decision
+
         slayer_target = None
         if self._can_attempt_slayer_shot(visible_state, legal_context, action_type):
             slayer_target = self._select_slayer_shot_target(visible_state)
@@ -854,6 +928,12 @@ class AIAgent(BaseAgent):
                 target_id, suspicion = slayer_target
                 target_name = self._player_name_from_visible_state(target_id, visible_state)
                 logger.info("[%s] 主动决定发动猎手技能: target=%s suspicion=%.2f", self.name, target_id, suspicion)
+                self._record_action_metric(
+                    visible_state,
+                    "slayer_shot",
+                    latency_ms=0,
+                    fallback_used=False,
+                )
                 return {
                     "action": "slayer_shot",
                     "target": target_id,
@@ -913,6 +993,7 @@ class AIAgent(BaseAgent):
 4. **沉浸式对话**：发言要自然，像在群聊或面杀现场。禁止使用“我更信的一条线”、“根据事实记录”等生硬开场。
 5. **拒绝机械复述**：不要单纯复述场上的已知公共信息（如：谁死了、谁被提名了）。这些信息每个人都知道。你应当关注的是这些信息背后的意义，或者别人没发现的疑点。
 6. **长线记忆**：不要只看眼前，要结合你在“往期回忆”和“社交图谱”中记录的线索。
+7. **记忆权重**：【绝对客观事实】与【高可信度线索】是你推演的基石。如果公开说法和高可信信息冲突，请更偏向高可信信息。
 
 {persona_block}
 
@@ -949,19 +1030,30 @@ class AIAgent(BaseAgent):
   "target": "player_id (nominate/slayer_shot 时为字符串；night_action 时若角色需多目标可为 [id1, id2] 或 'id1,id2')",
   "targets": ["player_id1", "player_id2"],
   "decision": true/false (仅 vote 时需要),
-  "reasoning": "此处写下你作为一个玩家的真实心境和逻辑推理（不公开）"
+  "reasoning": "此处写下你作为一个玩家的真实心境和逻辑推理（不公开）",
+  "extracted_claims": [ // (可选) 如果你在此次 speak 中声明了身份，或者踩了别人的身份，请顺手提取出来。格式如 {{"role_id": "mayor", "claim_type": "self_claim", "subject_player_ids": ["{self.player_id}"]}}。如果没有则留空数组。
+    ]
 }}"""
 
+        action_started = time.perf_counter()
+        response = None
+        self._pending_fallback_reason = None
         try:
             from src.llm.base_backend import Message
-            response = await self.backend.generate(
-                system_prompt=system_prompt, 
-                messages=[Message(role="user", content=f"请只返回适用于动作 `{action_type}` 的 JSON 决策，不要输出任何额外说明。")]
+            response = await asyncio.wait_for(
+                self.backend.generate(
+                    system_prompt=system_prompt,
+                    messages=[Message(role="user", content=f"请只返回适用于动作 `{action_type}` 的 JSON 决策，不要输出任何额外说明。")]
+                ),
+                timeout=self._action_timeout_seconds(),
             )
-            response_text = response.content
+            response_text = response.content or ""
+            if not response_text.strip():
+                raise ValueError("empty_response")
             clean_json = response_text.replace("```json", "").replace("```", "").strip()
             decision = json.loads(clean_json)
             decision = self._normalize_decision(visible_state, legal_context, action_type, decision)
+            fallback_reason = self._pending_fallback_reason
             
             # 记录到数据仓库 (Task C)
             if self.data_collector:
@@ -978,10 +1070,83 @@ class AIAgent(BaseAgent):
                 
             if "reasoning" in decision:
                 logger.info(f"[{self.name}] 内部思考: {decision['reasoning']}")
+            self._record_action_metric(
+                visible_state,
+                action_type,
+                model=response.model,
+                usage=response.usage,
+                latency_ms=int((time.perf_counter() - action_started) * 1000),
+                fallback_used=bool(fallback_reason),
+                fallback_reason=fallback_reason,
+            )
             return decision
         except Exception as e:
             logger.error(f"[{self.name}] LLM 调用失败: {e}")
-            return self._fallback_decision(visible_state, legal_context, action_type, reason=f"llm_error:{type(e).__name__}")
+            if isinstance(e, asyncio.TimeoutError):
+                reason = "timeout"
+            elif str(e) == "empty_response":
+                reason = "empty_response"
+            else:
+                reason = f"llm_error:{type(e).__name__}"
+            decision = self._fallback_decision(visible_state, legal_context, action_type, reason=reason)
+            self._record_action_metric(
+                visible_state,
+                action_type,
+                model=response.model if response else "",
+                usage=response.usage if response else {},
+                latency_ms=int((time.perf_counter() - action_started) * 1000),
+                fallback_used=True,
+                fallback_reason=reason,
+            )
+            return decision
+
+    def _should_use_local_low_value_action(self, action_type: str) -> bool:
+        if os.getenv("AI_FAST_LOW_VALUE_ACTIONS", "0") != "1":
+            return False
+        return action_type in {"nomination_intent", "vote"}
+
+    def _local_low_value_decision(
+        self,
+        visible_state: AgentVisibleState,
+        legal_context: AgentActionLegalContext,
+        action_type: str,
+    ) -> dict[str, Any]:
+        if action_type == "vote":
+            decision, suspicion, threshold = self._select_vote_decision(visible_state, legal_context)
+            if os.getenv("AI_FORCE_PROGRESS_ACTIONS", "0") == "1":
+                decision = True
+            return {
+                "action": "vote",
+                "decision": decision,
+                "reasoning": (
+                    f"本地启发式投票：怀疑度={suspicion:.2f} 阈值={threshold:.2f}，"
+                    f"{'赞成' if decision else '反对'}处决。"
+                ),
+            }
+
+        selected = self._select_nomination_target(visible_state, legal_context, intent_mode=True)
+        if not selected:
+            if os.getenv("AI_FORCE_PROGRESS_ACTIONS", "0") == "1" and legal_context.legal_nomination_targets:
+                target_id = legal_context.legal_nomination_targets[0]
+                return {
+                    "action": "nominate",
+                    "target": target_id,
+                    "reasoning": f"本地审计推进：选择首个合法提名目标 {target_id}。",
+                }
+            return {
+                "action": "none",
+                "target": "not_nominating",
+                "reasoning": "本地启发式：当前没有足够强的提名目标。",
+            }
+        target_id, suspicion, threshold = selected
+        return {
+            "action": "nominate",
+            "target": target_id,
+            "reasoning": (
+                f"本地启发式提名：目标={target_id} 怀疑度={suspicion:.2f} "
+                f"阈值={threshold:.2f}。"
+            ),
+        }
 
     async def think(self, prompt: str, visible_state: AgentVisibleState) -> str:
         """
@@ -1154,6 +1319,13 @@ class AIAgent(BaseAgent):
         role_terms: list[tuple[str, str, str]] = []
         for role_id, term in TROUBLE_BREWING_ROLE_TERMS.items():
             role_terms.append((role_id, term["zh_name"], term["en_name"]))
+            # W3-C: 增加常用别名支持，兼容测试用例与玩家口语（如：占卜师=预言家，投毒者=毒师，酒鬼=醉汉）
+            if role_id == "fortune_teller":
+                role_terms.append((role_id, "预言家", "Fortune Teller"))
+            elif role_id == "poisoner":
+                role_terms.append((role_id, "毒师", "Poisoner"))
+            elif role_id == "drunken":
+                role_terms.append((role_id, "醉汉", "Drunk"))
         return sorted(role_terms, key=lambda item: len(item[1]), reverse=True)
 
     def _extract_role_statements(
@@ -1209,8 +1381,8 @@ class AIAgent(BaseAgent):
                 continue
 
             self_claim_patterns = (
-                rf"我(?:跳|报|明牌)(?:了|个)?{re.escape(zh_name)}",
-                rf"我是{re.escape(zh_name)}",
+                rf"(?<!如果)(?<!要是)(?<!假设)我(?:确实|其实|这把)?(?:跳|报|明牌)(?:了|个)?{re.escape(zh_name)}",
+                rf"(?<!如果)(?<!要是)(?<!假设)(?<!说)(?<!说我)我是{re.escape(zh_name)}",
                 rf"\bi am {re.escape(en_name.lower())}\b",
                 rf"\bi'm {re.escape(en_name.lower())}\b",
                 rf"\bclaim(?:ed)? {re.escape(en_name.lower())}\b",
@@ -1341,22 +1513,16 @@ class AIAgent(BaseAgent):
 
     def _build_memory_signal_brief(self, visible_state: AgentVisibleState) -> str:
         lines: list[str] = []
-        objective = self.working_memory.get_objective_memory_summaries()
-        private = self.working_memory.get_private_memory_summaries()
-        public = self.working_memory.get_public_memory_summaries("role_claim")
 
-        if objective:
-            lines.append("【禁区：绝对不可直接说出的客观真相】")
-            for item in objective[-2:]:
-                lines.append(f"- {item}")
-        if private:
-            lines.append("【禁区：严禁泄露给正义阵营的高可信私密信息】")
-            for item in private[-3:]:
-                lines.append(f"- {item}")
-        if public:
-            lines.append("公开声明只能作为辅助参考：")
-            for item in public[-2:]:
-                lines.append(f"- {item}")
+        private_summaries = self.working_memory.get_private_memory_summaries()
+        if private_summaries:
+            lines.append("【高可信私密信息】")
+            lines.extend(f"- {summary}" for summary in private_summaries[-4:])
+
+        public_summaries = self.working_memory.get_public_memory_summaries()
+        if public_summaries:
+            lines.append("【公开信息】")
+            lines.extend(f"- {summary}" for summary in public_summaries[-4:])
 
         empath_hint = self._empath_neighbor_signal_summary(visible_state)
         if empath_hint:
@@ -1374,19 +1540,6 @@ class AIAgent(BaseAgent):
 
     def _build_speech_priority_brief(self, visible_state: AgentVisibleState) -> str:
         lines: list[str] = []
-        objective = self.working_memory.get_objective_memory_summaries()
-        private = self.working_memory.get_private_memory_summaries()
-        public_claims = self.working_memory.get_public_memory_summaries("role_claim")
-
-        if objective:
-            lines.append("你当前最稳的客观事实：")
-            for item in objective[-2:]:
-                lines.append(f"- {item}")
-
-        if private:
-            lines.append("你当前最值得优先引用的高可信信息：")
-            for item in private[-3:]:
-                lines.append(f"- {item}")
 
         conflict_lines: list[str] = []
         for profile in self.social_graph.profiles.values():
@@ -1418,12 +1571,8 @@ class AIAgent(BaseAgent):
                         break
 
         if conflict_lines:
-            lines.append("公开说法与高可信信息的冲突：")
+            lines.append("【逻辑焦点】公开说法与高可信信息的冲突，可作为重点质问或抗推的线索：")
             lines.extend(conflict_lines[:3])
-        elif public_claims:
-            lines.append("公开跳身份只能作辅助参考：")
-            for item in public_claims[-2:]:
-                lines.append(f"- {item}")
 
         return "\n".join(lines)
 
@@ -1585,9 +1734,17 @@ class AIAgent(BaseAgent):
         )
 
     def _build_visible_state_summary(self, visible_state: AgentVisibleState) -> str:
+        player_count = len(visible_state.players)
+        alive_count = sum(1 for p in visible_state.players if p.is_alive)
+        
+        from src.engine.scripts import get_role_counts
+        counts = get_role_counts(player_count)
+        board_setup = f"{counts['townsfolk']}镇民, {counts['outsider']}外来者, {counts['minion']}爪牙, {counts['demon']}恶魔"
+
         lines = [
             f"- 公开阶段：{visible_state.phase}，第 {visible_state.day_number} 天，第 {visible_state.round_number} 轮",
-            f"- 存活人数：{sum(1 for p in visible_state.players if p.is_alive)}/{len(visible_state.players)}",
+            f"- 存活人数：{alive_count}/{player_count}",
+            f"- 剧本默认配置（{player_count}人局）：{board_setup}",
         ]
         if visible_state.self_view:
             lines.append(
@@ -1620,24 +1777,34 @@ class AIAgent(BaseAgent):
 
         action_name = action.get("action")
         target_id = action.get("target")
-        if action_name != "night_action" or not isinstance(target_id, str):
-            return ""
 
         role_id = self.perceived_role_id or self.role_id
-        target_name = self._player_name_from_visible_state(target_id, visible_state)
+        target_name = self._player_name_from_visible_state(target_id, visible_state) if isinstance(target_id, str) else None
 
-        if role_id == "imp":
-            score = self._target_signal_score(target_id, visible_state)
-            return f"我今晚准备刀 {target_name}，这条线当前可疑度最高（{score:.2f}），白天可以顺着这条继续施压。"
+        msg_parts = []
+        # 加入伪装意图
+        profile = self.social_graph.get_profile(self.player_id)
+        if profile and profile.current_self_claim:
+            msg_parts.append(f"我白天已经在跳【{get_role_name(profile.current_self_claim)}】了。")
+        else:
+            bluffs = self.working_memory.anchor_facts
+            bluff_str = ", ".join(bluffs) if bluffs else "无固定"
+            msg_parts.append(f"我目前的伪装策略是：看情况跳【{bluff_str}】。")
 
-        if role_id == "poisoner":
-            priority = self._poisoner_priority_for_target(target_id, visible_state)
-            return f"我今晚准备毒 {target_name}，这人更像关键信息位（优先级 {priority:.2f}），白天看他的信息表现。"
+        if isinstance(target_id, str) and target_name:
+            if role_id == "imp":
+                score = self._target_signal_score(target_id, visible_state)
+                msg_parts.append(f"我今晚准备刀 {target_name}，这条线当前可疑度较高（{score:.2f}），白天可以顺着这条继续施压。")
+            elif role_id == "poisoner":
+                priority = self._poisoner_priority_for_target(target_id, visible_state)
+                msg_parts.append(f"我今晚准备毒 {target_name}，这人更像关键信息位（优先级 {priority:.2f}），白天看他的信息表现。")
+        else:
+            if role_id in {"scarlet_woman", "spy", "baron"}:
+                msg_parts.append("我今晚没有主动技能，但我会继续在白天带节奏，帮恶魔挡刀，或者找准好人漏洞进行攻击。")
+            else:
+                msg_parts.append("我今晚没有行动目标，听大家安排。")
 
-        if role_id in {"scarlet_woman", "spy", "baron"}:
-            return f"我今晚会继续盯 {target_name} 这条线，白天如果他跳身份或带节奏，我会顺着配合。"
-
-        return ""
+        return " ".join(msg_parts)
 
     def _visible_alive_count(self, visible_state: AgentVisibleState) -> int:
         return sum(1 for player in visible_state.players if player.is_alive)
@@ -2300,7 +2467,7 @@ class AIAgent(BaseAgent):
     def _persona_fallback_speech(self, action_type: str, reason: str, visible_state: AgentVisibleState, legal_context: AgentActionLegalContext) -> dict[str, Any]:
         profile = self.persona_profile or {}
         role_name = profile.get("role_name", self.name)
-        stable_line = self._preferred_speech_anchor_line(visible_state)
+        stable_line = self._public_speech_anchor_line(visible_state)
         evil_coordination = self._evil_coordination_line(visible_state)
         if action_type == "defense_speech":
             if evil_coordination:
@@ -2412,6 +2579,58 @@ class AIAgent(BaseAgent):
             return "我觉得现在别急着拆场上的每一个身份，先看发言逻辑和投票轨迹更稳。"
         return ""
 
+    def _mentioned_visible_names(self, summary: str, visible_state: AgentVisibleState) -> list[str]:
+        names: list[str] = []
+        for player in visible_state.players:
+            if player.player_id == self.player_id:
+                continue
+            if player.name and player.name in summary:
+                names.append(player.name)
+        return names
+
+    def _private_info_public_paraphrase(self, summary: str, visible_state: AgentVisibleState) -> str:
+        names = self._mentioned_visible_names(summary, visible_state)
+        if len(names) >= 2:
+            return f"我手里有一条信息让我更关注 {'、'.join(names[:2])} 这组关系，但细节我先不完全摊开。"
+        if len(names) == 1:
+            return f"我手里有一条信息让我暂时更关注 {names[0]}，但我不想把底牌一次性说死。"
+        return "我手里有一条信息会影响我的判断，但现在先看公开发言能不能对上。"
+
+    def _public_speech_anchor_line(self, visible_state: AgentVisibleState) -> str:
+        """选择可以公开说出口的锚点，避免照抄私密信息或邪恶队友信息。"""
+        evil_coordination = self._evil_coordination_line(visible_state)
+        if evil_coordination:
+            return evil_coordination
+
+        private_categories = (
+            "revealed_role",
+            "role_candidate_hint",
+            "demon_candidate",
+            "fortune_teller_info",
+            "investigator_info",
+            "empath_info",
+            "chef_info",
+            "undertaker_info",
+            "washerwoman_info",
+            "librarian_info",
+            "ravenkeeper_info",
+        )
+        for category in private_categories:
+            summaries = self.working_memory.get_private_memory_summaries(category)
+            if summaries:
+                return self._private_info_public_paraphrase(summaries[-1], visible_state)
+
+        public_claims = self.working_memory.get_public_memory_summaries("role_claim")
+        if public_claims:
+            return public_claims[-1]
+
+        safe_objective_categories = ("death", "failed_kill_target", "role_transfer")
+        for category in safe_objective_categories:
+            summaries = self.working_memory.get_objective_memory_summaries(category)
+            if summaries:
+                return summaries[-1]
+        return ""
+
     def _preferred_speech_anchor_line(self, visible_state: AgentVisibleState) -> str:
         """优先选择最适合真实公开发言引用的高可信/客观线索。"""
         preferred_private_categories = (
@@ -2432,6 +2651,47 @@ class AIAgent(BaseAgent):
             return objective[-1]
         return ""
 
+    def _hidden_memory_summaries_for_public_filter(self) -> list[str]:
+        hidden: list[str] = []
+        for category in (
+            "evil_teammates",
+            "evil_bluffs",
+            "spy_book",
+        ):
+            hidden.extend(self.working_memory.get_objective_memory_summaries(category))
+            hidden.extend(self.working_memory.get_private_memory_summaries(category))
+        hidden.extend(self.working_memory.get_private_memory_summaries())
+        return [item for item in hidden if item]
+
+    def _sanitize_public_speech_content(self, content: str, visible_state: AgentVisibleState) -> str:
+        text = content.strip()
+        if not text:
+            return text
+
+        safe_anchor = self._public_speech_anchor_line(visible_state)
+        unsafe_markers = (
+            "【绝密",
+            "已知邪恶同伴",
+            "邪恶同伴名单",
+            "evil_teammates",
+            "evil_bluffs",
+            "spy_book",
+            "魔典",
+            "bluff",
+            "客观信息：",
+            "高可信信息：",
+            "绝对客观事实",
+            "高可信度线索",
+        )
+        leaks_raw_summary = any(summary and summary in text for summary in self._hidden_memory_summaries_for_public_filter())
+        leaks_marker = any(marker in text for marker in unsafe_markers)
+        if not leaks_raw_summary and not leaks_marker:
+            return text
+
+        if safe_anchor:
+            return f"{safe_anchor} 我现在先按这个方向聊，不把所有细节一次性摊开。"
+        return "我现在有一些内部判断，但公开场上先看发言逻辑和投票轨迹，不急着把话说死。"
+
     def _stabilize_speech_content_with_memory(
         self,
         content: str,
@@ -2443,7 +2703,7 @@ class AIAgent(BaseAgent):
         if not text:
             return text
 
-        stable_line = self._preferred_speech_anchor_line(visible_state)
+        stable_line = self._public_speech_anchor_line(visible_state)
         if not stable_line:
             return text
         if stable_line in text:
@@ -2529,6 +2789,7 @@ class AIAgent(BaseAgent):
             if not content:
                 return self._fallback_decision(visible_state, legal_context, action_type, reason="empty_defense_speech")
             content = self._stabilize_speech_content_with_memory(content, visible_state, action_type)
+            content = self._sanitize_public_speech_content(content, visible_state)
             return {"action": "speak", "content": content, "tone": tone, "reasoning": reasoning}
 
         if action_type in {"night_action", "death_trigger"}:
@@ -2573,9 +2834,11 @@ class AIAgent(BaseAgent):
         if not content:
             return self._fallback_decision(visible_state, legal_context, action_type, reason="empty_speech")
         content = self._stabilize_speech_content_with_memory(content, visible_state, action_type)
+        content = self._sanitize_public_speech_content(content, visible_state)
         return {"action": "speak", "content": content, "tone": tone, "reasoning": reasoning}
 
     def _fallback_decision(self, visible_state: AgentVisibleState, legal_context: AgentActionLegalContext, action_type: str, reason: str) -> dict[str, Any]:
+        self._pending_fallback_reason = reason
         fallback = self._persona_fallback_speech(action_type, reason, visible_state, legal_context)
         if action_type in {"nominate", "nomination_intent"}:
             selection = self._select_nomination_target(visible_state, legal_context, intent_mode=(action_type == "nomination_intent"))

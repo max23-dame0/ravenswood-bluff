@@ -1712,6 +1712,9 @@
                 const div = document.createElement('div');
                 div.className = `player-item ${p.is_alive ? 'alive' : 'dead'}`;
                 let statusText = p.is_alive ? t('status_alive') : t('status_dead');
+                if (!p.is_alive && p.ghost_votes_remaining > 0) {
+                    statusText += currentLang === 'zh' ? ' (👻 一票)' : ' (👻 1 vote)';
+                }
                 let roleId = p.role_id;
                 let roleDisplayName = roleId ? roleName(roleId) : '';
                 div.innerHTML = `<div><span>${p.name}</span><br><small class="player-role-tag">${roleDisplayName}</small></div> <small>${statusText}</small>`;
@@ -1778,7 +1781,23 @@
             const phaseKey = `phase_${gameState.phase}`;
             const phaseName = t(phaseKey);
             const dayText = t('day_prefix', { n: gameState.day_number });
-            document.getElementById('current-phase-display').textContent = `${phaseName} (${dayText})`;
+            let displayString = `${phaseName} (${dayText})`;
+            if (gameState.waiting_for) {
+                let waitingDesc = currentLang === 'zh' ? '等待' : 'Waiting: ';
+                if (gameState.waiting_for.startsWith('ai_action:')) {
+                    const parts = gameState.waiting_for.split(':');
+                    const pid = parts[1];
+                    waitingDesc += ` ${playerName(pid)} (AI)`;
+                } else if (gameState.waiting_for.startsWith('human_action:')) {
+                    const parts = gameState.waiting_for.split(':');
+                    const pid = parts[1];
+                    waitingDesc += ` ${playerName(pid)} (Human)`;
+                } else {
+                    waitingDesc += ` ${gameState.waiting_for}`;
+                }
+                displayString += ` | ${waitingDesc}`;
+            }
+            document.getElementById('current-phase-display').textContent = displayString;
             
             // Setup Overlay Logic
             if (gameState.setup_required && ws) {
@@ -2231,7 +2250,7 @@
             const detail = document.getElementById('historyDetail');
             detail.innerHTML = `<div style="opacity:0.72;">${t('history_loading')}</div>`;
             try {
-                const res = await fetch(`${backendHttpOrigin()}/api/game/history/${encodeURIComponent(gameId)}`);
+                const res = await fetch(`${backendHttpOrigin()}/api/game/history/${encodeURIComponent(gameId)}/player/${encodeURIComponent(currentUserId)}`);
                 const data = await res.json();
                 if (data.status !== 'ok') {
                     detail.innerHTML = `<div style="opacity:0.72;">${data.message || t('history_detail_empty')}</div>`;
@@ -2250,8 +2269,6 @@
             const winner = settlement.winning_team === 'good' ? t('settlement_winner_good') : t('settlement_winner_evil');
             const players = Array.isArray(data.players) ? data.players : [];
             const timeline = Array.isArray(settlement.timeline) ? settlement.timeline : [];
-            const storytellerJudgements = data.storyteller_judgements || {};
-            const judgementSummary = Array.isArray(storytellerJudgements.recent_summary) ? storytellerJudgements.recent_summary : [];
 
             detail.innerHTML = `
                 <div class="history-summary-grid">
@@ -2270,10 +2287,6 @@
                     <h3 style="margin:0 0 10px 0;">${t('history_timeline')}</h3>
                     <div id="historyTimelineBox" class="settlement-timeline"></div>
                 </div>
-                <div>
-                    <h3 style="margin:0 0 10px 0;">说书人裁量摘要</h3>
-                    <div id="historyJudgementBox" class="settlement-timeline"></div>
-                </div>
             `;
 
             const playersGrid = document.getElementById('historyPlayersGrid');
@@ -2283,7 +2296,7 @@
                 card.className = `history-player-card ${team} ${player.is_alive ? '' : 'dead'}`;
                 card.innerHTML = `
                     <strong>${player.player_name || player.name || player.player_id}</strong>
-                    <div>${roleName(player.true_role_id || player.role_id)}</div>
+                    <div>${roleName(player.perceived_role_id || player.public_claim_role_id || player.role_id)}</div>
                     <div style="opacity:0.72;">${team === 'good' ? 'Good' : 'Evil'}${player.is_human ? ' · 👤' : ''}</div>
                 `;
                 playersGrid.appendChild(card);
@@ -2304,30 +2317,6 @@
                     </div>
                 `;
                 timelineBox.appendChild(item);
-            });
-
-            const judgementBox = document.getElementById('historyJudgementBox');
-            if (!judgementSummary.length) {
-                const judgementCount = storytellerJudgements.judgement_count || 0;
-                judgementBox.innerHTML = `<div style="opacity:0.72;">${judgementCount ? `共 ${judgementCount} 条裁量记录，当前无摘要。` : '该局暂无说书人裁量摘要。'}</div>`;
-                return;
-            }
-            judgementSummary.forEach((entry) => {
-                const item = document.createElement('div');
-                item.className = 'timeline-event';
-                const heading = [entry.category, entry.bucket].filter(Boolean).join(' / ') || 'judgement';
-                const meta = [entry.phase, entry.day_number ? `D${entry.day_number}` : '', entry.round_number ? `R${entry.round_number}` : '']
-                    .filter(Boolean)
-                    .join(' · ');
-                item.innerHTML = `
-                    <span class="event-icon">◆</span>
-                    <div class="event-text">
-                        <small style="opacity:0.6">${heading}${meta ? ` · ${meta}` : ''}</small>
-                        <div><strong>${entry.decision || entry.summary || '-'}</strong></div>
-                        <div style="opacity:0.78;">${entry.reason || entry.summary || '-'}</div>
-                    </div>
-                `;
-                judgementBox.appendChild(item);
             });
         }
 

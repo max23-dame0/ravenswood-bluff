@@ -6,6 +6,7 @@ import asyncio
 import json
 import logging
 import random
+import time
 import uuid
 from typing import Any
 
@@ -47,6 +48,8 @@ storyteller_logger = logging.getLogger("storyteller")
 class GameOrchestrator:
     """顶级容器，协调规则、Agent 和状态。"""
 
+    MAX_AGENT_RETRIES = 5  # 最大重试次数，防止 AI/人类玩家意图异常导致卡死
+
     def __init__(self, initial_state: GameState):
         self.state = initial_state
         self.phase_manager = PhaseManager()
@@ -63,7 +66,158 @@ class GameOrchestrator:
         self._setup_done: asyncio.Future | None = None
         self._setup_started = False
         self._pending_night_action: dict[str, Any] | None = None  # { "player_id": str, "action_type": str, "legal_context": dict }
+        self._loop_started_at: float | None = None
+        self._last_progress_at: float | None = None
+        self._current_waiting_for: str | None = None
+        self._recent_exception: dict[str, Any] | None = None
+        self._phase_started_at: float | None = None
+        self._phase_started_action_positions: dict[str, int] = {}
+        self._phase_duration_history: list[dict[str, Any]] = []
         self.event_bus.subscribe("*", self._on_any_event, priority=0)
+
+    def _mark_progress(self, waiting_for: str | None = None) -> None:
+        self._last_progress_at = time.time()
+        self._current_waiting_for = waiting_for
+
+    def _record_recent_exception(self, context: str, exc: Exception) -> None:
+        self._recent_exception = {
+            "context": context,
+            "type": type(exc).__name__,
+            "message": str(exc),
+            "timestamp": time.time(),
+        }
+
+    def _human_player_ids(self) -> set[str]:
+        if self.state.config and self.state.config.human_player_ids:
+            return set(self.state.config.human_player_ids)
+        return set()
+
+    def _ai_discussion_message_limit(self) -> int | None:
+        config = self.state.config
+        if not config or not config.is_human_participant:
+            return None
+        if config.ai_discussion_message_limit is not None:
+            return max(0, int(config.ai_discussion_message_limit))
+        alive_ai_count = sum(
+            1
+            for player in self.state.players
+            if player.is_alive and player.player_id not in self._human_player_ids()
+        )
+        return max(1, min(2, alive_ai_count))
+
+    def _record_pace_event(self, event: dict[str, Any]) -> None:
+        payload = dict(self.state.payload)
+        events = list(payload.get("pace_events", []))
+        event.setdefault("phase", self.state.phase.value)
+        event.setdefault("day_number", self.state.day_number)
+        event.setdefault("round_number", self.state.round_number)
+        event.setdefault("timestamp", time.time())
+        events.append(event)
+        payload["pace_events"] = events[-20:]
+        self.state = self.state.with_update(payload=payload)
+
+    def _collect_ai_action_records(self) -> list[dict[str, Any]]:
+        records: list[dict[str, Any]] = []
+        for agent in self.broker.agents.values():
+            exporter = getattr(agent, "export_action_metrics", None)
+            if not exporter:
+                continue
+            try:
+                records.extend(exporter())
+            except Exception as exc:
+                logger.warning("export_action_metrics failed for %s: %s", getattr(agent, "player_id", "unknown"), exc)
+        return records
+
+    def _snapshot_ai_action_positions(self) -> dict[str, int]:
+        positions: dict[str, int] = {}
+        for player_id, agent in self.broker.agents.items():
+            exporter = getattr(agent, "export_action_metrics", None)
+            if not exporter:
+                continue
+            try:
+                positions[player_id] = len(exporter())
+            except Exception as exc:
+                logger.warning("export_action_metrics failed for %s: %s", getattr(agent, "player_id", "unknown"), exc)
+                positions[player_id] = 0
+        return positions
+
+    def _collect_ai_action_records_since(self, positions: dict[str, int]) -> list[dict[str, Any]]:
+        records: list[dict[str, Any]] = []
+        for player_id, agent in self.broker.agents.items():
+            exporter = getattr(agent, "export_action_metrics", None)
+            if not exporter:
+                continue
+            try:
+                agent_records = exporter()
+            except Exception as exc:
+                logger.warning("export_action_metrics failed for %s: %s", getattr(agent, "player_id", "unknown"), exc)
+                continue
+            records.extend(agent_records[positions.get(player_id, 0):])
+        return records
+
+    def _summarize_ai_action_records(self, records: list[dict[str, Any]]) -> dict[str, Any]:
+        total_tokens = sum(int(item.get("total_tokens", 0) or 0) for item in records)
+        fallback_count = sum(1 for item in records if item.get("fallback_used"))
+        fallback_tokens = sum(int(item.get("total_tokens", 0) or 0) for item in records if item.get("fallback_used"))
+        by_player: dict[str, int] = {}
+        by_action_type: dict[str, int] = {}
+        by_phase: dict[str, int] = {}
+        fallback_by_player: dict[str, int] = {}
+        fallback_by_action_type: dict[str, int] = {}
+        fallback_by_phase: dict[str, int] = {}
+        for item in records:
+            player_id = str(item.get("player_id") or "unknown")
+            action_type = str(item.get("action_type") or "unknown")
+            phase = str(item.get("phase") or "unknown")
+            tokens = int(item.get("total_tokens", 0) or 0)
+            by_player[player_id] = by_player.get(player_id, 0) + tokens
+            by_action_type[action_type] = by_action_type.get(action_type, 0) + tokens
+            by_phase[phase] = by_phase.get(phase, 0) + tokens
+            if item.get("fallback_used"):
+                fallback_by_player[player_id] = fallback_by_player.get(player_id, 0) + 1
+                fallback_by_action_type[action_type] = fallback_by_action_type.get(action_type, 0) + 1
+                fallback_by_phase[phase] = fallback_by_phase.get(phase, 0) + 1
+        top_calls = sorted(records, key=lambda item: int(item.get("total_tokens", 0) or 0), reverse=True)[:10]
+        return {
+            "action_count": len(records),
+            "total_tokens": total_tokens,
+            "average_tokens_per_action": round(total_tokens / len(records), 2) if records else 0,
+            "fallback_count": fallback_count,
+            "fallback_rate": round(fallback_count / len(records), 3) if records else 0,
+            "fallback_tokens": fallback_tokens,
+            "fallback_token_share": round(fallback_tokens / total_tokens, 3) if total_tokens else 0,
+            "tokens_by_player": by_player,
+            "tokens_by_action_type": by_action_type,
+            "tokens_by_phase": by_phase,
+            "fallback_by_player": fallback_by_player,
+            "fallback_by_action_type": fallback_by_action_type,
+            "fallback_by_phase": fallback_by_phase,
+            "top_token_actions": top_calls,
+        }
+
+    def collect_ai_action_metrics(self, limit: int = 40) -> dict[str, Any]:
+        records = self._collect_ai_action_records()
+        records.sort(key=lambda item: (item.get("day_number", 0), item.get("round_number", 0), item.get("latency_ms", 0)))
+        return {
+            "summary": self._summarize_ai_action_records(records),
+            "recent": records[-limit:],
+        }
+
+    def collect_runtime_diagnostics(self) -> dict[str, Any]:
+        now = time.time()
+        phase_elapsed_ms = int((now - self._phase_started_at) * 1000) if self._phase_started_at else None
+        current_phase_records = self._collect_ai_action_records_since(self._phase_started_action_positions)
+        return {
+            "current_phase": self.state.phase.value,
+            "current_waiting_for": self._current_waiting_for,
+            "last_progress_at": self._last_progress_at,
+            "seconds_since_progress": round(now - self._last_progress_at, 2) if self._last_progress_at else None,
+            "phase_elapsed_ms": phase_elapsed_ms,
+            "recent_exception": self._recent_exception,
+            "current_phase_ai_action_summary": self._summarize_ai_action_records(current_phase_records),
+            "phase_durations": self._phase_duration_history[-20:],
+            "pace_events": list(self.state.payload.get("pace_events", []))[-20:],
+        }
 
     def _make_trace_id(self, prefix: str) -> str:
         return f"{prefix}-{str(uuid.uuid4())[:8]}"
@@ -104,7 +258,7 @@ class GameOrchestrator:
             return False
         # 如果模式是自动，或者人类模式下选择了托管
         return (
-            self.storyteller_agent.mode == "auto" 
+            getattr(self.storyteller_agent, "mode", "auto") == "auto"
             or getattr(self.storyteller_agent, "delegated", False)
         )
 
@@ -249,15 +403,60 @@ class GameOrchestrator:
         return summary
 
     async def _publish_event(self, event: GameEvent) -> None:
-        # 确保事件携带最新的天数信息，便于前端展示
         try:
             # 由于 GameEvent 是 frozen 的，我们需要 model_copy 来更新
+            updates = {}
             if getattr(event, 'day_number', 1) == 1 and self.state.day_number != 1:
-                event = event.model_copy(update={"day_number": self.state.day_number})
-        except Exception:
-            pass
+                updates["day_number"] = self.state.day_number
+                
+            if event.event_type in {"player_speaks", "defense_started"} and "extracted_claims" not in event.payload:
+                extracted = await self._extract_claims_via_llm(event)
+                new_payload = dict(event.payload)
+                new_payload["extracted_claims"] = extracted
+                updates["payload"] = new_payload
+                
+            if updates:
+                event = event.model_copy(update=updates)
+        except Exception as e:
+            logger.warning(f"Error updating event before publish: {e}")
         self.state = self.state.with_event(event)
         await self.event_bus.publish(event)
+
+    async def _extract_claims_via_llm(self, event: GameEvent) -> list[dict[str, Any]]:
+        from src.llm.openai_backend import OpenAIBackend
+        from src.llm.base_backend import Message
+        import json
+        
+        backend = self.default_agent_backend or (getattr(self.storyteller_agent, "backend", None)) or OpenAIBackend()
+        content = event.payload.get("content", "")
+        if not content:
+            return []
+            
+        prompt = f"""分析以下《血染钟楼》对局发言，提取发言者({event.actor})对身份的声明、否认或指控。
+可用角色(Role ID)：washerwoman, librarian, investigator, chef, empath, fortune_teller, undertaker, monk, ravenkeeper, virgin, slayer, soldier, mayor, butler, drunken, recluse, saint, poisoner, spy, scarlet_woman, baron, imp。
+注意：
+1. self_claim: "我是市长" (注意排除"如果我是...")。
+2. denial: "我不是毒师"。
+3. accusation: "我觉得他(p2)是毒师"。
+4. relay: "p2说他是调查员"。
+发言内容："{content}"
+
+必须以严格的 JSON 对象格式返回，包含一个 "claims" 数组。格式示例：
+{{
+    "claims": [
+        {{"role_id": "mayor", "claim_type": "self_claim", "subject_player_ids": ["{event.actor}"]}}
+    ]
+}}
+如果未提及任何角色或没有明确声明，返回 {{"claims": []}}。
+"""
+        try:
+            response = await backend.generate([Message(role="user", content=prompt)], response_format={"type": "json_object"})
+            text = response.message.content.strip()
+            data = json.loads(text)
+            return data.get("claims", [])
+        except Exception as e:
+            logger.warning(f"LLM 提取身份声明失败: {e}")
+            return []
 
     def register_agent(self, agent: BaseAgent) -> None:
         self.broker.register_agent(agent)
@@ -304,6 +503,7 @@ class GameOrchestrator:
         return player
 
     async def _on_any_event(self, event: GameEvent) -> None:
+        self._mark_progress()
         self.event_log.append(event)
         await self.broker.broadcast_event(event, self.state)
 
@@ -321,6 +521,7 @@ class GameOrchestrator:
         storyteller_mode: str | None = None,
         audit_mode: bool = False,
         max_nomination_rounds: int | None = None,
+        ai_discussion_message_limit: int | None = None,
         backend_mode: str = "auto",
         human_mode: str | None = None,
         human_client_id: str | None = None,
@@ -393,6 +594,7 @@ class GameOrchestrator:
                 backend_mode=backend_mode,
                 audit_mode=audit_mode,
                 discussion_rounds=discussion_rounds or 3,
+                ai_discussion_message_limit=ai_discussion_message_limit,
                 max_nomination_rounds=max_nomination_rounds,
             ),
         )
@@ -446,6 +648,8 @@ class GameOrchestrator:
     async def run_game_loop(self) -> Team | None:
         if not self._setup_done:
             self._setup_done = asyncio.get_running_loop().create_future()
+        self._loop_started_at = time.time()
+        self._mark_progress("setup")
         logger.info("=== 游戏开始 ===")
         self.snapshot_manager.take_snapshot(self.state)
         await self._transition_and_run(GamePhase.SETUP)
@@ -458,6 +662,7 @@ class GameOrchestrator:
 
             phase = self.phase_manager.current_phase
             if phase == GamePhase.SETUP:
+                self._mark_progress("setup_done")
                 logger.info("[run_game_loop] Waiting for _setup_done...")
                 await self._setup_done
                 logger.info("[run_game_loop] _setup_done received. Transitioning to FIRST_NIGHT")
@@ -473,6 +678,10 @@ class GameOrchestrator:
         return self.winner
 
     async def _transition_and_run(self, target_phase: GamePhase) -> None:
+        phase_start = time.perf_counter()
+        self._phase_started_at = time.time()
+        self._phase_started_action_positions = self._snapshot_ai_action_positions()
+        self._mark_progress(f"phase:{target_phase.value}")
         if target_phase != self.phase_manager.current_phase:
             await self._archive_agent_phase_memories()
         if target_phase != self.phase_manager.current_phase or target_phase == GamePhase.SETUP:
@@ -559,6 +768,28 @@ class GameOrchestrator:
             await self._run_voting_phase()
         elif target_phase == GamePhase.EXECUTION:
             await self._run_execution_phase()
+        duration_ms = int((time.perf_counter() - phase_start) * 1000)
+        phase_action_summary = self._summarize_ai_action_records(
+            self._collect_ai_action_records_since(self._phase_started_action_positions)
+        )
+        self._phase_duration_history.append(
+            {
+                "phase": target_phase.value,
+                "day_number": self.state.day_number,
+                "round_number": self.state.round_number,
+                "duration_ms": duration_ms,
+                "ai_action_count": phase_action_summary["action_count"],
+                "ai_total_tokens": phase_action_summary["total_tokens"],
+                "ai_average_tokens_per_action": phase_action_summary["average_tokens_per_action"],
+                "ai_fallback_count": phase_action_summary["fallback_count"],
+                "ai_fallback_token_share": phase_action_summary["fallback_token_share"],
+                "ai_top_token_action": phase_action_summary["top_token_actions"][0] if phase_action_summary["top_token_actions"] else None,
+                "ai_tokens_by_action_type": phase_action_summary["tokens_by_action_type"],
+                "ai_fallback_by_action_type": phase_action_summary["fallback_by_action_type"],
+            }
+        )
+        self._phase_duration_history = self._phase_duration_history[-50:]
+        self._mark_progress(None)
 
     async def _archive_agent_phase_memories(self) -> None:
         for player_id, agent in self.broker.agents.items():
@@ -917,8 +1148,10 @@ class GameOrchestrator:
                 if not visible_state:
                     continue
                 legal_context = self._get_agent_legal_context(player.player_id, visible_state)
+                self._mark_progress(f"ai_action:{player.player_id}:death_trigger")
                 action = await agent.act(visible_state, "death_trigger", legal_context=legal_context)
             except Exception as exc:
+                self._record_recent_exception(f"death_trigger:{dead_id}", exc)
                 logger.warning("死亡触发决策失败: %s", exc)
                 action = {"action": "death_trigger", "target": None, "reasoning": f"death_trigger_error:{type(exc).__name__}"}
             target = action.get("target")
@@ -1042,7 +1275,7 @@ class GameOrchestrator:
             trying_empty = False
             retry_count = 0
             last_error = None
-            while True:
+            while retry_count < self.MAX_AGENT_RETRIES:
                 retry_count += 1
                 reminder_msg = ""
                 if trying_empty:
@@ -1081,14 +1314,20 @@ class GameOrchestrator:
                     trace_id=trace_id,
                 )
 
-                action = await agent.act(
-                    visible_state,
-                    "night_action",
-                    legal_context=legal_context,
-                    reminder=reminder_msg if reminder_msg else None,
-                    retry_count=retry_count,
-                    last_error=last_error,
-                )
+                try:
+                    self._mark_progress(f"ai_action:{player.player_id}:night_action")
+                    action = await agent.act(
+                        visible_state,
+                        "night_action",
+                        legal_context=legal_context,
+                        reminder=reminder_msg if reminder_msg else None,
+                        retry_count=retry_count,
+                        last_error=last_error,
+                    )
+                except Exception as exc:
+                    self._record_recent_exception(f"night_action:{player.player_id}", exc)
+                    logger.warning("夜晚行动决策失败: %s", exc)
+                    action = {"action": "night_action", "target": None, "targets": [], "reasoning": f"night_action_error:{type(exc).__name__}"}
 
                 if (
                     player
@@ -1139,6 +1378,21 @@ class GameOrchestrator:
                         # 成功执行，发布事件并记录
                         for event in events:
                             await self.event_bus.publish(event)
+                            if (
+                                event.event_type == "night_kill"
+                                and event.payload.get("redirected_from")
+                            ):
+                                self._record_storyteller_judgement(
+                                    "mayor_redirect",
+                                    decision="redirect",
+                                    reason="mayor_night_death_redirect",
+                                    actor=event.actor,
+                                    original_target=event.payload.get("redirected_from"),
+                                    target=event.target,
+                                    killer_role=event.payload.get("killer_role"),
+                                    resolved_target_role=event.payload.get("resolved_target_role"),
+                                    trace_id=trace_id,
+                                )
                         
                         self._log_storyteller(
                             "night_action_executed",
@@ -1300,15 +1554,36 @@ class GameOrchestrator:
         )
         self._update_payload(nomination_history=[])
         rounds = self.state.config.discussion_rounds if self.state.config else 3
+        human_ids = self._human_player_ids()
+        ai_message_limit = self._ai_discussion_message_limit()
         for discussion_round in range(1, rounds + 1):
+            ai_messages_emitted = 0
             for player in self.state.players:
                 agent = self.broker.agents.get(player.player_id)
                 if not agent:
+                    continue
+                is_human_player = player.player_id in human_ids
+                if (
+                    not is_human_player
+                    and ai_message_limit is not None
+                    and ai_messages_emitted >= ai_message_limit
+                ):
+                    self._record_pace_event(
+                        {
+                            "kind": "ai_discussion_throttled",
+                            "player_id": player.player_id,
+                            "discussion_round": discussion_round,
+                            "ai_message_limit": ai_message_limit,
+                        }
+                    )
                     continue
                 visible_state = self._get_agent_visible_state(player.player_id)
                 if not visible_state:
                     continue
                 legal_context = self._get_agent_legal_context(player.player_id, visible_state)
+                self._mark_progress(
+                    f"{'human_action' if is_human_player else 'ai_action'}:{player.player_id}:speak"
+                )
                 action = await agent.act(visible_state, "speak", legal_context=legal_context)
                 if action.get("action") == "skip_discussion":
                     self._record_data_snapshot(
@@ -1317,6 +1592,9 @@ class GameOrchestrator:
                     )
                     return
                 if action.get("action") == "speak" and action.get("content"):
+                    payload = {"content": action["content"], "tone": action.get("tone", "calm"), "round": discussion_round}
+                    if "extracted_claims" in action:
+                        payload["extracted_claims"] = action["extracted_claims"]
                     await self._publish_event(GameEvent(
                         event_type="player_speaks",
                         phase=GamePhase.DAY_DISCUSSION,
@@ -1324,8 +1602,10 @@ class GameOrchestrator:
                         trace_id=self._make_trace_id("BOTC-FLOW-SPEAK"),
                         actor=player.player_id,
                         visibility=Visibility.PUBLIC,
-                        payload={"content": action["content"], "tone": action.get("tone", "calm"), "round": discussion_round},
+                        payload=payload,
                     ))
+                    if not is_human_player:
+                        ai_messages_emitted += 1
                 
                 # [FIX] 猎手技能发动逻辑
                 if action.get("action") == "slayer_shot":
@@ -1396,6 +1676,7 @@ class GameOrchestrator:
 
         while nomination_round < max_rounds:
             nomination_round += 1
+            self._mark_progress(f"nomination_intents:round:{nomination_round}")
             intents = await self._collect_nomination_intents(nomination_round)
             
             # [FIX] 优先处理猎手技能发动
@@ -1743,9 +2024,10 @@ class GameOrchestrator:
                 async def human_nomination_loop(v_state, a_type, l_ctx, a_agent):
                     trying_empty = False
                     retry_count = 0
-                    while True:
+                    while retry_count < self.MAX_AGENT_RETRIES:
                         retry_count += 1
                         # 发送请求并等待
+                        self._mark_progress(f"human_action:{player.player_id}:nominate")
                         act_res = await a_agent.act(
                             v_state,
                             a_type,
@@ -1756,12 +2038,17 @@ class GameOrchestrator:
                         )
                         # 校验：必须有 target，且不得为空。合法的可以是 "not_nominating" 或 玩家 ID
                         tgt = act_res.get("target")
-                        if tgt:
+                        if tgt or act_res.get("action") == "none":
                             return act_res
-                        logger.warning(f"[Nomination] 玩家 {player.player_id} 提交了空提名意图，重试。")
+                        logger.warning(f"[Nomination] 玩家 {player.player_id} 提交了空提名意图，重试 ({retry_count}/{self.MAX_AGENT_RETRIES})。")
                         trying_empty = True
+                    
+                    # 达到最大重试次数，返回兜底跳过
+                    return {"action": "not_nominating", "target": "not_nominating", "reason": "max_retries_reached"}
+
                 tasks.append((player.player_id, asyncio.create_task(human_nomination_loop(visible_state, action_type, legal_context, agent))))
             else:
+                self._mark_progress(f"ai_action:{player.player_id}:nomination_intent")
                 tasks.append((player.player_id, asyncio.create_task(agent.act(visible_state, action_type, legal_context=legal_context))))
 
         results: dict[str, dict[str, Any]] = {}
@@ -1770,6 +2057,7 @@ class GameOrchestrator:
             try:
                 action = await task
             except Exception as exc:
+                self._record_recent_exception(f"nomination_intent:{player_id}", exc)
                 action = {"action": "none", "reasoning": f"nomination_intent_error:{type(exc).__name__}"}
             
             # 统一处理结果：如果结果依然为空（AI 异常等），给予默认值，防止卡死
@@ -1849,6 +2137,7 @@ class GameOrchestrator:
             if not visible_state:
                 visible_state = self.broker.get_visible_state(nominee_id, self.state)
             legal_context = self._get_agent_legal_context(nominee_id, visible_state) if visible_state else AgentActionLegalContext()
+            self._mark_progress(f"ai_action:{nominee_id}:defense_speech")
             defense = await agent.act(visible_state, "defense_speech", legal_context=legal_context) if visible_state else {"action": "speak", "content": defense_text}
             defense_text = defense.get("content", defense_text)
             self._set_nomination_state(stage="defense", defense_text=defense_text)
@@ -1865,6 +2154,9 @@ class GameOrchestrator:
                 trace_id=trace_id,
                 content=defense_text,
             )
+            payload = {"content": defense_text}
+            if "extracted_claims" in defense:
+                payload["extracted_claims"] = defense["extracted_claims"]
             await self._publish_event(GameEvent(
                 event_type="defense_started",
                 phase=GamePhase.NOMINATION,
@@ -1873,7 +2165,7 @@ class GameOrchestrator:
                 actor=nominee_id,
                 target=nominee_id,
                 visibility=Visibility.PUBLIC,
-                payload={"content": defense_text},
+                payload=payload,
             ))
         else:
             self._record_storyteller_judgement(
@@ -1915,8 +2207,9 @@ class GameOrchestrator:
                 if voter_id in human_ids:
                     trying_empty = False
                     retry_count = 0
-                    while True:
+                    while retry_count < self.MAX_AGENT_RETRIES:
                         retry_count += 1
+                        self._mark_progress(f"human_action:{voter_id}:vote")
                         action = await vote_agent.act(
                             visible_state,
                             "vote",
@@ -1927,11 +2220,16 @@ class GameOrchestrator:
                         )
                         if action.get("decision") is not None:
                             break
-                        logger.warning(f"[Voting] 玩家 {voter_id} 提交了空投票意图，重试。")
+                        logger.warning(f"[Voting] 玩家 {voter_id} 提交了空投票意图，重试 ({retry_count}/{self.MAX_AGENT_RETRIES})。")
                         trying_empty = True
+                    
+                    if action.get("decision") is None:
+                        action = {"action": "vote", "decision": False, "reason": "max_retries_reached"}
                 else:
+                    self._mark_progress(f"ai_action:{voter_id}:vote")
                     action = await vote_agent.act(visible_state, "vote", legal_context=legal_context)
             except Exception as e:
+                self._record_recent_exception(f"vote:{voter_id}", e)
                 logger.error(f"Voter {voter_id} action error: {e}")
                 action = {"action": "vote", "decision": False}
                 

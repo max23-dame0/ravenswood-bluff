@@ -26,14 +26,14 @@
 | `imp` | 夜晚击杀，保护/士兵免疫，自杀传递 | 已覆盖 | 市长转移、绯红女郎接管仍需更深回归 | `tests/test_engine/test_role_skill_audit.py`, `tests/test_engine/test_roles_victory.py` |
 | `poisoner` | 夜晚投毒并标记中毒状态 | 已覆盖 | 中毒持续周期与信息扭曲链仍需全链路测试 | `tests/test_engine/test_role_skill_audit.py`, `tests/test_engine/test_roles_victory.py` |
 | `ravenkeeper` | 夜死触发后看身份 | 已覆盖 | ON_DEATH 编排边界仍是高风险 | `tests/test_engine/test_role_skill_audit.py` |
-| `slayer` | 白天一次性击杀恶魔 | 部分 | 一次性消耗/已使用标记仍待专门审计 | `tests/test_engine/test_role_skill_audit.py` |
-| `mayor` | 夜死转移/白天无人处决处理 | 部分 | 被动结算逻辑分散，仍需端到端验证 | `tests/test_engine/test_role_skill_audit.py` |
-| `butler` | 投票限制 | 部分 | 当前没有独立投票约束测试 | `tests/test_engine/test_role_skill_audit.py` |
-| `recluse` | 身份误判 | 部分 | 侦测链路需与信息分发一起审计 | `tests/test_engine/test_role_skill_audit.py` |
-| `drunken` | 虚假身份与信息失真 | 部分 | 需要与说书人视角联动测试 | `tests/test_engine/test_role_skill_audit.py` |
+| `slayer` | 白天一次性击杀恶魔 | 已覆盖 | 需继续保持前端/AI 主动触发链路验收 | `tests/test_engine/test_high_risk_roles.py`, `tests/test_engine/test_role_skill_audit.py` |
+| `mayor` | 夜死转移/白天无人处决处理 | 已覆盖 | 被动结算逻辑分散，后续仍建议保留端到端验收 | `tests/test_engine/test_high_risk_roles.py`, `tests/test_engine/test_roles_victory.py` |
+| `butler` | 投票限制 | 已覆盖 | 绑定日与幽灵票交互需持续回归 | `tests/test_engine/test_high_risk_roles.py`, `tests/test_engine/test_role_skill_audit.py` |
+| `recluse` | 身份误判 | 已覆盖 | 默认误注册与说书人 payload 覆盖需持续回归 | `tests/test_engine/test_high_risk_roles.py`, `tests/test_engine/test_role_skill_audit.py` |
+| `drunken` | 虚假身份与信息失真 | 已覆盖 | 更复杂的说书人假信息质量留到 M4/EVAL | `tests/test_engine/test_high_risk_roles.py` |
 | `saint` | 被处决立即邪恶胜利 | 已有规则测试 | 需要保持提名链路与处决链一致 | `tests/test_engine/test_nomination_rules.py` |
-| `scarlet_woman` | 恶魔死亡后的接管 | 缺口 | 当前缺少专门接管触发链测试 | 后续补齐 |
-| `baron` | 外来者增量与 setup 影响 | 部分 | 需要与角色分发一起验证 | `tests/test_state/test_role_distribution.py` |
+| `scarlet_woman` | 恶魔死亡后的接管 | 已覆盖 | 接管后的伪装继承需持续保持与 AI 记忆同步 | `tests/test_engine/test_high_risk_roles.py` |
+| `baron` | 外来者增量与 setup 影响 | 已覆盖 | 随机分发下仍需保持样本审计 | `tests/test_engine/test_high_risk_roles.py`, `tests/test_state/test_role_distribution.py` |
 
 ### 首批建议执行顺序
 

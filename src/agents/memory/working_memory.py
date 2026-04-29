@@ -224,48 +224,29 @@ class WorkingMemory:
 
     def get_recent_context(self, limit: int | None = None) -> str:
         """
-        获取最近的上下文，渲染为文本以供LLM读取
+        获取最近的上下文观察，渲染为文本以供LLM读取
         """
         context_limit = limit or self.observation_limit
         context_parts = []
-        
-        # 0. 绝对可信信息层
+
         if self.objective_memory:
-            context_parts.append("【你确认掌握的绝对客观事实】")
+            context_parts.append("【客观已确认信息】")
             for item in self.objective_memory[-self.fact_limit:]:
-                marker = ""
-                if item.day_number is not None or item.round_number is not None:
-                    marker = f"(D{item.day_number or '-'}R{item.round_number or '-'}) "
-                context_parts.append(f"- {marker}{item.summary}")
+                context_parts.append(f"- {item.summary}")
             context_parts.append("")
 
-        # 1. 高可信私密信息层
         if self.high_confidence_memory:
             context_parts.append("【你确认掌握的高可信私密信息】")
             for item in self.high_confidence_memory[-self.fact_limit:]:
-                marker = ""
-                if item.day_number is not None or item.round_number is not None:
-                    marker = f"(D{item.day_number or '-'}R{item.round_number or '-'}) "
-                context_parts.append(f"- {marker}{item.summary}")
+                context_parts.append(f"- {item.summary}")
             context_parts.append("")
 
-        # 2. 公开信息层
         if self.public_fact_memory:
             context_parts.append("【公开场上的普通信息】")
             for item in self.public_fact_memory[-self.fact_limit:]:
-                marker = ""
-                if item.day_number is not None or item.round_number is not None:
-                    marker = f"(D{item.day_number or '-'}R{item.round_number or '-'}) "
-                context_parts.append(f"- {marker}{item.summary}")
+                context_parts.append(f"- {item.summary}")
             context_parts.append("")
-
-        # 3. 提取提炼后的印象 (Impressions Layer)
-        if self.anchor_facts:
-            context_parts.append("【你确认记住的关键事实】")
-            for fact in self.anchor_facts[-self.fact_limit:]:
-                context_parts.append(f"- {fact}")
-            context_parts.append("")
-
+        
         if self.impressions:
             context_parts.append("【此前你对场面的总体印象与画像】")
             # 只显示最近的印象

@@ -118,13 +118,13 @@ class PhaseManager:
         # 更新轮次和天数
         if target == GamePhase.FIRST_NIGHT:
             self._round_number = 1
-            self._day_number = 1
+            self._day_number = 0
+        elif target == GamePhase.DAY_DISCUSSION:
+            if old_phase == GamePhase.FIRST_NIGHT:
+                self._day_number = 1
         elif target == GamePhase.NIGHT:
             self._round_number += 1
             self._day_number += 1
-        elif target == GamePhase.DAY_DISCUSSION:
-            # 白天讨论开始时不增加天数，因为天数在夜晚开始时已预先增加
-            pass
 
         self._phase_history.append((target, self._round_number, self._day_number))
 

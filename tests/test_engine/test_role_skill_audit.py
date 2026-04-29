@@ -98,7 +98,8 @@ def test_librarian_reports_specific_outsider_or_none() -> None:
     assert "o" in info["players"]
 
     no_info = role.get_night_info(without_outsider, without_outsider.get_player("l"))
-    assert no_info == {"type": "librarian_info", "has_outsider": False}
+    assert no_info["type"] == "librarian_info"
+    assert no_info["has_outsider"] is False
 
 
 def test_investigator_reveals_minion_pair() -> None:
@@ -135,7 +136,8 @@ def test_chef_counts_adjacent_evil_pairs() -> None:
 
     info = role.get_night_info(state, state.get_player("p3"))
 
-    assert info == {"type": "chef_info", "pairs": 1}
+    assert info["type"] == "chef_info"
+    assert info["pairs"] == 1
 
 
 def test_empath_counts_alive_evil_neighbors() -> None:
@@ -161,7 +163,7 @@ def test_undertaker_reads_executed_role() -> None:
     role = get_role_class("undertaker")()
     state = GameState(
         phase=GamePhase.NIGHT,
-        round_number=1,
+        round_number=2,
         players=(
             make_player("u", "Under", "undertaker", Team.GOOD),
             make_player("x", "Executed", "imp", Team.EVIL),
@@ -179,14 +181,16 @@ def test_undertaker_reads_executed_role() -> None:
 
     info = role.get_night_info(state, state.get_player("u"))
 
-    assert info == {"type": "undertaker_info", "role_seen": "imp", "player_id": "x"}
+    assert info["type"] == "undertaker_info"
+    assert info["role_seen"] == "imp"
+    assert info["player_id"] == "x"
 
 
 def test_undertaker_ignores_execution_from_previous_round() -> None:
     role = get_role_class("undertaker")()
     state = GameState(
         phase=GamePhase.NIGHT,
-        round_number=2,
+        round_number=3,
         players=(
             make_player("u", "Under", "undertaker", Team.GOOD),
             make_player("x", "Executed", "imp", Team.EVIL),
@@ -239,7 +243,9 @@ def test_fortune_teller_detects_demon_or_red_herring(targets, red_herring, expec
 
     info = role.get_night_info(state, state.get_player("f"))
 
-    assert info == {"type": "fortune_teller_info", "has_demon": expected}
+    assert info["type"] == "fortune_teller_info"
+    assert info["has_demon"] is expected
+    assert info["players"] == targets
 
 
 def test_spy_returns_full_book() -> None:
@@ -272,9 +278,8 @@ def test_monk_rejects_self_target_and_protects_other() -> None:
         ),
     )
 
-    same_state, same_events = role.execute_ability(state, state.get_player("m"), "m")
-    assert same_state == state
-    assert same_events == []
+    with pytest.raises(ValueError, match="僧侣不能选择自己"):
+        role.execute_ability(state, state.get_player("m"), "m")
 
     new_state, events = role.execute_ability(state, state.get_player("m"), "t")
     assert new_state.get_player("t").is_poisoned is False
@@ -310,7 +315,9 @@ def test_imp_respects_protection_and_soldier_immunity(target_kwargs) -> None:
     new_state, events = role.execute_ability(state, state.get_player("i"), "t")
 
     assert new_state.get_player("t").is_alive is True
-    assert events == []
+    assert len(events) == 1
+    assert events[0].event_type == "night_kill"
+    assert events[0].payload["failed"] is True
 
 
 def test_ravenkeeper_reveals_target_role_on_death_trigger() -> None:

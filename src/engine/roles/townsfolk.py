@@ -258,7 +258,7 @@ class UndertakerRole(BaseRole):
         for event in reversed(game_state.event_log):
             if (
                 event.event_type == "execution_resolved"
-                and event.round_number == game_state.round_number
+                and event.round_number == game_state.round_number - 1
                 and event.payload.get("executed")
             ):
                 victim = game_state.get_player(event.payload["executed"])

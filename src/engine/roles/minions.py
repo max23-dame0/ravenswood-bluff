@@ -128,8 +128,8 @@ class SpyRole(BaseRole):
                 "is_alive": p.is_alive
             })
         return {
-            "type": "spy_grimoire",
-            "grimoire": grimoire
+            "type": "spy_book",
+            "book": grimoire
         }
 
     def get_night_info(self, game_state, actor):

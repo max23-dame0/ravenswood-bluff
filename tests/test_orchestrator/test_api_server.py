@@ -2,6 +2,8 @@ import json
 import logging
 import importlib
 import time
+import uuid
+from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
@@ -79,6 +81,23 @@ def test_metrics_expose_backend_and_nomination_flow(monkeypatch):
 
         assert metrics["backend"]["type"] == "MockBackend"
         assert "phase" in metrics
+        assert "running" in metrics["loop_task"]
+        assert metrics["loop_task"]["game_id"] == metrics["game_id"]
+        assert metrics["loop_task"]["started_at"]
+        assert "last_exception" in metrics["loop_task"]
+        assert metrics["runtime"]["current_phase"]
+        assert "current_waiting_for" in metrics["runtime"]
+        assert "current_phase_ai_action_summary" in metrics["runtime"]
+        assert "ai_action_metrics" in metrics
+        assert "summary" in metrics["ai_action_metrics"]
+        assert "average_tokens_per_action" in metrics["ai_action_metrics"]["summary"]
+        assert "fallback_by_action_type" in metrics["ai_action_metrics"]["summary"]
+        assert "fallback_token_share" in metrics["ai_action_metrics"]["summary"]
+        assert metrics["runtime"]["phase_durations"]
+        latest_phase = metrics["runtime"]["phase_durations"][-1]
+        assert "ai_total_tokens" in latest_phase
+        assert "ai_fallback_token_share" in latest_phase
+        assert "ai_tokens_by_action_type" in latest_phase
         assert metrics["legal_nomination_count"] >= 1
         assert metrics["vote_count"] >= 1
         assert metrics["execution_count"] >= 1

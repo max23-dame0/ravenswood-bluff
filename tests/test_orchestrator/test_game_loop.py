@@ -393,7 +393,7 @@ async def test_first_night_fortune_teller_receives_private_info_after_action():
     payloads = [event.payload for event in info_events if event.payload.get("type") == "fortune_teller_info"]
     assert payloads, "expected a fortune_teller_info payload"
     assert payloads[-1]["has_demon"] is True
-    assert payloads[-1]["title"] == "预言家信息"
+    assert payloads[-1]["title"] == "占卜师信息"
     assert payloads[-1]["lines"]
 
 
@@ -633,6 +633,88 @@ async def test_audit_mode_nomination_fallback_chooses_first_legal_pair():
     )
 
     assert chosen == ("p1", "p2")
+
+
+@pytest.mark.asyncio
+async def test_day_discussion_throttles_ai_messages_when_human_player_present():
+    initial_state = GameState(
+        phase=GamePhase.DAY_DISCUSSION,
+        round_number=1,
+        day_number=1,
+        players=(
+            PlayerState(player_id="human", name="Human", role_id="washerwoman", team=Team.GOOD),
+            PlayerState(player_id="p2", name="AI Two", role_id="empath", team=Team.GOOD),
+            PlayerState(player_id="p3", name="AI Three", role_id="imp", team=Team.EVIL),
+            PlayerState(player_id="p4", name="AI Four", role_id="chef", team=Team.GOOD),
+        ),
+        seat_order=("human", "p2", "p3", "p4"),
+        config=GameConfig(
+            player_count=4,
+            human_mode="player",
+            human_player_ids=["human"],
+            is_human_participant=True,
+            discussion_rounds=1,
+            ai_discussion_message_limit=1,
+        ),
+    )
+    orch = GameOrchestrator(initial_state)
+    orch.storyteller_agent = DummyStoryteller()
+    human_agent = TrackingAgent("human", "Human", {"speak": [{"action": "speak", "content": "我先听一下。"}]})
+    ai_two = TrackingAgent("p2", "AI Two", {"speak": [{"action": "speak", "content": "AI two speaks."}]})
+    ai_three = TrackingAgent("p3", "AI Three", {"speak": [{"action": "speak", "content": "AI three speaks."}]})
+    ai_four = TrackingAgent("p4", "AI Four", {"speak": [{"action": "speak", "content": "AI four speaks."}]})
+    for agent in (human_agent, ai_two, ai_three, ai_four):
+        orch.register_agent(agent)
+
+    await orch._run_day_discussion()
+
+    speak_events = [event for event in orch.event_log.events if event.event_type == "player_speaks"]
+    assert [event.actor for event in speak_events] == ["human", "p2"]
+    assert human_agent.calls == ["speak"]
+    assert ai_two.calls == ["speak"]
+    assert ai_three.calls == []
+    assert ai_four.calls == []
+    pace_events = orch.collect_runtime_diagnostics()["pace_events"]
+    throttled = [event for event in pace_events if event["kind"] == "ai_discussion_throttled"]
+    assert [event["player_id"] for event in throttled] == ["p3", "p4"]
+
+
+@pytest.mark.asyncio
+async def test_day_discussion_does_not_throttle_ai_only_games():
+    initial_state = GameState(
+        phase=GamePhase.DAY_DISCUSSION,
+        round_number=1,
+        day_number=1,
+        players=(
+            PlayerState(player_id="p1", name="AI One", role_id="washerwoman", team=Team.GOOD),
+            PlayerState(player_id="p2", name="AI Two", role_id="empath", team=Team.GOOD),
+            PlayerState(player_id="p3", name="AI Three", role_id="imp", team=Team.EVIL),
+        ),
+        seat_order=("p1", "p2", "p3"),
+        config=GameConfig(
+            player_count=3,
+            human_mode="none",
+            human_player_ids=[],
+            is_human_participant=False,
+            discussion_rounds=1,
+            ai_discussion_message_limit=1,
+        ),
+    )
+    orch = GameOrchestrator(initial_state)
+    orch.storyteller_agent = DummyStoryteller()
+    agents = [
+        TrackingAgent("p1", "AI One", {"speak": [{"action": "speak", "content": "one"}]}),
+        TrackingAgent("p2", "AI Two", {"speak": [{"action": "speak", "content": "two"}]}),
+        TrackingAgent("p3", "AI Three", {"speak": [{"action": "speak", "content": "three"}]}),
+    ]
+    for agent in agents:
+        orch.register_agent(agent)
+
+    await orch._run_day_discussion()
+
+    speak_events = [event for event in orch.event_log.events if event.event_type == "player_speaks"]
+    assert [event.actor for event in speak_events] == ["p1", "p2", "p3"]
+    assert all(agent.calls == ["speak"] for agent in agents)
 
 
 @pytest.mark.asyncio

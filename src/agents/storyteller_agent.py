@@ -107,6 +107,13 @@ class StorytellerAgent:
     def _classify_judgement_bucket(self, category: str, decision: str, fields: dict[str, Any]) -> str:
         if category in {"drunk_role"}:
             return "setup"
+        if category in {"red_herring"}:
+            return "setup.red_herring" if decision == "selected" else "night_info.red_herring"
+        if category in {"misregistration"}:
+            role_id = fields.get("role_id") or "unknown"
+            return f"registration.{role_id}"
+        if category in {"mayor_redirect"}:
+            return "night_kill.mayor_redirect"
         if category in {"night_order"}:
             return "night_plan"
         if category in {"night_info"}:
@@ -152,7 +159,11 @@ class StorytellerAgent:
 
         context = self._build_storyteller_context(game_state)
         advantage = self._evaluate_team_advantage(StorytellerDecisionContext(
-            truth_view={}, public_state={}, event_log_so_far=[], private_delivery_history=[], balance_context=context, suppression_map={}
+            truth_view={},
+            public_state={},
+            private_delivery_history=[],
+            recent_judgements=[],
+            balance_context=context,
         ))
 
         advantage_text = "正义方大优" if advantage > 2 else ("正义方小优" if advantage > 0.5 else ("邪恶方大优" if advantage < -2 else ("邪恶方小优" if advantage < -0.5 else "局势均势")))
@@ -170,11 +181,15 @@ class StorytellerAgent:
 1. 你对当前场上哪名玩家或哪个阵营处境最危险的敏锐洞察。
 2. 你的下一步隐秘计划（例如：打算如何通过假信息、或者报幕氛围来扰乱优势方的判断，维持脆弱的平衡）。
 
-请直接输出这段极具掌控力与反派魅力的独白，不要有任何客套话。"""
+        请直接输出这段极具掌控力与反派魅力的独白，不要有任何客套话。"""
         try:
             from src.llm.base_backend import Message
-            response = await self.backend.generate([Message(role="system", content=prompt)])
-            thinking = response.strip() if response else "维持当前平衡。"
+            response = await self.backend.generate(
+                prompt,
+                [Message(role="user", content="请生成当前阶段的说书人内心独白。")],
+                max_tokens=200,
+            )
+            thinking = response.content.strip() if response and response.content else "维持当前平衡。"
             self.record_judgement(
                 "strategic_analysis",
                 decision=advantage_text,
@@ -641,7 +656,14 @@ class StorytellerAgent:
                     pair.append(random.choice(decoys))
                 random.shuffle(pair)
                 distorted["players"] = pair
-                distorted["role_seen"] = target_player.get("true_role_id") or target_player.get("role_id")
+                role_seen = target_player.get("true_role_id") or target_player.get("role_id")
+                distorted["role_seen"] = role_seen
+                # Rewrite lines
+                from src.engine.roles.base_role import get_role_class
+                role_cls = get_role_class(role_seen)
+                role_name = role_cls.get_definition().name if role_cls else role_seen
+                player_names = [p["name"] for p in context.truth_view.get("players", []) if p["player_id"] in pair]
+                distorted["lines"] = [f"玩家 {', '.join(player_names)} 中有一位是 {role_name}"]
             if role_id == "librarian":
                 distorted["has_outsider"] = True
             return distorted, f"{role_id}_pair_role_seen_distortion"
@@ -865,6 +887,21 @@ class StorytellerAgent:
 
         info_scope = self._classify_info_scope(role_id, info_source, context.is_suppressed(player_id))
         adjudication_path = self._resolve_adjudication_path(role_id, info_source)
+        red_herring_id = game_state.payload.get("fortune_teller_red_herring") if role_id == "fortune_teller" else None
+        red_herring_hit = bool(red_herring_id and red_herring_id in (info.get("players") or []))
+        if role_id == "fortune_teller" and red_herring_id:
+            self.record_judgement(
+                "red_herring",
+                decision="hit" if red_herring_hit else "miss",
+                player_id=player_id,
+                role_id=role_id,
+                target=red_herring_id,
+                selected_targets=list(info.get("players") or []),
+                result=bool(info.get("has_demon")),
+                phase=context.public_state["phase"],
+                day_number=context.public_state["day_number"],
+                round_number=context.public_state["round_number"],
+            )
         if context.is_suppressed(player_id):
             distorted, distortion_strategy = await self._apply_suppression_to_info_async(context, role_id, info, player_id)
             storyteller_logger.info(
@@ -886,6 +923,8 @@ class StorytellerAgent:
                 contract_mode=contract_mode,
                 adjudication_path=adjudication_path,
                 distortion_strategy=distortion_strategy,
+                red_herring_id=red_herring_id,
+                red_herring_hit=red_herring_hit if red_herring_id else None,
                 phase=context.public_state["phase"],
                 day_number=context.public_state["day_number"],
                 round_number=context.public_state["round_number"],
@@ -910,6 +949,8 @@ class StorytellerAgent:
             contract_mode=contract_mode,
             adjudication_path=adjudication_path,
             distortion_strategy="none",
+            red_herring_id=red_herring_id,
+            red_herring_hit=red_herring_hit if red_herring_id else None,
             phase=context.public_state["phase"],
             day_number=context.public_state["day_number"],
             round_number=context.public_state["round_number"],
@@ -1039,7 +1080,17 @@ class StorytellerAgent:
                 
                 new_payload["fortune_teller_red_herring"] = red_herring.player_id
                 storyteller_logger.info(f"[decide_initial_setup_info] fortune_teller_red_herring set to {red_herring.player_id} (advantage={advantage:.2f})")
-                self.record_judgement("initial_setup_info", decision="set_red_herring", target=red_herring.player_id, reason=f"balancing_advantage_{advantage:.2f}", phase=game_state.phase.value, day_number=game_state.day_number, round_number=game_state.round_number)
+                self.record_judgement(
+                    "red_herring",
+                    decision="selected",
+                    target=red_herring.player_id,
+                    role_id="fortune_teller",
+                    candidate_count=len(candidates),
+                    reason=f"balancing_advantage_{advantage:.2f}",
+                    phase=game_state.phase.value,
+                    day_number=game_state.day_number,
+                    round_number=game_state.round_number,
+                )
 
         return game_state.with_update(payload=new_payload)
 
@@ -1072,6 +1123,7 @@ class StorytellerAgent:
                 else:
                     new_payload.pop(f"misregistration:team:{player.player_id}", None)
                     new_payload.pop(f"misregistration:type:{player.player_id}", None)
+                    self.record_judgement("misregistration", decision="inactive", player_id=player.player_id, role_id="recluse", team=Team.GOOD.value, type=RoleType.OUTSIDER.value, reason=f"balancing_advantage_{advantage:.2f}", phase=game_state.phase.value, day_number=game_state.day_number, round_number=game_state.round_number)
             
             elif role_id == "spy":
                 # [A3-ST-5] 智能间谍误报：
@@ -1094,6 +1146,7 @@ class StorytellerAgent:
                 else:
                     new_payload.pop(f"misregistration:team:{player.player_id}", None)
                     new_payload.pop(f"misregistration:type:{player.player_id}", None)
+                    self.record_judgement("misregistration", decision="inactive", player_id=player.player_id, role_id="spy", team=Team.EVIL.value, type=RoleType.MINION.value, reason=f"balancing_advantage_{advantage:.2f}", phase=game_state.phase.value, day_number=game_state.day_number, round_number=game_state.round_number)
                     
         return game_state.with_update(payload=new_payload)
 

@@ -185,14 +185,14 @@ def test_working_memory_clear_transient_preserves_all_memory_tiers():
     wm.add_thought("Bob 可能有问题。")
     wm.remember_objective_info("death", "Alice 死亡，原因：execution", day_number=2, round_number=2)
     wm.remember_private_info("undertaker_info", "送葬者信息: 今天被处决的玩家身份是：小恶魔。", day_number=2, round_number=2)
-    wm.remember_public_info("role_claim", "Charlie 公开跳身份为 预言家", day_number=2, round_number=2)
+    wm.remember_public_info("role_claim", "Charlie 公开跳身份为 占卜师", day_number=2, round_number=2)
 
     wm.clear_transient()
 
     assert wm.is_empty
     assert wm.get_objective_memory_summaries("death") == ["Alice 死亡，原因：execution"]
     assert wm.get_private_memory_summaries("undertaker_info") == ["送葬者信息: 今天被处决的玩家身份是：小恶魔。"]
-    assert wm.get_public_memory_summaries("role_claim") == ["Charlie 公开跳身份为 预言家"]
+    assert wm.get_public_memory_summaries("role_claim") == ["Charlie 公开跳身份为 占卜师"]
 
 
 def test_working_memory_multi_day_archives_preserve_private_and_public_layers():

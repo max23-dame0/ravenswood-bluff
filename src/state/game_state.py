@@ -406,6 +406,7 @@ class GameConfig(BaseModel):
     backend_mode: str = "auto"
     audit_mode: bool = False
     discussion_rounds: int = 3       # 每天讨论轮数
+    ai_discussion_message_limit: Optional[int] = None  # 有真人玩家时，每轮最多允许多少条 AI 白天发言
     max_nomination_rounds: Optional[int] = None
     turn_timeout: int = 300          # 人类玩家行动超时（秒）
 

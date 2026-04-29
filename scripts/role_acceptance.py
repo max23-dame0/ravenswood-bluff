@@ -21,6 +21,7 @@ def main() -> int:
         capture_output=True,
         text=True,
         check=False,
+        timeout=120,
     )
     if result.returncode != 0:
         raise SystemExit(result.stderr or result.stdout)

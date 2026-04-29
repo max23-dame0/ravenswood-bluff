@@ -77,7 +77,7 @@ async def test_memory_compression():
     backend.set_response("我觉得 Bob 非常可疑，因为他一直在划水。")
 
     p = Persona("测试者", "普通", archetype="logic")
-    agent = AIAgent("p1", "Alice", backend, p)
+    agent = AIAgent("p1", "Alice", backend, p, player_count=5)
     dummy_p = PlayerState(player_id="p1", name="Alice", role_id="washerwoman", team=Team.GOOD)
     agent.synchronize_role(dummy_p)
 

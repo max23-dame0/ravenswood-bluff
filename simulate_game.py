@@ -21,6 +21,10 @@ logging.basicConfig(
 logger = logging.getLogger("simulation")
 
 
+class SimulationStop(Exception):
+    """Raised internally when the requested audit stop condition is reached."""
+
+
 @dataclass
 class SimulationOptions:
     backend: str
@@ -30,6 +34,12 @@ class SimulationOptions:
     stop_after: str
     audit_mode: bool
     max_nomination_rounds: int | None
+
+
+@dataclass(frozen=True)
+class StopMatch:
+    status: str
+    reason: str
 
 
 def parse_args() -> SimulationOptions:
@@ -62,6 +72,12 @@ def build_backend(mode: str):
         return MockBackend()
     if not os.getenv("OPENAI_API_KEY"):
         raise RuntimeError("已请求 live backend，但当前环境没有 OPENAI_API_KEY")
+    os.environ.setdefault("AI_FAST_LOW_VALUE_ACTIONS", "1")
+    os.environ.setdefault("AI_FORCE_PROGRESS_ACTIONS", "1")
+    if os.getenv("AI_FAST_LOW_VALUE_ACTIONS") == "1":
+        print(">>> [信息] live 模拟启用低价值动作本地启发式：nomination_intent, vote。")
+    if os.getenv("AI_FORCE_PROGRESS_ACTIONS") == "1":
+        print(">>> [信息] live 模拟启用审计推进策略：本地投票优先赞成以触发处决链。")
     print(">>> [信息] 使用 OpenAIBackend 进行真实模型短局验证。")
     return OpenAIBackend()
 
@@ -93,6 +109,25 @@ def merged_events(orchestrator: GameOrchestrator):
 
 def collect_summary(orchestrator: GameOrchestrator) -> dict:
     events = merged_events(orchestrator)
+    collect_ai_metrics = getattr(orchestrator, "collect_ai_action_metrics", None)
+    ai_metrics = collect_ai_metrics(limit=0) if collect_ai_metrics else {"summary": {}}
+    ai_summary = ai_metrics.get("summary", {})
+    collect_runtime = getattr(orchestrator, "collect_runtime_diagnostics", None)
+    runtime = collect_runtime() if collect_runtime else {}
+    top_actions = []
+    for item in ai_summary.get("top_token_actions", [])[:3]:
+        top_actions.append(
+            {
+                "player_id": item.get("player_id"),
+                "role_id": item.get("role_id"),
+                "phase": item.get("phase"),
+                "action_type": item.get("action_type"),
+                "total_tokens": item.get("total_tokens"),
+                "latency_ms": item.get("latency_ms"),
+                "fallback_used": item.get("fallback_used"),
+                "fallback_reason": item.get("fallback_reason"),
+            }
+        )
     phases = [e for e in events if e.event_type == "phase_changed"]
     nominations = [e for e in events if e.event_type == "nomination_started"]
     nomination_prompts = [
@@ -108,6 +143,7 @@ def collect_summary(orchestrator: GameOrchestrator) -> dict:
     ]
     night_actions = [e for e in events if e.event_type == "night_action_resolved"]
     return {
+        "game_id": orchestrator.state.game_id,
         "phase_count": len(phases),
         "nomination_prompt_count": len(nomination_prompts),
         "nomination_attempt_count": len(nomination_attempts),
@@ -121,44 +157,97 @@ def collect_summary(orchestrator: GameOrchestrator) -> dict:
         "day_number": orchestrator.state.day_number,
         "round_number": orchestrator.state.round_number,
         "alive_count": orchestrator.state.alive_count,
+        "ai_action_count": ai_summary.get("action_count", 0),
+        "ai_total_tokens": ai_summary.get("total_tokens", 0),
+        "ai_average_tokens_per_action": ai_summary.get("average_tokens_per_action", 0),
+        "ai_fallback_count": ai_summary.get("fallback_count", 0),
+        "ai_fallback_rate": ai_summary.get("fallback_rate", 0),
+        "ai_tokens_by_phase": ai_summary.get("tokens_by_phase", {}),
+        "ai_tokens_by_action_type": ai_summary.get("tokens_by_action_type", {}),
+        "ai_tokens_by_player": ai_summary.get("tokens_by_player", {}),
+        "ai_top_token_actions": top_actions,
+        "phase_durations": runtime.get("phase_durations", []),
     }
 
 
-def should_stop(orchestrator: GameOrchestrator, stop_after: str) -> bool:
+def _phase_day(event) -> int:
+    payload = event.payload or {}
+    day_number = payload.get("day_number")
+    if isinstance(day_number, int):
+        return day_number
+    return getattr(event, "day_number", 0) or 0
+
+
+def event_stop_match(event, stop_after: str) -> StopMatch | None:
+    if stop_after == "game_over" and event.event_type == "phase_changed":
+        if event.phase == GamePhase.GAME_OVER:
+            return StopMatch("game_over", f"event={event.event_type}, phase=game_over")
+    if stop_after == "first_execution":
+        if event.event_type == "execution_resolved" and bool(event.payload.get("executed") or event.target):
+            executed = event.payload.get("executed") or event.target
+            return StopMatch("first_execution", f"execution_resolved executed={executed}")
+    if stop_after == "day_1":
+        if event.event_type == "phase_changed" and event.phase == GamePhase.NIGHT and _phase_day(event) >= 2:
+            return StopMatch("day_1", f"phase_changed to night after day 1, day_number={_phase_day(event)}")
+        if event.phase == GamePhase.GAME_OVER:
+            return StopMatch("day_1", "game_over before day_1 boundary")
+    if stop_after == "night_2":
+        if event.event_type == "phase_changed" and event.phase == GamePhase.NIGHT and _phase_day(event) >= 2:
+            return StopMatch("night_2", f"phase_changed to night_2, day_number={_phase_day(event)}")
+        if event.phase == GamePhase.GAME_OVER:
+            return StopMatch("night_2", "game_over before night_2 boundary")
+    return None
+
+
+def stop_match(orchestrator: GameOrchestrator, stop_after: str) -> StopMatch | None:
     events = merged_events(orchestrator)
     if stop_after == "game_over":
-        return orchestrator.state.phase == GamePhase.GAME_OVER
+        if orchestrator.state.phase == GamePhase.GAME_OVER:
+            return StopMatch("game_over", "state.phase=game_over")
+        for event in events:
+            match = event_stop_match(event, stop_after)
+            if match:
+                return match
+        return None
     if stop_after == "first_execution":
-        return any(
-            e.event_type == "execution_resolved"
-            and (e.payload.get("executed") or e.target)
-            for e in events
-        )
+        for event in events:
+            match = event_stop_match(event, stop_after)
+            if match:
+                return match
+        return None
     if stop_after == "day_1":
-        return any(
-            e.event_type == "phase_changed" and e.phase == GamePhase.NIGHT and e.payload.get("day_number", 0) >= 1
-            for e in events
-        ) or orchestrator.state.phase == GamePhase.GAME_OVER
+        if orchestrator.state.phase == GamePhase.GAME_OVER:
+            return StopMatch("day_1", "state.phase=game_over before day_1 boundary")
+        for event in events:
+            match = event_stop_match(event, stop_after)
+            if match:
+                return match
+        return None
     if stop_after == "night_2":
-        night_count = sum(
-            1 for e in events
-            if e.event_type == "phase_changed" and e.phase in {GamePhase.FIRST_NIGHT, GamePhase.NIGHT}
-        )
-        return night_count >= 2 or orchestrator.state.phase == GamePhase.GAME_OVER
-    return False
+        if orchestrator.state.phase == GamePhase.GAME_OVER:
+            return StopMatch("night_2", "state.phase=game_over before night_2 boundary")
+        for event in events:
+            match = event_stop_match(event, stop_after)
+            if match:
+                return match
+        return None
+    return None
+
+
+def should_stop(orchestrator: GameOrchestrator, stop_after: str) -> bool:
+    return stop_match(orchestrator, stop_after) is not None
 
 
 def event_triggers_stop(event, stop_after: str) -> bool:
-    if stop_after == "first_execution":
-        return event.event_type == "execution_resolved" and bool(event.payload.get("executed") or event.target)
-    return False
+    return event_stop_match(event, stop_after) is not None
 
 
 async def wait_for_stop_condition(orchestrator: GameOrchestrator, stop_after: str, timeout_seconds: int):
     deadline = asyncio.get_running_loop().time() + timeout_seconds
     while asyncio.get_running_loop().time() < deadline:
-        if should_stop(orchestrator, stop_after):
-            return stop_after
+        match = stop_match(orchestrator, stop_after)
+        if match:
+            return match.status
         await asyncio.sleep(0.2)
     return "timeout"
 
@@ -183,15 +272,26 @@ async def run_simulation(options: SimulationOptions):
     orchestrator.storyteller_agent = storyteller
     orchestrator.default_agent_backend = backend
 
-    stop_reason = {"value": "timeout"}
+    stop_reason = {"value": "timeout", "detail": ""}
     original_publish = orchestrator.event_bus.publish
 
     async def publish_with_stop(event):
         await original_publish(event)
-        if event_triggers_stop(event, options.stop_after) or should_stop(orchestrator, options.stop_after):
-            stop_reason["value"] = options.stop_after
-            logger.info(">>> [STOP] 命中停止条件: stop_after=%s, event=%s, phase=%s, round=%s", options.stop_after, event.event_type, event.phase, event.round_number)
-            raise asyncio.CancelledError
+        match = event_stop_match(event, options.stop_after)
+        if match is None and options.stop_after != "game_over":
+            match = stop_match(orchestrator, options.stop_after)
+        if match:
+            stop_reason["value"] = match.status
+            stop_reason["detail"] = match.reason
+            logger.info(
+                ">>> [STOP] 命中停止条件: stop_after=%s, reason=%s, event=%s, phase=%s, round=%s",
+                options.stop_after,
+                match.reason,
+                event.event_type,
+                event.phase,
+                event.round_number,
+            )
+            raise SimulationStop(match.reason)
 
     orchestrator.event_bus.publish = publish_with_stop  # type: ignore[assignment]
 
@@ -219,8 +319,8 @@ async def run_simulation(options: SimulationOptions):
                 loop_task.cancel()
             with suppress(asyncio.CancelledError):
                 await loop_task
-        except asyncio.CancelledError:
-            with suppress(asyncio.CancelledError):
+        except SimulationStop:
+            with suppress(SimulationStop):
                 await loop_task
         else:
             stop_reason["value"] = "game_over" if orchestrator.state.phase == GamePhase.GAME_OVER else "completed"
@@ -234,14 +334,17 @@ async def run_simulation(options: SimulationOptions):
         print(f"- {key}: {value}")
     print(f"- stop_after_requested: {options.stop_after}")
     print(f"- stop_status: {stop_reason['value']}")
+    if stop_reason["detail"]:
+        print(f"- stop_reason: {stop_reason['detail']}")
     if orchestrator.winner:
         print(f"- winner: {orchestrator.winner.value}")
     print("-" * 60 + "\n")
+    return 0 if stop_reason["value"] == options.stop_after else 1
 
 
 if __name__ == "__main__":
     try:
-        asyncio.run(run_simulation(parse_args()))
+        raise SystemExit(asyncio.run(run_simulation(parse_args())))
     except Exception as exc:
         logger.exception("模拟局运行失败: %s", exc)
         raise

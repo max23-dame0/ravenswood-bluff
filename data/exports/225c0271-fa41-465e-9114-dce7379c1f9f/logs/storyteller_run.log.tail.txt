@@ -1,0 +1,200 @@
+2026-04-29 18:11:03,055 [INFO] storyteller: [nomination_started] round=1 nominator=p2 nominee=p3 threshold=3
+2026-04-29 18:11:03,056 [INFO] storyteller: [judgement][nomination_started] decision=start round=1 nominator=p2 nominee=p3 threshold=3 trace_id=BOTC-FLOW-NOM-7cefa9c1 phase=voting day_number=1 round_number=1 bucket=day_judgement
+2026-04-29 18:11:03,057 [INFO] storyteller: [judgement][defense] decision=request nominee=p3 trace_id=BOTC-FLOW-NOM-7cefa9c1 phase=voting day_number=1 round_number=1 bucket=day_judgement
+2026-04-29 18:11:03,065 [INFO] storyteller: [defense_started] nominee=p3 trace_id=BOTC-FLOW-NOM-7cefa9c1 content=我是好人，请不要处决我！
+2026-04-29 18:11:03,065 [INFO] storyteller: [judgement][defense] decision=deliver nominee=p3 trace_id=BOTC-FLOW-NOM-7cefa9c1 content=我是好人，请不要处决我！ phase=voting day_number=1 round_number=1 bucket=day_judgement
+2026-04-29 18:11:03,082 [INFO] storyteller: [voting_opened] nominee=p3 trace_id=BOTC-FLOW-NOM-7cefa9c1
+2026-04-29 18:11:03,083 [INFO] storyteller: [judgement][voting_resolution] decision=open nominee=p3 trace_id=BOTC-FLOW-NOM-7cefa9c1 defense_text=我是好人，请不要处决我！ threshold=3 phase=voting day_number=1 round_number=1 bucket=general
+2026-04-29 18:11:03,095 [INFO] storyteller: [vote_cast] voter=p1 decision=True nominee=p3 yes_votes=1 votes_cast=1 trace_id=BOTC-FLOW-NOM-7cefa9c1
+2026-04-29 18:11:03,095 [INFO] storyteller: [judgement][voting_resolution] decision=cast_vote voter=p1 nominee=p3 vote=True yes_votes=1 votes_cast=1 trace_id=BOTC-FLOW-NOM-7cefa9c1 phase=voting day_number=1 round_number=1 bucket=general
+2026-04-29 18:11:03,111 [INFO] storyteller: [vote_cast] voter=p2 decision=True nominee=p3 yes_votes=2 votes_cast=2 trace_id=BOTC-FLOW-NOM-7cefa9c1
+2026-04-29 18:11:03,113 [INFO] storyteller: [judgement][voting_resolution] decision=cast_vote voter=p2 nominee=p3 vote=True yes_votes=2 votes_cast=2 trace_id=BOTC-FLOW-NOM-7cefa9c1 phase=voting day_number=1 round_number=1 bucket=general
+2026-04-29 18:11:03,135 [INFO] storyteller: [vote_cast] voter=p3 decision=True nominee=p3 yes_votes=3 votes_cast=3 trace_id=BOTC-FLOW-NOM-7cefa9c1
+2026-04-29 18:11:03,136 [INFO] storyteller: [judgement][voting_resolution] decision=cast_vote voter=p3 nominee=p3 vote=True yes_votes=3 votes_cast=3 trace_id=BOTC-FLOW-NOM-7cefa9c1 phase=voting day_number=1 round_number=1 bucket=general
+2026-04-29 18:11:03,155 [INFO] storyteller: [vote_cast] voter=p4 decision=True nominee=p3 yes_votes=4 votes_cast=4 trace_id=BOTC-FLOW-NOM-7cefa9c1
+2026-04-29 18:11:03,156 [INFO] storyteller: [judgement][voting_resolution] decision=cast_vote voter=p4 nominee=p3 vote=True yes_votes=4 votes_cast=4 trace_id=BOTC-FLOW-NOM-7cefa9c1 phase=voting day_number=1 round_number=1 bucket=general
+2026-04-29 18:11:03,177 [INFO] storyteller: [vote_cast] voter=p5 decision=True nominee=p3 yes_votes=5 votes_cast=5 trace_id=BOTC-FLOW-NOM-7cefa9c1
+2026-04-29 18:11:03,178 [INFO] storyteller: [judgement][voting_resolution] decision=cast_vote voter=p5 nominee=p3 vote=True yes_votes=5 votes_cast=5 trace_id=BOTC-FLOW-NOM-7cefa9c1 phase=voting day_number=1 round_number=1 bucket=general
+2026-04-29 18:11:03,195 [INFO] storyteller: [voting_resolved] nominee=p3 passed=True votes=5 needed=3 trace_id=BOTC-FLOW-NOM-7cefa9c1
+2026-04-29 18:11:03,195 [INFO] storyteller: [judgement][voting_resolution] decision=resolve nominee=p3 passed=True votes=5 needed=3 yes_votes=5 votes_cast=5 trace_id=BOTC-FLOW-NOM-7cefa9c1 phase=nomination day_number=1 round_number=1 bucket=general
+2026-04-29 18:11:03,200 [INFO] storyteller: [nomination_round_resolved] round=1 nominee=p3 votes={}
+2026-04-29 18:11:03,201 [INFO] storyteller: [judgement][voting_resolution] decision=resolved round=1 nominee=p3 votes={} trace_id=BOTC-FLOW-NOM-7cefa9c1 phase=nomination day_number=1 round_number=1 bucket=general
+2026-04-29 18:11:03,215 [INFO] storyteller: [execution_finalized] round=1 trace_id=BOTC-FLOW-EXEC-072ff2a6
+2026-04-29 18:11:03,215 [INFO] storyteller: [judgement][execution] decision=finalize round=1 trace_id=BOTC-FLOW-EXEC-072ff2a6 phase=execution day_number=1 round_number=1 bucket=day_judgement
+2026-04-29 18:11:03,229 [INFO] storyteller: [narrate_phase] phase=night narration=夜色再次降临，真正的行动在黑暗里发生。
+2026-04-29 18:11:03,230 [INFO] storyteller: [judgement][narration] decision=announce phase=night day_number=2 round_number=2 narration=夜色再次降临，真正的行动在黑暗里发生。 bucket=phase_narration
+2026-04-29 18:11:03,231 [INFO] storyteller: [judgement][strategic_analysis] decision=局势均势 reason={"action": "speak", "content": "我是一个 Mock AI。", "tone": "calm", "reasoning": "保持流程畅通。"} advantage_score=0.0 phase=night day_number=2 bucket=general
+2026-04-29 18:11:03,237 [INFO] storyteller: [transient_statuses_cleared] 
+2026-04-29 18:11:03,241 [INFO] storyteller: [judgement][misregistration] decision=active reason=balancing_advantage_0.00 player_id=p3 role_id=recluse team=evil type=minion phase=night day_number=2 round_number=2 bucket=registration.recluse
+2026-04-29 18:11:03,243 [INFO] storyteller: [build_night_order] phase=night steps=imp@24
+2026-04-29 18:11:03,243 [WARNING] storyteller: [build_night_order] canonical_mismatches=[{"role_id": "baron", "actual_order": 0, "expected_order": null, "reason": "missing_reference"}, {"role_id": "drunken", "actual_order": 0, "expected_order": null, "reason": "missing_reference"}]
+2026-04-29 18:11:03,243 [INFO] storyteller: [judgement][night_order] decision=validated_with_mismatches phase=night steps=[{"player_id": "p5", "role_id": "imp", "night_order": 24, "official_order": 24, "rulebook_index": 24, "seat_index": 4}] canonical_reference=trouble_brewing_night_order mismatches=[{"role_id": "baron", "actual_order": 0, "expected_order": null, "reason": "missing_reference"}, {"role_id": "drunken", "actual_order": 0, "expected_order": null, "reason": "missing_reference"}] tie_groups=[] tie_strategy=canonical_rolebook_then_seat_order bucket=night_plan
+2026-04-29 18:11:03,243 [INFO] storyteller: [night_action_queue] phase=night steps=1
+2026-04-29 18:11:03,243 [INFO] storyteller: [judgement][night_queue] decision=queue phase=night steps=[{"player_id": "p5", "role_id": "imp", "night_order": 24}] day_number=2 round_number=2 bucket=general
+2026-04-29 18:11:03,252 [INFO] storyteller: [night_action_requested] phase=night actor=p5 role=imp trace_id=BOTC-ST-ACT-dbddb912
+2026-04-29 18:11:03,254 [INFO] storyteller: [judgement][night_action] decision=request phase=night actor=p5 role=imp trace_id=BOTC-ST-ACT-dbddb912 day_number=2 round_number=2 bucket=general
+2026-04-29 18:11:03,274 [INFO] storyteller: [night_action_executed] phase=night actor=p5 role=imp targets=p2 trace_id=BOTC-ST-ACT-dbddb912
+2026-04-29 18:11:03,276 [INFO] storyteller: [judgement][night_action] decision=execute phase=night actor=p5 role=imp targets=["p2"] trace_id=BOTC-ST-ACT-dbddb912 day_number=2 round_number=2 bucket=general
+2026-04-29 18:11:03,282 [INFO] storyteller: [night_action_resolved] phase=night actor=p5 role=imp targets=p2 trace_id=BOTC-ST-ACT-dbddb912
+2026-04-29 18:11:03,283 [INFO] storyteller: [judgement][night_action] decision=resolved phase=night actor=p5 role=imp targets=["p2"] trace_id=BOTC-ST-ACT-dbddb912 day_number=2 round_number=2 bucket=general
+2026-04-29 18:11:03,287 [INFO] storyteller: [grimoire_update] players=5 night_actions=5
+2026-04-29 18:11:03,303 [INFO] storyteller: [narrate_phase] phase=day_discussion narration=晨雾散开，谎言与真相同时开口。 邪恶的阴霾挥之不去，小镇似乎命悬一线。
+2026-04-29 18:11:03,305 [INFO] storyteller: [judgement][narration] decision=announce phase=day_discussion day_number=2 round_number=2 narration=晨雾散开，谎言与真相同时开口。 邪恶的阴霾挥之不去，小镇似乎命悬一线。 bucket=phase_narration
+2026-04-29 18:11:03,308 [INFO] storyteller: [judgement][strategic_analysis] decision=邪恶方大优 reason={"action": "night_action", "content": "我是一个 Mock AI。", "tone": "calm", "reasoning": "夜晚行动模拟。", "target": "p5"} advantage_score=-3.0 phase=day_discussion day_number=2 bucket=general
+2026-04-29 18:11:03,445 [INFO] storyteller: [narrate_phase] phase=nomination narration=怀疑开始聚焦，绞索在空气里慢慢收紧。
+2026-04-29 18:11:03,445 [INFO] storyteller: [judgement][narration] decision=announce phase=nomination day_number=2 round_number=2 narration=怀疑开始聚焦，绞索在空气里慢慢收紧。 bucket=phase_narration
+2026-04-29 18:11:03,450 [INFO] storyteller: [judgement][strategic_analysis] decision=邪恶方大优 reason={"action": "night_action", "content": "我是一个 Mock AI。", "tone": "calm", "reasoning": "夜晚行动模拟。", "target": "p2"} advantage_score=-3.0 phase=nomination day_number=2 bucket=general
+2026-04-29 18:11:03,459 [INFO] storyteller: [nomination_phase_open] max_rounds=1 alive=3
+2026-04-29 18:11:03,459 [INFO] storyteller: [judgement][nomination_started] decision=open max_rounds=1 alive=3 phase=nomination day_number=2 round_number=2 bucket=day_judgement
+2026-04-29 18:11:03,469 [INFO] storyteller: [nomination_window_opened] round=1 alive=3
+2026-04-29 18:11:03,609 [INFO] storyteller: [nomination_intent_submitted] round=1 actor=p1 action=nominate target=p4
+2026-04-29 18:11:03,615 [INFO] storyteller: [nomination_intent_submitted] round=1 actor=p4 action=nominate target=p1
+2026-04-29 18:11:03,625 [INFO] storyteller: [nomination_intent_submitted] round=1 actor=p5 action=nominate target=p4
+2026-04-29 18:11:03,625 [INFO] storyteller: [judgement][nomination_choice] decision=choose reason=first_legal_intent round=1 nominator=p1 nominee=p4 phase=nomination day_number=2 round_number=2 bucket=day_judgement
+2026-04-29 18:11:03,643 [INFO] storyteller: [nomination_started] round=1 nominator=p1 nominee=p4 threshold=2
+2026-04-29 18:11:03,643 [INFO] storyteller: [judgement][nomination_started] decision=start round=1 nominator=p1 nominee=p4 threshold=2 trace_id=BOTC-FLOW-NOM-66882cf9 phase=voting day_number=2 round_number=2 bucket=day_judgement
+2026-04-29 18:11:03,643 [INFO] storyteller: [judgement][defense] decision=request nominee=p4 trace_id=BOTC-FLOW-NOM-66882cf9 phase=voting day_number=2 round_number=2 bucket=day_judgement
+2026-04-29 18:11:03,656 [INFO] storyteller: [defense_started] nominee=p4 trace_id=BOTC-FLOW-NOM-66882cf9 content=我先把我最确认的一条线说清楚：Player 2 死亡，原因：night。我是好人，请不要处决我！
+2026-04-29 18:11:03,656 [INFO] storyteller: [judgement][defense] decision=deliver nominee=p4 trace_id=BOTC-FLOW-NOM-66882cf9 content=我先把我最确认的一条线说清楚：Player 2 死亡，原因：night。我是好人，请不要处决我！ phase=voting day_number=2 round_number=2 bucket=day_judgement
+2026-04-29 18:11:03,670 [INFO] storyteller: [voting_opened] nominee=p4 trace_id=BOTC-FLOW-NOM-66882cf9
+2026-04-29 18:11:03,671 [INFO] storyteller: [judgement][voting_resolution] decision=open nominee=p4 trace_id=BOTC-FLOW-NOM-66882cf9 defense_text=我先把我最确认的一条线说清楚：Player 2 死亡，原因：night。我是好人，请不要处决我！ threshold=2 phase=voting day_number=2 round_number=2 bucket=general
+2026-04-29 18:11:03,692 [INFO] storyteller: [vote_cast] voter=p1 decision=True nominee=p4 yes_votes=1 votes_cast=1 trace_id=BOTC-FLOW-NOM-66882cf9
+2026-04-29 18:11:03,694 [INFO] storyteller: [judgement][voting_resolution] decision=cast_vote voter=p1 nominee=p4 vote=True yes_votes=1 votes_cast=1 trace_id=BOTC-FLOW-NOM-66882cf9 phase=voting day_number=2 round_number=2 bucket=general
+2026-04-29 18:11:03,755 [INFO] storyteller: [vote_cast] voter=p2 decision=True nominee=p4 yes_votes=2 votes_cast=2 trace_id=BOTC-FLOW-NOM-66882cf9
+2026-04-29 18:11:03,756 [INFO] storyteller: [judgement][voting_resolution] decision=cast_vote voter=p2 nominee=p4 vote=True yes_votes=2 votes_cast=2 trace_id=BOTC-FLOW-NOM-66882cf9 phase=voting day_number=2 round_number=2 bucket=general
+2026-04-29 18:11:03,812 [INFO] storyteller: [vote_cast] voter=p3 decision=True nominee=p4 yes_votes=3 votes_cast=3 trace_id=BOTC-FLOW-NOM-66882cf9
+2026-04-29 18:11:03,812 [INFO] storyteller: [judgement][voting_resolution] decision=cast_vote voter=p3 nominee=p4 vote=True yes_votes=3 votes_cast=3 trace_id=BOTC-FLOW-NOM-66882cf9 phase=voting day_number=2 round_number=2 bucket=general
+2026-04-29 18:11:03,855 [INFO] storyteller: [vote_cast] voter=p4 decision=True nominee=p4 yes_votes=4 votes_cast=4 trace_id=BOTC-FLOW-NOM-66882cf9
+2026-04-29 18:11:03,855 [INFO] storyteller: [judgement][voting_resolution] decision=cast_vote voter=p4 nominee=p4 vote=True yes_votes=4 votes_cast=4 trace_id=BOTC-FLOW-NOM-66882cf9 phase=voting day_number=2 round_number=2 bucket=general
+2026-04-29 18:11:03,877 [INFO] storyteller: [vote_cast] voter=p5 decision=True nominee=p4 yes_votes=5 votes_cast=5 trace_id=BOTC-FLOW-NOM-66882cf9
+2026-04-29 18:11:03,878 [INFO] storyteller: [judgement][voting_resolution] decision=cast_vote voter=p5 nominee=p4 vote=True yes_votes=5 votes_cast=5 trace_id=BOTC-FLOW-NOM-66882cf9 phase=voting day_number=2 round_number=2 bucket=general
+2026-04-29 18:11:03,925 [INFO] storyteller: [voting_resolved] nominee=p4 passed=True votes=5 needed=2 trace_id=BOTC-FLOW-NOM-66882cf9
+2026-04-29 18:11:03,926 [INFO] storyteller: [judgement][voting_resolution] decision=resolve nominee=p4 passed=True votes=5 needed=2 yes_votes=5 votes_cast=5 trace_id=BOTC-FLOW-NOM-66882cf9 phase=nomination day_number=2 round_number=2 bucket=general
+2026-04-29 18:11:03,930 [INFO] storyteller: [nomination_round_resolved] round=1 nominee=p4 votes={}
+2026-04-29 18:11:03,930 [INFO] storyteller: [judgement][voting_resolution] decision=resolved round=1 nominee=p4 votes={} trace_id=BOTC-FLOW-NOM-66882cf9 phase=nomination day_number=2 round_number=2 bucket=general
+2026-04-29 18:11:03,958 [INFO] storyteller: [execution_finalized] round=1 trace_id=BOTC-FLOW-EXEC-4a40b661
+2026-04-29 18:11:03,958 [INFO] storyteller: [judgement][execution] decision=finalize round=1 trace_id=BOTC-FLOW-EXEC-4a40b661 phase=execution day_number=2 round_number=2 bucket=day_judgement
+2026-04-29 18:11:54,601 [INFO] storyteller: [narrate_phase] phase=setup narration=小镇尚未苏醒，命运正在分配身份。
+2026-04-29 18:11:54,601 [INFO] storyteller: [judgement][narration] decision=announce phase=setup day_number=0 round_number=0 narration=小镇尚未苏醒，命运正在分配身份。 bucket=phase_narration
+2026-04-29 18:11:54,603 [INFO] storyteller: [judgement][strategic_analysis] decision=邪恶方大优 reason={"action": "speak", "content": "我是一个 Mock AI。", "tone": "calm", "reasoning": "保持流程畅通。"} advantage_score=-3.0 phase=setup day_number=0 bucket=general
+2026-04-29 18:11:54,821 [INFO] storyteller: [decide_drunk_role] candidates=washerwoman,librarian,investigator,chef,empath,fortune_teller,undertaker,monk,virgin,slayer,soldier,mayor chosen=mayor
+2026-04-29 18:11:54,823 [INFO] storyteller: [judgement][drunk_role] decision=mayor candidates=["washerwoman", "librarian", "investigator", "chef", "empath", "fortune_teller", "undertaker", "monk", "virgin", "slayer", "soldier", "mayor"] bucket=setup
+2026-04-29 18:11:54,824 [INFO] storyteller: [grimoire_update] players=5 night_actions=0
+2026-04-29 18:11:57,611 [INFO] storyteller: [narrate_phase] phase=first_night narration=夜幕初降，每双闭上的眼睛都藏着秘密。
+2026-04-29 18:11:57,611 [INFO] storyteller: [judgement][narration] decision=announce phase=first_night day_number=0 round_number=1 narration=夜幕初降，每双闭上的眼睛都藏着秘密。 bucket=phase_narration
+2026-04-29 18:11:57,612 [INFO] storyteller: [judgement][strategic_analysis] decision=局势均势 reason={"action": "speak", "content": "我是一个 Mock AI。", "tone": "calm", "reasoning": "保持流程畅通。"} advantage_score=0.0 phase=first_night day_number=0 bucket=general
+2026-04-29 18:11:57,613 [INFO] storyteller: [grimoire_update] players=5 night_actions=0
+2026-04-29 18:11:57,615 [INFO] storyteller: [private_info_delivered] phase=first_night target=p1 trace_id=BOTC-ST-EVIL-3f41fa33 info_type=evil_reveal title=邪恶阵营互认
+2026-04-29 18:11:57,615 [INFO] storyteller: [judgement][private_info] decision=deliver phase=first_night target=p1 trace_id=BOTC-ST-EVIL-3f41fa33 info_type=evil_reveal title=邪恶阵营互认 day_number=0 round_number=1 bucket=general
+2026-04-29 18:11:57,615 [INFO] storyteller: [judgement][evil_reveal] decision=deliver phase=first_night player_id=p1 teammates=["Player 4"] bluffs=["fortune_teller", "washerwoman", "chef"] day_number=0 round_number=1 bucket=general
+2026-04-29 18:11:57,617 [INFO] storyteller: [private_info_delivered] phase=first_night target=p4 trace_id=BOTC-ST-EVIL-bc10d5bf info_type=evil_reveal title=邪恶阵营互认
+2026-04-29 18:11:57,617 [INFO] storyteller: [judgement][private_info] decision=deliver phase=first_night target=p4 trace_id=BOTC-ST-EVIL-bc10d5bf info_type=evil_reveal title=邪恶阵营互认 day_number=0 round_number=1 bucket=general
+2026-04-29 18:11:57,618 [INFO] storyteller: [judgement][evil_reveal] decision=deliver phase=first_night player_id=p4 teammates=["Player 1"] bluffs=["fortune_teller", "washerwoman", "chef"] day_number=0 round_number=1 bucket=general
+2026-04-29 18:11:57,618 [INFO] storyteller: [build_night_order] phase=first_night steps=butler@70
+2026-04-29 18:11:57,619 [WARNING] storyteller: [build_night_order] canonical_mismatches=[{"role_id": "baron", "actual_order": 0, "expected_order": null, "reason": "missing_reference"}, {"role_id": "drunken", "actual_order": 0, "expected_order": null, "reason": "missing_reference"}]
+2026-04-29 18:11:57,622 [INFO] storyteller: [judgement][night_order] decision=validated_with_mismatches phase=first_night steps=[{"player_id": "p3", "role_id": "butler", "night_order": 70, "official_order": 70, "rulebook_index": 70, "seat_index": 2}] canonical_reference=trouble_brewing_night_order mismatches=[{"role_id": "baron", "actual_order": 0, "expected_order": null, "reason": "missing_reference"}, {"role_id": "drunken", "actual_order": 0, "expected_order": null, "reason": "missing_reference"}] tie_groups=[] tie_strategy=canonical_rolebook_then_seat_order bucket=night_plan
+2026-04-29 18:11:57,622 [INFO] storyteller: [night_action_queue] phase=first_night steps=1
+2026-04-29 18:11:57,623 [INFO] storyteller: [judgement][night_queue] decision=queue phase=first_night steps=[{"player_id": "p3", "role_id": "butler", "night_order": 70}] day_number=0 round_number=1 bucket=general
+2026-04-29 18:11:57,625 [INFO] storyteller: [night_action_requested] phase=first_night actor=p3 role=butler trace_id=BOTC-ST-ACT-310f243d
+2026-04-29 18:11:57,625 [INFO] storyteller: [judgement][night_action] decision=request phase=first_night actor=p3 role=butler trace_id=BOTC-ST-ACT-310f243d day_number=0 round_number=1 bucket=general
+2026-04-29 18:11:57,632 [INFO] storyteller: [night_action_executed] phase=first_night actor=p3 role=butler targets=p2 trace_id=BOTC-ST-ACT-310f243d
+2026-04-29 18:11:57,634 [INFO] storyteller: [judgement][night_action] decision=execute phase=first_night actor=p3 role=butler targets=["p2"] trace_id=BOTC-ST-ACT-310f243d day_number=0 round_number=1 bucket=general
+2026-04-29 18:11:57,637 [INFO] storyteller: [night_action_resolved] phase=first_night actor=p3 role=butler targets=p2 trace_id=BOTC-ST-ACT-310f243d
+2026-04-29 18:11:57,637 [INFO] storyteller: [judgement][night_action] decision=resolved phase=first_night actor=p3 role=butler targets=["p2"] trace_id=BOTC-ST-ACT-310f243d day_number=0 round_number=1 bucket=general
+2026-04-29 18:11:57,640 [INFO] storyteller: [grimoire_update] players=5 night_actions=4
+2026-04-29 18:11:57,655 [INFO] storyteller: [narrate_phase] phase=day_discussion narration=晨雾散开，谎言与真相同时开口。
+2026-04-29 18:11:57,655 [INFO] storyteller: [judgement][narration] decision=announce phase=day_discussion day_number=1 round_number=1 narration=晨雾散开，谎言与真相同时开口。 bucket=phase_narration
+2026-04-29 18:11:57,657 [INFO] storyteller: [judgement][strategic_analysis] decision=局势均势 reason={"action": "night_action", "content": "我是一个 Mock AI。", "tone": "calm", "reasoning": "夜晚行动模拟。", "target": "p3"} advantage_score=0.0 phase=day_discussion day_number=1 bucket=general
+2026-04-29 18:11:57,722 [INFO] storyteller: [narrate_phase] phase=nomination narration=怀疑开始聚焦，绞索在空气里慢慢收紧。
+2026-04-29 18:11:57,723 [INFO] storyteller: [judgement][narration] decision=announce phase=nomination day_number=1 round_number=1 narration=怀疑开始聚焦，绞索在空气里慢慢收紧。 bucket=phase_narration
+2026-04-29 18:11:57,725 [INFO] storyteller: [judgement][strategic_analysis] decision=局势均势 reason={"action": "night_action", "content": "我是一个 Mock AI。", "tone": "calm", "reasoning": "夜晚行动模拟。", "target": "p2"} advantage_score=0.0 phase=nomination day_number=1 bucket=general
+2026-04-29 18:11:57,736 [INFO] storyteller: [nomination_phase_open] max_rounds=1 alive=5
+2026-04-29 18:11:57,736 [INFO] storyteller: [judgement][nomination_started] decision=open max_rounds=1 alive=5 phase=nomination day_number=1 round_number=1 bucket=day_judgement
+2026-04-29 18:11:57,741 [INFO] storyteller: [nomination_window_opened] round=1 alive=5
+2026-04-29 18:11:57,765 [INFO] storyteller: [nomination_intent_submitted] round=1 actor=p1 action=nominate target=p2
+2026-04-29 18:11:57,768 [INFO] storyteller: [nomination_intent_submitted] round=1 actor=p2 action=not_nominating target=not_nominating
+2026-04-29 18:11:57,771 [INFO] storyteller: [nomination_intent_submitted] round=1 actor=p3 action=nominate target=p2
+2026-04-29 18:11:57,773 [INFO] storyteller: [nomination_intent_submitted] round=1 actor=p4 action=nominate target=p2
+2026-04-29 18:11:57,773 [INFO] storyteller: [nomination_intent_submitted] round=1 actor=p5 action=nominate target=p2
+2026-04-29 18:11:57,774 [INFO] storyteller: [judgement][nomination_choice] decision=choose reason=first_legal_intent round=1 nominator=p1 nominee=p2 phase=nomination day_number=1 round_number=1 bucket=day_judgement
+2026-04-29 18:11:57,777 [INFO] storyteller: [nomination_started] round=1 nominator=p1 nominee=p2 threshold=3
+2026-04-29 18:11:57,777 [INFO] storyteller: [judgement][nomination_started] decision=start round=1 nominator=p1 nominee=p2 threshold=3 trace_id=BOTC-FLOW-NOM-e00313b5 phase=voting day_number=1 round_number=1 bucket=day_judgement
+2026-04-29 18:11:57,778 [INFO] storyteller: [judgement][defense] decision=request nominee=p2 trace_id=BOTC-FLOW-NOM-e00313b5 phase=voting day_number=1 round_number=1 bucket=day_judgement
+2026-04-29 18:11:57,784 [INFO] storyteller: [defense_started] nominee=p2 trace_id=BOTC-FLOW-NOM-e00313b5 content=我是好人，请不要处决我！
+2026-04-29 18:11:57,784 [INFO] storyteller: [judgement][defense] decision=deliver nominee=p2 trace_id=BOTC-FLOW-NOM-e00313b5 content=我是好人，请不要处决我！ phase=voting day_number=1 round_number=1 bucket=day_judgement
+2026-04-29 18:11:57,788 [INFO] storyteller: [voting_opened] nominee=p2 trace_id=BOTC-FLOW-NOM-e00313b5
+2026-04-29 18:11:57,789 [INFO] storyteller: [judgement][voting_resolution] decision=open nominee=p2 trace_id=BOTC-FLOW-NOM-e00313b5 defense_text=我是好人，请不要处决我！ threshold=3 phase=voting day_number=1 round_number=1 bucket=general
+2026-04-29 18:11:57,798 [INFO] storyteller: [vote_cast] voter=p1 decision=True nominee=p2 yes_votes=1 votes_cast=1 trace_id=BOTC-FLOW-NOM-e00313b5
+2026-04-29 18:11:57,799 [INFO] storyteller: [judgement][voting_resolution] decision=cast_vote voter=p1 nominee=p2 vote=True yes_votes=1 votes_cast=1 trace_id=BOTC-FLOW-NOM-e00313b5 phase=voting day_number=1 round_number=1 bucket=general
+2026-04-29 18:11:57,810 [INFO] storyteller: [vote_cast] voter=p2 decision=True nominee=p2 yes_votes=2 votes_cast=2 trace_id=BOTC-FLOW-NOM-e00313b5
+2026-04-29 18:11:57,810 [INFO] storyteller: [judgement][voting_resolution] decision=cast_vote voter=p2 nominee=p2 vote=True yes_votes=2 votes_cast=2 trace_id=BOTC-FLOW-NOM-e00313b5 phase=voting day_number=1 round_number=1 bucket=general
+2026-04-29 18:11:57,819 [INFO] storyteller: [vote_cast] voter=p3 decision=True nominee=p2 yes_votes=3 votes_cast=3 trace_id=BOTC-FLOW-NOM-e00313b5
+2026-04-29 18:11:57,821 [INFO] storyteller: [judgement][voting_resolution] decision=cast_vote voter=p3 nominee=p2 vote=True yes_votes=3 votes_cast=3 trace_id=BOTC-FLOW-NOM-e00313b5 phase=voting day_number=1 round_number=1 bucket=general
+2026-04-29 18:11:57,844 [INFO] storyteller: [vote_cast] voter=p4 decision=True nominee=p2 yes_votes=4 votes_cast=4 trace_id=BOTC-FLOW-NOM-e00313b5
+2026-04-29 18:11:57,845 [INFO] storyteller: [judgement][voting_resolution] decision=cast_vote voter=p4 nominee=p2 vote=True yes_votes=4 votes_cast=4 trace_id=BOTC-FLOW-NOM-e00313b5 phase=voting day_number=1 round_number=1 bucket=general
+2026-04-29 18:11:57,855 [INFO] storyteller: [vote_cast] voter=p5 decision=True nominee=p2 yes_votes=5 votes_cast=5 trace_id=BOTC-FLOW-NOM-e00313b5
+2026-04-29 18:11:57,855 [INFO] storyteller: [judgement][voting_resolution] decision=cast_vote voter=p5 nominee=p2 vote=True yes_votes=5 votes_cast=5 trace_id=BOTC-FLOW-NOM-e00313b5 phase=voting day_number=1 round_number=1 bucket=general
+2026-04-29 18:11:57,869 [INFO] storyteller: [voting_resolved] nominee=p2 passed=True votes=5 needed=3 trace_id=BOTC-FLOW-NOM-e00313b5
+2026-04-29 18:11:57,869 [INFO] storyteller: [judgement][voting_resolution] decision=resolve nominee=p2 passed=True votes=5 needed=3 yes_votes=5 votes_cast=5 trace_id=BOTC-FLOW-NOM-e00313b5 phase=nomination day_number=1 round_number=1 bucket=general
+2026-04-29 18:11:57,872 [INFO] storyteller: [nomination_round_resolved] round=1 nominee=p2 votes={}
+2026-04-29 18:11:57,872 [INFO] storyteller: [judgement][voting_resolution] decision=resolved round=1 nominee=p2 votes={} trace_id=BOTC-FLOW-NOM-e00313b5 phase=nomination day_number=1 round_number=1 bucket=general
+2026-04-29 18:11:57,882 [INFO] storyteller: [execution_finalized] round=1 trace_id=BOTC-FLOW-EXEC-422e83e6
+2026-04-29 18:11:57,883 [INFO] storyteller: [judgement][execution] decision=finalize round=1 trace_id=BOTC-FLOW-EXEC-422e83e6 phase=execution day_number=1 round_number=1 bucket=day_judgement
+2026-04-29 18:11:57,894 [INFO] storyteller: [narrate_phase] phase=night narration=夜色再次降临，真正的行动在黑暗里发生。
+2026-04-29 18:11:57,894 [INFO] storyteller: [judgement][narration] decision=announce phase=night day_number=2 round_number=2 narration=夜色再次降临，真正的行动在黑暗里发生。 bucket=phase_narration
+2026-04-29 18:11:57,896 [INFO] storyteller: [judgement][strategic_analysis] decision=局势均势 reason={"action": "speak", "content": "我是一个 Mock AI。", "tone": "calm", "reasoning": "保持流程畅通。"} advantage_score=0.0 phase=night day_number=2 bucket=general
+2026-04-29 18:11:57,898 [INFO] storyteller: [transient_statuses_cleared] 
+2026-04-29 18:11:57,901 [INFO] storyteller: [build_night_order] phase=night steps=imp@24,butler@70
+2026-04-29 18:11:57,901 [WARNING] storyteller: [build_night_order] canonical_mismatches=[{"role_id": "baron", "actual_order": 0, "expected_order": null, "reason": "missing_reference"}, {"role_id": "drunken", "actual_order": 0, "expected_order": null, "reason": "missing_reference"}]
+2026-04-29 18:11:57,901 [INFO] storyteller: [judgement][night_order] decision=validated_with_mismatches phase=night steps=[{"player_id": "p4", "role_id": "imp", "night_order": 24, "official_order": 24, "rulebook_index": 24, "seat_index": 3}, {"player_id": "p3", "role_id": "butler", "night_order": 70, "official_order": 70, "rulebook_index": 70, "seat_index": 2}] canonical_reference=trouble_brewing_night_order mismatches=[{"role_id": "baron", "actual_order": 0, "expected_order": null, "reason": "missing_reference"}, {"role_id": "drunken", "actual_order": 0, "expected_order": null, "reason": "missing_reference"}] tie_groups=[] tie_strategy=canonical_rolebook_then_seat_order bucket=night_plan
+2026-04-29 18:11:57,901 [INFO] storyteller: [night_action_queue] phase=night steps=2
+2026-04-29 18:11:57,901 [INFO] storyteller: [judgement][night_queue] decision=queue phase=night steps=[{"player_id": "p4", "role_id": "imp", "night_order": 24}, {"player_id": "p3", "role_id": "butler", "night_order": 70}] day_number=2 round_number=2 bucket=general
+2026-04-29 18:11:57,906 [INFO] storyteller: [night_action_requested] phase=night actor=p4 role=imp trace_id=BOTC-ST-ACT-49baaa6f
+2026-04-29 18:11:57,906 [INFO] storyteller: [judgement][night_action] decision=request phase=night actor=p4 role=imp trace_id=BOTC-ST-ACT-49baaa6f day_number=2 round_number=2 bucket=general
+2026-04-29 18:11:57,923 [INFO] storyteller: [night_action_executed] phase=night actor=p4 role=imp targets=p1 trace_id=BOTC-ST-ACT-49baaa6f
+2026-04-29 18:11:57,924 [INFO] storyteller: [judgement][night_action] decision=execute phase=night actor=p4 role=imp targets=["p1"] trace_id=BOTC-ST-ACT-49baaa6f day_number=2 round_number=2 bucket=general
+2026-04-29 18:11:57,924 [INFO] storyteller: [night_action_resolved] phase=night actor=p4 role=imp targets=p1 trace_id=BOTC-ST-ACT-49baaa6f
+2026-04-29 18:11:57,924 [INFO] storyteller: [judgement][night_action] decision=resolved phase=night actor=p4 role=imp targets=["p1"] trace_id=BOTC-ST-ACT-49baaa6f day_number=2 round_number=2 bucket=general
+2026-04-29 18:11:57,927 [INFO] storyteller: [night_action_requested] phase=night actor=p3 role=butler trace_id=BOTC-ST-ACT-99a8c4a4
+2026-04-29 18:11:57,927 [INFO] storyteller: [judgement][night_action] decision=request phase=night actor=p3 role=butler trace_id=BOTC-ST-ACT-99a8c4a4 day_number=2 round_number=2 bucket=general
+2026-04-29 18:11:57,941 [INFO] storyteller: [night_action_executed] phase=night actor=p3 role=butler targets=p4 trace_id=BOTC-ST-ACT-99a8c4a4
+2026-04-29 18:11:57,942 [INFO] storyteller: [judgement][night_action] decision=execute phase=night actor=p3 role=butler targets=["p4"] trace_id=BOTC-ST-ACT-99a8c4a4 day_number=2 round_number=2 bucket=general
+2026-04-29 18:11:57,947 [INFO] storyteller: [night_action_resolved] phase=night actor=p3 role=butler targets=p4 trace_id=BOTC-ST-ACT-99a8c4a4
+2026-04-29 18:11:57,948 [INFO] storyteller: [judgement][night_action] decision=resolved phase=night actor=p3 role=butler targets=["p4"] trace_id=BOTC-ST-ACT-99a8c4a4 day_number=2 round_number=2 bucket=general
+2026-04-29 18:11:57,950 [INFO] storyteller: [grimoire_update] players=5 night_actions=8
+2026-04-29 18:11:57,970 [INFO] storyteller: [narrate_phase] phase=day_discussion narration=晨雾散开，谎言与真相同时开口。
+2026-04-29 18:11:57,970 [INFO] storyteller: [judgement][narration] decision=announce phase=day_discussion day_number=2 round_number=2 narration=晨雾散开，谎言与真相同时开口。 bucket=phase_narration
+2026-04-29 18:11:57,972 [INFO] storyteller: [judgement][strategic_analysis] decision=正义方小优 reason={"action": "night_action", "content": "我是一个 Mock AI。", "tone": "calm", "reasoning": "夜晚行动模拟。", "target": "p3"} advantage_score=1.0 phase=day_discussion day_number=2 bucket=general
+2026-04-29 18:11:58,042 [INFO] storyteller: [narrate_phase] phase=nomination narration=怀疑开始聚焦，绞索在空气里慢慢收紧。
+2026-04-29 18:11:58,042 [INFO] storyteller: [judgement][narration] decision=announce phase=nomination day_number=2 round_number=2 narration=怀疑开始聚焦，绞索在空气里慢慢收紧。 bucket=phase_narration
+2026-04-29 18:11:58,045 [INFO] storyteller: [judgement][strategic_analysis] decision=正义方小优 reason={"action": "night_action", "content": "我是一个 Mock AI。", "tone": "calm", "reasoning": "夜晚行动模拟。", "target": "p1"} advantage_score=1.0 phase=nomination day_number=2 bucket=general
+2026-04-29 18:11:58,054 [INFO] storyteller: [nomination_phase_open] max_rounds=1 alive=3
+2026-04-29 18:11:58,055 [INFO] storyteller: [judgement][nomination_started] decision=open max_rounds=1 alive=3 phase=nomination day_number=2 round_number=2 bucket=day_judgement
+2026-04-29 18:11:58,062 [INFO] storyteller: [nomination_window_opened] round=1 alive=3
+2026-04-29 18:11:58,093 [INFO] storyteller: [nomination_intent_submitted] round=1 actor=p3 action=nominate target=p4
+2026-04-29 18:11:58,098 [INFO] storyteller: [nomination_intent_submitted] round=1 actor=p4 action=nominate target=p3
+2026-04-29 18:11:58,106 [INFO] storyteller: [nomination_intent_submitted] round=1 actor=p5 action=nominate target=p3
+2026-04-29 18:11:58,107 [INFO] storyteller: [judgement][nomination_choice] decision=choose reason=first_legal_intent round=1 nominator=p3 nominee=p4 phase=nomination day_number=2 round_number=2 bucket=day_judgement
+2026-04-29 18:11:58,117 [INFO] storyteller: [nomination_started] round=1 nominator=p3 nominee=p4 threshold=2
+2026-04-29 18:11:58,118 [INFO] storyteller: [judgement][nomination_started] decision=start round=1 nominator=p3 nominee=p4 threshold=2 trace_id=BOTC-FLOW-NOM-45bfe87f phase=voting day_number=2 round_number=2 bucket=day_judgement
+2026-04-29 18:11:58,119 [INFO] storyteller: [judgement][defense] decision=request nominee=p4 trace_id=BOTC-FLOW-NOM-45bfe87f phase=voting day_number=2 round_number=2 bucket=day_judgement
+2026-04-29 18:11:58,132 [INFO] storyteller: [defense_started] nominee=p4 trace_id=BOTC-FLOW-NOM-45bfe87f content=我先把我最确认的一条线说清楚：我觉得现在别急着拆场上的每一个身份，先看发言逻辑和投票轨迹更稳。。我是好人，请不要处决我！
+2026-04-29 18:11:58,133 [INFO] storyteller: [judgement][defense] decision=deliver nominee=p4 trace_id=BOTC-FLOW-NOM-45bfe87f content=我先把我最确认的一条线说清楚：我觉得现在别急着拆场上的每一个身份，先看发言逻辑和投票轨迹更稳。。我是好人，请不要处决我！ phase=voting day_number=2 round_number=2 bucket=day_judgement
+2026-04-29 18:11:58,140 [INFO] storyteller: [voting_opened] nominee=p4 trace_id=BOTC-FLOW-NOM-45bfe87f
+2026-04-29 18:11:58,142 [INFO] storyteller: [judgement][voting_resolution] decision=open nominee=p4 trace_id=BOTC-FLOW-NOM-45bfe87f defense_text=我先把我最确认的一条线说清楚：我觉得现在别急着拆场上的每一个身份，先看发言逻辑和投票轨迹更稳。。我是好人，请不要处决我！ threshold=2 phase=voting day_number=2 round_number=2 bucket=general
+2026-04-29 18:11:58,162 [INFO] storyteller: [vote_cast] voter=p1 decision=True nominee=p4 yes_votes=1 votes_cast=1 trace_id=BOTC-FLOW-NOM-45bfe87f
+2026-04-29 18:11:58,162 [INFO] storyteller: [judgement][voting_resolution] decision=cast_vote voter=p1 nominee=p4 vote=True yes_votes=1 votes_cast=1 trace_id=BOTC-FLOW-NOM-45bfe87f phase=voting day_number=2 round_number=2 bucket=general
+2026-04-29 18:11:58,179 [INFO] storyteller: [vote_cast] voter=p2 decision=True nominee=p4 yes_votes=2 votes_cast=2 trace_id=BOTC-FLOW-NOM-45bfe87f
+2026-04-29 18:11:58,182 [INFO] storyteller: [judgement][voting_resolution] decision=cast_vote voter=p2 nominee=p4 vote=True yes_votes=2 votes_cast=2 trace_id=BOTC-FLOW-NOM-45bfe87f phase=voting day_number=2 round_number=2 bucket=general
+2026-04-29 18:11:58,198 [INFO] storyteller: [vote_cast] voter=p3 decision=True nominee=p4 yes_votes=3 votes_cast=3 trace_id=BOTC-FLOW-NOM-45bfe87f
+2026-04-29 18:11:58,214 [INFO] storyteller: [judgement][voting_resolution] decision=cast_vote voter=p3 nominee=p4 vote=True yes_votes=3 votes_cast=3 trace_id=BOTC-FLOW-NOM-45bfe87f phase=voting day_number=2 round_number=2 bucket=general
+2026-04-29 18:11:58,245 [INFO] storyteller: [vote_cast] voter=p4 decision=True nominee=p4 yes_votes=4 votes_cast=4 trace_id=BOTC-FLOW-NOM-45bfe87f
+2026-04-29 18:11:58,247 [INFO] storyteller: [judgement][voting_resolution] decision=cast_vote voter=p4 nominee=p4 vote=True yes_votes=4 votes_cast=4 trace_id=BOTC-FLOW-NOM-45bfe87f phase=voting day_number=2 round_number=2 bucket=general
+2026-04-29 18:11:58,292 [INFO] storyteller: [vote_cast] voter=p5 decision=True nominee=p4 yes_votes=5 votes_cast=5 trace_id=BOTC-FLOW-NOM-45bfe87f
+2026-04-29 18:11:58,293 [INFO] storyteller: [judgement][voting_resolution] decision=cast_vote voter=p5 nominee=p4 vote=True yes_votes=5 votes_cast=5 trace_id=BOTC-FLOW-NOM-45bfe87f phase=voting day_number=2 round_number=2 bucket=general
+2026-04-29 18:11:58,318 [INFO] storyteller: [voting_resolved] nominee=p4 passed=True votes=5 needed=2 trace_id=BOTC-FLOW-NOM-45bfe87f
+2026-04-29 18:11:58,319 [INFO] storyteller: [judgement][voting_resolution] decision=resolve nominee=p4 passed=True votes=5 needed=2 yes_votes=5 votes_cast=5 trace_id=BOTC-FLOW-NOM-45bfe87f phase=nomination day_number=2 round_number=2 bucket=general
+2026-04-29 18:11:58,324 [INFO] storyteller: [nomination_round_resolved] round=1 nominee=p4 votes={}
+2026-04-29 18:11:58,324 [INFO] storyteller: [judgement][voting_resolution] decision=resolved round=1 nominee=p4 votes={} trace_id=BOTC-FLOW-NOM-45bfe87f phase=nomination day_number=2 round_number=2 bucket=general
+2026-04-29 18:11:58,344 [INFO] storyteller: [execution_finalized] round=1 trace_id=BOTC-FLOW-EXEC-17f1b1a5
+2026-04-29 18:11:58,345 [INFO] storyteller: [judgement][execution] decision=finalize round=1 trace_id=BOTC-FLOW-EXEC-17f1b1a5 phase=execution day_number=2 round_number=2 bucket=day_judgement
