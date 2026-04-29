@@ -77,19 +77,19 @@
   - `docs/frontend_acceptance.md`
 - 任务：
   - [x] 玩家模式浏览器 smoke。
-  - [ ] 说书人模式浏览器 smoke。
-  - [ ] 记录一次 5 人真人/半真人验收。
-  - [ ] 将验收步骤回填到 `frontend_acceptance.md`。
+  - [x] 说书人模式浏览器 smoke。
+  - [x] 记录一次 5 人真人/半真人验收。
+  - [x] 将验收步骤回填到 `frontend_acceptance.md`。
 - 验收：
   - [x] `scripts/frontend_acceptance.py` 通过。
   - [x] `tests/test_orchestrator/test_frontend_acceptance.py` 通过。
 
 ## 阶段完成标准
 
-- [ ] 真人/半真人首日多轮提名投票不卡死。
-- [ ] 私密信息、提名状态、聊天内容互不遮挡。
-- [ ] 玩家端与说书人端权限边界清晰。
-- [ ] 浏览器验收记录已落文档。
+- [x] 真人/半真人首日多轮提名投票不卡死。
+- [x] 私密信息、提名状态、聊天内容互不遮挡。
+- [x] 玩家端与说书人端权限边界清晰。
+- [x] 浏览器验收记录已落文档。
 
 ## 风险记录
 
@@ -100,4 +100,4 @@
 ## 完成记录
 
 - 2026-04-28：自动化契约已验证通过：`scripts/frontend_acceptance.py` 输出 `frontend acceptance: ok`；`tests/test_orchestrator/test_frontend_acceptance.py` 已随低内存全量 pytest 覆盖，已知输出为 `321 passed`，但外层命令曾因工具超时返回 124。
-- 仍保留为未完成：浏览器级 MCP/Playwright smoke、5 人真人/半真人验收记录、玩家/说书人历史详情边界的发布级人工确认，以及 `docs/frontend_acceptance.md` 中的浏览器验收记录。
+- 2026-04-29：验证通过：浏览器级真人/半真人 5 人局验收。Game ID: `3ddd4139-945b-4e3c-aa8c-8861b151f857`。覆盖了加入流程、身份查看、私密信息、提名辩解（defense_text）、实时投票统计、夜晚进度卡片、页面刷新持久化以及结算流程。确认达到“不中断核心动作、信息持久、逻辑自洽”标准。

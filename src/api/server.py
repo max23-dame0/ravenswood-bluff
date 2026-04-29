@@ -671,6 +671,10 @@ async def get_game_state(player_id: str = None):
         "private_info": build_private_info_list(orchestrator, player_id),
         "chat_history": filter_chat_history(orchestrator, player_id, viewer_mode),
         "event_log": filter_event_log(orchestrator, player_id, viewer_mode),
+        "night_progress": {
+            "steps": orchestrator._current_night_steps,
+            "current_index": orchestrator._current_night_step_index
+        } if viewer_mode == "storyteller" else None,
         "active_action_request": None,
         "waiting_for": getattr(orchestrator, "_current_waiting_for", None),
         "players": []

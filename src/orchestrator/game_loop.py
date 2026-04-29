@@ -70,6 +70,8 @@ class GameOrchestrator:
         self._last_progress_at: float | None = None
         self._current_waiting_for: str | None = None
         self._recent_exception: dict[str, Any] | None = None
+        self._current_night_steps: list[dict[str, Any]] | None = None
+        self._current_night_step_index: int = -1
         self._phase_started_at: float | None = None
         self._phase_started_action_positions: dict[str, int] = {}
         self._phase_duration_history: list[dict[str, Any]] = []
@@ -236,6 +238,15 @@ class GameOrchestrator:
         nomination_state.update(kwargs)
         payload["nomination_state"] = nomination_state
         self.state = self.state.with_update(payload=payload)
+        
+        # 触发状态更新事件，以便前端 fetchGameState
+        asyncio.create_task(self._publish_event(GameEvent(
+            event_type="nomination_state_updated",
+            phase=self.state.phase,
+            round_number=self.state.round_number,
+            payload=nomination_state,
+            visibility=Visibility.PUBLIC
+        )))
 
     def _append_nomination_history(self, entry: dict[str, Any]) -> None:
         payload = dict(self.state.payload)
@@ -1240,12 +1251,15 @@ class GameOrchestrator:
             phase=phase.value,
             steps=[{"player_id": step["player_id"], "role_id": step["role_id"], "night_order": step["night_order"]} for step in steps],
         )
-        for step in steps:
+        self._current_night_steps = steps
+        for i, step in enumerate(steps):
+            self._current_night_step_index = i
             player = self.state.get_player(step["player_id"])
             agent = self.broker.agents.get(step["player_id"])
             if not player or not agent:
                 continue
             
+            self._mark_progress(f"night_action:{player.player_id}:{step['role_id']}")
             # [FIX] 夜晚行动顺序校验：如果玩家已死亡且不是守鸦人（ON_DEATH 触发），则跳过
             if not player.is_alive:
                 role_cls = get_role_class(player.true_role_id or player.role_id)
@@ -1454,10 +1468,18 @@ class GameOrchestrator:
             )
 
     async def _distribute_night_info(self, phase: GamePhase) -> None:
-        for player in self.state.get_alive_players():
+        players_needing_info = [
+            p for p in self.state.get_alive_players()
+            if self.storyteller_agent and self.storyteller_agent.role_receives_storyteller_info(p.true_role_id or p.role_id)
+        ]
+        self._current_night_steps = [
+            {"player_id": p.player_id, "role_id": p.true_role_id or p.role_id, "type": "info"}
+            for p in players_needing_info
+        ]
+        
+        for i, player in enumerate(players_needing_info):
+            self._current_night_step_index = i
             role_id = player.true_role_id or player.role_id
-            if self.storyteller_agent and not self.storyteller_agent.role_receives_storyteller_info(role_id):
-                continue
             info = await self.storyteller_agent.decide_night_info(self.state, player.player_id, role_id) if self._should_storyteller_auto_act() else {}
             if not info:
                 # 针对酒鬼，使用其以为的身份去获取信息，并强制干扰
@@ -1505,6 +1527,9 @@ class GameOrchestrator:
                     role=role_id,
                     info_type=info.get("type", "unknown"),
                 )
+        # 移除立即重置，由 _run_day_discussion 负责在进入白天时清空
+        # self._current_night_steps = None
+        # self._current_night_step_index = -1
     def _scramble_info(self, info: dict) -> dict:
         import random
         from src.engine.roles.base_role import get_all_role_ids
@@ -1544,6 +1569,10 @@ class GameOrchestrator:
         self._log_storyteller("transient_statuses_cleared")
 
     async def _run_day_discussion(self) -> None:
+        # 进入白天讨论时，清空昨晚的进度卡片
+        self._current_night_steps = None
+        self._current_night_step_index = -1
+        
         self.state = self.state.with_update(
             nominations_today=(),
             nominees_today=(),

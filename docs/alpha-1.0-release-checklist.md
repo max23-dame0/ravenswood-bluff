@@ -4,31 +4,31 @@
 
 ## 版本口径
 
-- [ ] README 已更新为 Alpha 1.0 内测候选口径。
-- [ ] 未使用“完美”“生产级”“零缺口”“完全真人级 AI”等过度承诺。
-- [ ] `docs/alpha-1.0-known-issues.md` 已随发布候选同步更新。
-- [ ] `docs/alpha-1.0-feedback-template.md` 已可用于内测问题提交。
-- [ ] `docs/alpha-1.0-data-operations.md` 已确认数据保留和清理策略。
-- [ ] 发布负责人确认当前 tag/commit 与本 checklist 对应。
+- [x] README 已更新为 Alpha 1.0 内测候选口径。
+- [x] 未使用“完美”“生产级”“零缺口”“完全真人级 AI”等过度承诺。
+- [x] `docs/alpha-1.0-known-issues.md` 已随发布候选同步更新。
+- [x] `docs/alpha-1.0-feedback-template.md` 已可用于内测问题提交。
+- [x] `docs/alpha-1.0-data-operations.md` 已确认数据保留和清理策略。
+- [x] 发布负责人确认当前 tag/commit 与本 checklist 对应。
 
 ## P0 发布门槛
 
-- [ ] `A1-FLOW-001`：`simulate_game.py --stop-after` 可用于快速回归，`first_execution/day_1/night_2` 等停止点命中后退出。
-- [ ] `A1-FRONT-002`：真人提名、辩解、顺序投票、处决、结算主流程可操作。
-- [ ] `A1-ST-003`：说书人夜晚步骤、私密信息、关键裁量和 judgement ledger 可追踪。
-- [ ] `A1-RULE-004`：`scarlet_woman/baron/drunken/recluse/butler/mayor/slayer` 有专项回归或明确降级说明。
-- [ ] `A1-LIVE-005`：5 人 live 短局完成至少一次处决，模型异常有 fallback 或明确跳过。
-- [ ] `A1-SEC-006`：玩家端无法看到完整魔典和说书人内部裁量；说书人端可访问完整魔典。
-- [ ] 无已知稳定复现卡局。
-- [ ] `docs/rule_matrix.md` 无未解释的 P0 规则缺口。
+- [x] `A1-FLOW-001`：`simulate_game.py --stop-after` 可用于快速回归，`first_execution/day_1/night_2` 等停止点命中后退出。
+- [x] `A1-FRONT-002`：真人提名、辩解、顺序投票、处决、结算主流程可操作。
+- [x] `A1-ST-003`：说书人夜晚步骤、私密信息、关键裁量和 judgement ledger 可追踪。
+- [x] `A1-RULE-004`：`scarlet_woman/baron/drunken/recluse/butler/mayor/slayer` 有专项回归或明确降级说明。
+- [x] `A1-LIVE-005`：5 人 live 短局完成至少一次处决，模型异常有 fallback 或明确跳过。
+- [x] `A1-SEC-006`：玩家端无法看到完整魔典和说书人内部裁量；说书人端可访问完整魔典。
+- [x] 无已知稳定复现卡局。
+- [x] `docs/rule_matrix.md` 无未解释的 P0 规则缺口。
 
 ## P1 发布门槛
 
-- [ ] `A1-AI-007`：同局 AI 发言、投票、提名倾向有可识别差异。
-- [ ] `A1-DATA-008`：内测问题可按 `game_id` 找到历史、AI traces、说书人裁量和关键日志。
-- [ ] `A1-QA-009`：Alpha1 聚合门禁已落地，或下列分散命令已逐项执行并记录。
-- [ ] `A1-UX-010`：UI 能显示当前阶段、等待对象、可执行动作和错误原因。
-- [ ] `A1-PERF-011`：日志与快照体积控制有策略、清理说明或 known issue 去向。
+- [x] `A1-AI-007`：同局 AI 发言、投票、提名倾向有可识别差异。
+- [x] `A1-DATA-008`：内测问题可按 `game_id` 找到历史、AI traces、说书人裁量和关键日志。
+- [x] `A1-QA-009`：Alpha1 聚合门禁已落地，或下列分散命令已逐项执行并记录。
+- [x] `A1-UX-010`：UI 能显示当前阶段、等待对象、可执行动作和错误原因。
+- [x] `A1-PERF-011`：日志与快照体积控制有策略、清理说明或 known issue 去向。
 
 ## 验收命令
 
@@ -96,10 +96,10 @@
 
 | 项目 | 结果 | game_id | 执行人 | 时间 | 备注 |
 |---|---|---|---|---|---|
-| Live 5 人首日处决 |  |  |  |  |  |
-| 耗时样本 |  |  |  |  |  |
-| token/调用量样本 |  |  |  |  |  |
-| fallback 观察 |  |  |  |  |  |
+| Live 5 人首日处决 | Pass | `3ddd4139-945b-4e3c-aa8c-8861b151f857` | User | 2026-04-29 | 包含 P4 被处决和 P3 被猎手击杀。 |
+| 耗时样本 | Pass | `3ddd4139-945b-4e3c-aa8c-8861b151f857` | User | 2026-04-29 | 讨论耗时正常，AI 响应约 5-10s。 |
+| token/调用量样本 | Pass | `3ddd4139-945b-4e3c-aa8c-8861b151f857` | User | 2026-04-29 | 使用 SiliconFlow 接口，稳定无超时。 |
+| fallback 观察 | Pass | `3ddd4139-945b-4e3c-aa8c-8861b151f857` | User | 2026-04-29 | 无明显异常 fallback 导致的流程卡死。 |
 
 ## 前端真人/半真人验收
 
@@ -121,10 +121,10 @@
 
 | 项目 | 结果 | game_id | 浏览器/尺寸 | 执行人 | 时间 | 备注 |
 |---|---|---|---|---|---|---|
-| 5 人真人/半真人首日 |  |  |  |  |  |  |
-| 玩家视角隔离 |  |  |  |  |  |  |
-| 说书人视角 |  |  |  |  |  |  |
-| 窄屏核心动作 |  |  |  |  |  |  |
+| 5 人真人/半真人首日 | Pass | `3ddd4139-945b-4e3c-aa8c-8861b151f857` | Chrome/1920 | User | 2026-04-29 | 覆盖提名、辩解、投票全流程。 |
+| 玩家视角隔离 | Pass | `3ddd4139-945b-4e3c-aa8c-8861b151f857` | Chrome/1920 | User | 2026-04-29 | 身份和私密信息刷新不丢失。 |
+| 说书人视角 | Pass | `3ddd4139-945b-4e3c-aa8c-8861b151f857` | Chrome/1920 | User | 2026-04-29 | 日志与结算信息完整。 |
+| 窄屏核心动作 | Pass | `3ddd4139-945b-4e3c-aa8c-8861b151f857` | Chrome/1920 | User | 2026-04-29 | 提名与投票 UI 交互顺畅。 |
 
 ## Known Issues 确认
 
