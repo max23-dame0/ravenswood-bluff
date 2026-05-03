@@ -1,5 +1,27 @@
 # Changelog
 
+## [alpha1.1] - 2026-05-02
+
+Alpha 1.1 引入 AI 玩家难度系统，支持 4 种难度模式，让不同水平的人类玩家都能找到合适的对局体验。
+
+### 新增与强化
+
+- **难度系统**：新增 `DifficultyLevel` 枚举（casual/standard/master/chaos），集成到 `GameConfig`、`AIAgent`、前端 setup 页面和 API。
+- **难度预设模块**：新增 `src/agents/difficulty_presets.py`，定义 4 种难度的温度、提示词、欺诈策略和人格参数覆盖。
+- **AI Agent 难度集成**：`AIAgent` 根据难度调整 LLM 温度、系统提示词、提名/投票阈值和发言风格。
+- **前端难度选择**：setup 页面新增 4 种难度单选控件，支持中英文国际化。
+- **验收与测试**：新增 `scripts/difficulty_acceptance.py`（54 项检查）和 `tests/test_difficulty.py`（26 项单元测试）。
+- **决策噪声层**：新增 `src/agents/decision_noise.py`，为提名和投票决策注入难度分级的可控随机性（chaos 0.18 > casual 0.12 > standard 0.05 > master 0.02）。
+- **多难度对比验收**：新增 `scripts/difficulty_comparison.py`（62 项检查）和 `tests/test_decision_noise.py`（31 项测试），验证 4 种难度的行为差异。
+
+### 验收入口
+
+- `scripts/difficulty_acceptance.py`
+- `scripts/alpha1.1_acceptance.py`
+- `tests/test_difficulty.py`
+- `scripts/difficulty_comparison.py`
+- `tests/test_decision_noise.py`
+
 ## [alpha1.0-candidate] - 2026-04-29
 
 Alpha 1.0 是首个正式内测候选版本，目标不是扩大功能面，而是把主流程、真人入口、AI 玩家、说书人复盘和发布门禁收束到可组织小范围内测的状态。

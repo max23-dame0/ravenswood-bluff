@@ -162,7 +162,7 @@ def test_working_memory_private_info_has_priority_lane():
     wm.remember_public_info("role_claim", "Bob 公开跳了预言家", day_number=1, round_number=1)
 
     context = wm.get_recent_context()
-    assert "你确认掌握的绝对客观事实" in context
+    assert "客观已确认信息" in context
     assert "你的邪恶队友是：Player 2" in context
     assert "说书人给邪恶阵营的 bluff 是：洗衣妇, 图书馆员" in context
     assert "你确认掌握的高可信私密信息" in context

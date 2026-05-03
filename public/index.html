@@ -268,6 +268,31 @@
 
         .modal-large { width: 800px; max-height: 80vh; overflow-y: auto; text-align: left; }
 
+        .difficulty-selector { margin-bottom: 20px; text-align: left; }
+        .difficulty-selector .difficulty-label { display: block; font-size: 0.85rem; color: var(--text); margin-bottom: 10px; }
+        .difficulty-options { display: flex; flex-direction: column; gap: 8px; }
+        .difficulty-option {
+            display: flex; align-items: center; gap: 10px; padding: 10px 14px;
+            background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 10px; cursor: pointer; transition: border-color 0.2s, background 0.2s;
+        }
+        .difficulty-option:hover { border-color: rgba(187,134,252,0.3); background: rgba(255,255,255,0.05); }
+        .difficulty-option input[type="radio"] {
+            appearance: none; -webkit-appearance: none; width: 16px; height: 16px;
+            border: 2px solid rgba(255,255,255,0.3); border-radius: 50%;
+            cursor: pointer; position: relative; flex-shrink: 0;
+        }
+        .difficulty-option input[type="radio"]:checked {
+            border-color: var(--primary); background: var(--primary);
+            box-shadow: inset 0 0 0 3px #1e1e1e;
+        }
+        .difficulty-option:has(input:checked) {
+            border-color: rgba(187,134,252,0.5); background: rgba(187,134,252,0.08);
+        }
+        .difficulty-option .diff-text { display: flex; flex-direction: column; }
+        .difficulty-option .diff-name { font-size: 0.9rem; color: #fff; }
+        .difficulty-option .diff-desc { font-size: 0.75rem; color: #888; margin-top: 2px; }
+
         .grimoire-grid {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
@@ -788,6 +813,39 @@
             <h2 id="ui-setup-title">Game Setup</h2>
             <p id="ui-setup-desc">Select the number of players (5-15)</p>
             <input type="number" id="playerCountInput" value="8" min="5" max="15" style="width: 100px; text-align: center; font-size: 1.5rem; margin-bottom: 20px;">
+            <div class="difficulty-selector">
+                <span class="difficulty-label" id="ui-difficulty-label">难度选择</span>
+                <div class="difficulty-options">
+                    <label class="difficulty-option">
+                        <input type="radio" name="difficulty" value="casual">
+                        <div class="diff-text">
+                            <span class="diff-name" id="ui-diff-casual-name">休闲 (Casual)</span>
+                            <span class="diff-desc" id="ui-diff-casual-desc">轻松有趣，适合新手</span>
+                        </div>
+                    </label>
+                    <label class="difficulty-option">
+                        <input type="radio" name="difficulty" value="standard" checked>
+                        <div class="diff-text">
+                            <span class="diff-name" id="ui-diff-standard-name">标准 (Standard)</span>
+                            <span class="diff-desc" id="ui-diff-standard-desc">基准线体验</span>
+                        </div>
+                    </label>
+                    <label class="difficulty-option">
+                        <input type="radio" name="difficulty" value="master">
+                        <div class="diff-text">
+                            <span class="diff-name" id="ui-diff-master-name">大师 (Master)</span>
+                            <span class="diff-desc" id="ui-diff-master-desc">真正的挑战</span>
+                        </div>
+                    </label>
+                    <label class="difficulty-option">
+                        <input type="radio" name="difficulty" value="chaos">
+                        <div class="diff-text">
+                            <span class="diff-name" id="ui-diff-chaos-name">混沌 (Chaos)</span>
+                            <span class="diff-desc" id="ui-diff-chaos-desc">每局不可预测</span>
+                        </div>
+                    </label>
+                </div>
+            </div>
             <button onclick="nextSetupStep()" style="width: 100%;">Next</button>
         </div>
         <div class="modal" id="setupStep2" style="display: none;">
@@ -866,7 +924,7 @@
             <div class="settlement-actions">
                 <button class="btn-rematch" onclick="requestRematch()">🔄 再来一局</button>
                 <button class="btn-secondary" onclick="openHistoryFromSettlement()">📚 查看历史</button>
-                <button class="btn-secondary" onclick="closeSettlementOverlay()">关闭</button>
+                <button class="btn-secondary" onclick="closeSettlementOverlay(true)">关闭</button>
             </div>
         </div>
     </div>
@@ -901,12 +959,14 @@
         let players = [];
         let currentLang = 'zh';
         const PLAYER_ID_STORAGE_KEY = 'botc_player_id';
+        const SETTLEMENT_DISMISSED_STORAGE_KEY = 'botc.dismissedSettlementGameId';
         let currentUserId = localStorage.getItem(PLAYER_ID_STORAGE_KEY) || 'h1';
         let hasRecoveredHistory = false;
         let lastProcessedEventCount = 0;
         let roleCatalog = {};
         let currentGameId = null;
         let settlementShownFor = null;
+        let settlementDismissedFor = readDismissedSettlementGameId();
         let historyCache = [];
         let activeHistoryGameId = null;
         let gameState = buildEmptyGameState();
@@ -938,6 +998,26 @@
             } catch (e) {}
         }
         let activeMainView = readMainViewPreference();
+
+        function readDismissedSettlementGameId() {
+            try {
+                return localStorage.getItem(SETTLEMENT_DISMISSED_STORAGE_KEY);
+            } catch (e) {
+                return null;
+            }
+        }
+
+        function rememberSettlementDismissed(gameId) {
+            if (!gameId) return;
+            settlementDismissedFor = gameId;
+            try {
+                localStorage.setItem(SETTLEMENT_DISMISSED_STORAGE_KEY, gameId);
+            } catch (e) {}
+        }
+
+        function settlementDismissed(gameId) {
+            return Boolean(gameId && settlementDismissedFor === gameId);
+        }
 
         const translations = {
             zh: {
@@ -982,6 +1062,15 @@
                 mode_play: "参与游戏",
                 mode_observe: "旁观/说书人模式",
                 setup_delegate: "开启 AI 说书人托管 (自动判定信息)",
+                difficulty_label: "难度选择",
+                diff_casual_name: "休闲 (Casual)",
+                diff_casual_desc: "轻松有趣，适合新手",
+                diff_standard_name: "标准 (Standard)",
+                diff_standard_desc: "基准线体验",
+                diff_master_name: "大师 (Master)",
+                diff_master_desc: "真正的挑战",
+                diff_chaos_name: "混沌 (Chaos)",
+                diff_chaos_desc: "每局不可预测",
                 evil_chat: "【邪恶频道】",
                 evil_chat_label: "邪恶频道",
                 chat_btn: "发送消息",
@@ -1134,6 +1223,15 @@
                 mode_play: "Participate",
                 mode_observe: "Storyteller Mode",
                 setup_delegate: "AI Storyteller Delegation (Auto mode)",
+                difficulty_label: "Difficulty",
+                diff_casual_name: "Casual",
+                diff_casual_desc: "Relaxed and fun, great for beginners",
+                diff_standard_name: "Standard",
+                diff_standard_desc: "The baseline experience",
+                diff_master_name: "Master",
+                diff_master_desc: "A true challenge",
+                diff_chaos_name: "Chaos",
+                diff_chaos_desc: "Unpredictable every game",
                 evil_chat: "[Evil Channel]",
                 evil_chat_label: "Evil Chat",
                 chat_btn: "Chat",
@@ -1323,6 +1421,15 @@
             document.getElementById('ui-mode-play').textContent = t('mode_play');
             document.getElementById('ui-mode-observe').textContent = t('mode_observe');
             document.getElementById('ui-setup-delegate').textContent = t('setup_delegate');
+            document.getElementById('ui-difficulty-label').textContent = t('difficulty_label');
+            document.getElementById('ui-diff-casual-name').textContent = t('diff_casual_name');
+            document.getElementById('ui-diff-casual-desc').textContent = t('diff_casual_desc');
+            document.getElementById('ui-diff-standard-name').textContent = t('diff_standard_name');
+            document.getElementById('ui-diff-standard-desc').textContent = t('diff_standard_desc');
+            document.getElementById('ui-diff-master-name').textContent = t('diff_master_name');
+            document.getElementById('ui-diff-master-desc').textContent = t('diff_master_desc');
+            document.getElementById('ui-diff-chaos-name').textContent = t('diff_chaos_name');
+            document.getElementById('ui-diff-chaos-desc').textContent = t('diff_chaos_desc');
             document.getElementById('ui-evil-chat-label').textContent = t('evil_chat_label');
             document.getElementById('history-title').textContent = `📚 ${t('history_title')}`;
             document.getElementById('history-subtitle').textContent = t('history_subtitle');
@@ -1397,7 +1504,7 @@
             lastProcessedEventCount = 0;
             resetSetupOverlay();
             updateStatusTabAttention();
-            closeSettlementOverlay();
+            closeSettlementOverlay(false);
             toggleHistoryOverlay(false);
             settlementShownFor = null;
         }
@@ -1964,10 +2071,13 @@
                     }
                 }
 
-                // 结算检测
-                // 结算检测：仅当 ID 发生变化且处于结束状态时弹出
+                // 结算检测：同一 game_id 只自动弹出一次；用户主动关闭后不再被轮询重新打开。
                 if (gameState.phase === 'game_over') {
-                    if (settlementShownFor !== gameState.game_id && gameState.game_id) {
+                    if (
+                        settlementShownFor !== gameState.game_id &&
+                        !settlementDismissed(gameState.game_id) &&
+                        gameState.game_id
+                    ) {
                         fetchAndShowSettlement();
                     }
                 } else {
@@ -2108,13 +2218,13 @@
                 const data = JSON.parse(event.data);
                 if (data.type === 'event_update') {
                     handleEventUpdate(data.event);
-                    fetchGameState();
+                    lastProcessedEventCount++;
                 } else if (data.type === 'action_request') {
                     handleActionRequest(data.action_type, data.context);
                 } else if (data.type === 'game_rematch') {
                     logMessage("--- " + (currentLang === 'zh' ? "正在开始新对局..." : "Starting new game...") + " ---");
                     clearSessionArtifacts(data.new_game_id);
-                    closeSettlementOverlay();
+                    closeSettlementOverlay(false);
                     resetSetupOverlay();
                     fetchGameState();
                 }
@@ -2151,13 +2261,14 @@
                 const res = await fetch(`${backendHttpOrigin()}/api/game/setup`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ 
+                    body: JSON.stringify({
                         player_count: count,
                         host_id: currentUserId,
                         human_mode: humanMode,
                         human_client_id: humanMode === 'player' ? currentUserId : null,
                         storyteller_client_id: humanMode === 'storyteller' ? currentUserId : null,
-                        storyteller_delegated: delegated
+                        storyteller_delegated: delegated,
+                        difficulty: document.querySelector('input[name="difficulty"]:checked').value
                     })
                 });
                 if (res.ok) {
@@ -2179,7 +2290,7 @@
         // --------------- 结算逻辑 ---------------
 
         async function fetchAndShowSettlement() {
-            if (!gameState.game_id || settlementShownFor === gameState.game_id) return;
+            if (!gameState.game_id || settlementShownFor === gameState.game_id || settlementDismissed(gameState.game_id)) return;
             // 立即标记，防止并发请求
             const targetId = gameState.game_id;
             settlementShownFor = targetId;
@@ -2279,13 +2390,16 @@
             updateUIStrings(); // 为了重新应用 i18n
         }
 
-        function closeSettlementOverlay() {
+        function closeSettlementOverlay(dismiss = false) {
             const overlay = document.getElementById('settlementOverlay');
             if (overlay) overlay.classList.remove('active');
+            if (dismiss) {
+                rememberSettlementDismissed(gameState.game_id || currentGameId);
+            }
         }
 
         function openHistoryFromSettlement() {
-            closeSettlementOverlay();
+            closeSettlementOverlay(true);
             toggleHistoryOverlay(true);
         }
 
@@ -2441,7 +2555,7 @@
                 const data = await res.json();
                 if (data.status === 'ok') {
                     // ws message will handle the rest, but we keep this as backup
-                    closeSettlementOverlay();
+                    closeSettlementOverlay(false);
                     clearSessionArtifacts(data.new_game_id);
                 } else {
                     alert("Rematch failed: " + data.message);

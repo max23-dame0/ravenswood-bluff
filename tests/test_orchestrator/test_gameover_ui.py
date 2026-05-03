@@ -8,14 +8,17 @@ def test_settlement_overlay_hooks_exist():
     assert 'id="settlementOverlay"' in INDEX_HTML
     assert "async function fetchAndShowSettlement()" in INDEX_HTML
     assert 'fetch(`${backendHttpOrigin()}/api/game/settlement`)' in INDEX_HTML
-    assert "if (gameState.phase === 'game_over' && settlementShownFor !== gameState.game_id)" in INDEX_HTML
+    assert "settlementShownFor !== gameState.game_id" in INDEX_HTML
+    assert "!settlementDismissed(gameState.game_id)" in INDEX_HTML
+    assert "function rememberSettlementDismissed(gameId)" in INDEX_HTML
+    assert "onclick=\"closeSettlementOverlay(true)\"" in INDEX_HTML
     assert "showSettlementOverlay(data);" in INDEX_HTML
 
 
 def test_rematch_frontend_contract_is_wired():
     assert "async function requestRematch()" in INDEX_HTML
     assert 'fetch(`${backendHttpOrigin()}/api/game/rematch`, { method: \'POST\' })' in INDEX_HTML
-    assert "closeSettlementOverlay();" in INDEX_HTML
+    assert "closeSettlementOverlay(false);" in INDEX_HTML
     assert "clearSessionArtifacts(data.new_game_id);" in INDEX_HTML
     assert "data.type === 'game_rematch'" in INDEX_HTML
     assert "clearSessionArtifacts(data.new_game_id);" in INDEX_HTML
@@ -32,6 +35,7 @@ def test_history_overlay_contract_is_wired():
     assert 'fetch(`${backendHttpOrigin()}/api/game/history/player/${encodeURIComponent(currentUserId)}`)' in INDEX_HTML
     assert 'fetch(`${backendHttpOrigin()}/api/game/history/${encodeURIComponent(gameId)}/player/${encodeURIComponent(currentUserId)}`)' in INDEX_HTML
     assert "function openHistoryFromSettlement()" in INDEX_HTML
+    assert "closeSettlementOverlay(true);" in INDEX_HTML
     assert "data.storyteller_judgements" not in INDEX_HTML
     assert 'id="historyJudgementBox"' not in INDEX_HTML
     assert "说书人裁量摘要" not in INDEX_HTML

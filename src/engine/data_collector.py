@@ -41,7 +41,8 @@ class GameDataCollector:
         round_number: int,
         thought: str,
         action: dict[str, Any],
-        context: dict[str, Any]
+        context: dict[str, Any],
+        usage: dict[str, Any] | None = None
     ) -> None:
         """记录一条 AI 的思维和决策轨迹"""
         if not self._log_file:
@@ -59,6 +60,7 @@ class GameDataCollector:
             "thought": thought,
             "action": action,
             "context_summary": context,
+            "usage": usage or {},
         }
 
         try:
@@ -123,6 +125,7 @@ class GameDataCollector:
             "thought": raw_entry.get("thought"),
             "action": raw_entry.get("action") or {},
             "context_summary": raw_entry.get("context_summary") or {},
+            "usage": raw_entry.get("usage") or {},
             "raw": raw_entry,
         }
 

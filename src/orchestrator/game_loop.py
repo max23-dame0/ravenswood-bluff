@@ -26,6 +26,7 @@ from src.state.game_state import (
     AgentVisibleState,
     AbilityTrigger,
     ChatMessage,
+    DifficultyLevel,
     GameConfig,
     GameEvent,
     GamePhase,
@@ -538,6 +539,7 @@ class GameOrchestrator:
         human_client_id: str | None = None,
         storyteller_client_id: str | None = None,
         storyteller_delegated: bool = False,
+        difficulty: str = "standard",
     ) -> None:
         logger.info(f"[run_setup_with_options] Starting setup for {player_count} players. host_id={host_id} mode={human_mode}")
         if self._setup_started or self.phase_manager.current_phase != GamePhase.SETUP:
@@ -607,6 +609,7 @@ class GameOrchestrator:
                 discussion_rounds=discussion_rounds or 3,
                 ai_discussion_message_limit=ai_discussion_message_limit,
                 max_nomination_rounds=max_nomination_rounds,
+                difficulty=DifficultyLevel(difficulty),
             ),
         )
         if self.storyteller_agent:
@@ -638,13 +641,15 @@ class GameOrchestrator:
                     archetype=arch_key
                 )
                 
+                difficulty = self.state.config.difficulty.value if self.state.config else "standard"
                 self.register_agent(AIAgent(
-                    player.player_id, 
-                    player.name, 
-                    backend, 
-                    persona, 
+                    player.player_id,
+                    player.name,
+                    backend,
+                    persona,
                     player_count=player_count,
-                    data_collector=self.data_collector
+                    data_collector=self.data_collector,
+                    difficulty=difficulty,
                 ))
 
         logger.info("[run_setup_with_options] Syncing all agents")

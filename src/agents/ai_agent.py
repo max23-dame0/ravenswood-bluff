@@ -22,6 +22,8 @@ from src.agents.memory.social_graph import ClaimRecord, SocialGraph
 from src.agents.memory.working_memory import Observation, WorkingMemory
 from src.agents.memory.vector_memory import VectorMemory
 from src.agents.persona_registry import ARCHETYPES, Archetype, get_archetype
+from src.agents.difficulty_presets import DifficultyPreset, get_preset
+from src.agents.decision_noise import DecisionNoise
 from src.content.trouble_brewing_terms import TROUBLE_BREWING_ROLE_TERMS, get_role_description, get_role_name, get_role_persona_hint
 from src.llm.base_backend import LLMBackend
 from src.state.game_state import (
@@ -78,16 +80,20 @@ class AIAgent(BaseAgent):
         backend: LLMBackend,
         persona: Persona,
         player_count: int = 10,
-        data_collector: Optional[GameDataCollector] = None
+        data_collector: Optional[GameDataCollector] = None,
+        difficulty: str = "standard",
     ) -> None:
         super().__init__(player_id, name)
-        
+
         # 依赖
         self.backend = backend
         self.persona = persona
         self.player_count = player_count
         self.data_collector = data_collector
-        
+        self.difficulty = difficulty
+        self.difficulty_preset: DifficultyPreset = get_preset(difficulty)
+        self.decision_noise = DecisionNoise(difficulty=difficulty, player_id=player_id)
+
         # 动态计算记忆限制
         # 1. 观察记录：15人局约 45 条，10人局 30 条
         self._obs_limit = max(20, int(player_count * 3))
@@ -187,6 +193,13 @@ class AIAgent(BaseAgent):
         index = int(digest[:8], 16) % len(options)
         return options[index]
 
+    def _difficulty_threshold_offset(self, key: str) -> float:
+        """Get a numeric threshold offset from the difficulty preset, if present."""
+        value = self.difficulty_preset.persona_overrides.get(key)
+        if isinstance(value, (int, float)):
+            return float(value)
+        return 0.0
+
     def _refresh_persona_profile(self) -> None:
         role_id = self.role_id or "unknown"
         role_name = get_role_name(role_id)
@@ -276,6 +289,11 @@ class AIAgent(BaseAgent):
             "signature": signature,
             "archetype": archetype,
         }
+
+        # Apply difficulty overrides
+        preset = self.difficulty_preset
+        for key, value in preset.persona_overrides.items():
+            self.persona_profile[key] = value
 
     def _process_event_for_social_graph(self, event: GameEvent) -> None:
         """根据观察到的事件自动微调对场上其他人的信任分"""
@@ -826,7 +844,7 @@ class AIAgent(BaseAgent):
             "night_action": "你在夜晚执行角色能力。请选择符合角色和局势的目标，语气保持自然。",
             "death_trigger": "你刚刚因为夜晚死亡而触发角色能力。请选择合适目标并自然表达。",
         }
-        return f"""【稳定人格锚点】
+        block = f"""【稳定人格锚点】
 - 角色名: {profile.get('role_name', get_role_name(self.role_id or 'unknown'))}
 - 角色说明: {profile.get('role_description', get_role_description(self.role_id or 'unknown'))}
 - 个性提示: {self.persona.description}
@@ -843,6 +861,15 @@ class AIAgent(BaseAgent):
 - 当前动作风格: {action_hints.get(action_type, '保持自然、像人类一样反应。')}
 - 规则提醒: 不论局势如何变化，都尽量保持同一个稳定的人设，不要每个回合像不同的人。
 """
+        # Append difficulty modifiers
+        preset = self.difficulty_preset
+        if preset.prompt_modifier:
+            block += f"\n【难度风格】{preset.prompt_modifier}"
+        if preset.speech_style_prompt:
+            block += f"\n【发言指导】{preset.speech_style_prompt}"
+        if preset.evil_strategy_prompt:
+            block += f"\n【邪恶策略】{preset.evil_strategy_prompt}"
+        return block
 
     async def _reflect(self, visible_state: AgentVisibleState) -> None:
         """
@@ -1043,7 +1070,8 @@ class AIAgent(BaseAgent):
             response = await asyncio.wait_for(
                 self.backend.generate(
                     system_prompt=system_prompt,
-                    messages=[Message(role="user", content=f"请只返回适用于动作 `{action_type}` 的 JSON 决策，不要输出任何额外说明。")]
+                    messages=[Message(role="user", content=f"请只返回适用于动作 `{action_type}` 的 JSON 决策，不要输出任何额外说明。")],
+                    temperature=self.difficulty_preset.temperature,
                 ),
                 timeout=self._action_timeout_seconds(),
             )
@@ -1065,7 +1093,8 @@ class AIAgent(BaseAgent):
                     round_number=visible_state.round_number,
                     thought=thought,
                     action=decision,
-                    context={"retrieved_text_len": len(retrieved_text) if 'retrieved_text' in locals() else 0}
+                    context={"retrieved_text_len": len(retrieved_text) if 'retrieved_text' in locals() else 0},
+                    usage=response.usage
                 )
                 
             if "reasoning" in decision:
@@ -1896,6 +1925,8 @@ class AIAgent(BaseAgent):
         archetype = profile.get("archetype")
         if isinstance(archetype, Archetype):
             threshold += archetype.nomination_threshold_offset
+        # Difficulty override
+        threshold += self._difficulty_threshold_offset("nomination_threshold_offset")
 
         alive_count = self._visible_alive_count(visible_state)
         if alive_count <= 5:
@@ -1909,6 +1940,9 @@ class AIAgent(BaseAgent):
         threshold += self._persona_modifier("assertiveness", {"温和": 0.04, "中性": 0.0, "强势": -0.04})
         if self.team == "evil":
             threshold -= 0.02
+        # Decision noise layer
+        noise_key = f"nominate_day{getattr(visible_state, 'day_number', 1)}_round{getattr(visible_state, 'round_number', 1)}"
+        threshold += self.decision_noise.threshold_noise(noise_key)
         return max(0.40, min(0.85, threshold))
 
     def _nomination_margin(self) -> float:
@@ -1929,6 +1963,8 @@ class AIAgent(BaseAgent):
         archetype = profile.get("archetype")
         if isinstance(archetype, Archetype):
             threshold += archetype.vote_threshold_offset
+        # Difficulty override
+        threshold += self._difficulty_threshold_offset("vote_threshold_offset")
 
         alive_count = self._visible_alive_count(visible_state)
         if alive_count <= 5:
@@ -1951,6 +1987,9 @@ class AIAgent(BaseAgent):
         threshold += self._persona_modifier("assertiveness", {"温和": 0.03, "中性": 0.0, "强势": -0.03})
         if self.team == "evil":
             threshold -= 0.01
+        # Decision noise layer
+        noise_key = f"vote_day{getattr(visible_state, 'day_number', 1)}_round{getattr(visible_state, 'round_number', 1)}"
+        threshold += self.decision_noise.threshold_noise(noise_key)
         return max(0.20, min(0.95, threshold))
 
     def _target_signal_score(self, target_id: str, visible_state: AgentVisibleState) -> float:
@@ -2066,8 +2105,15 @@ class AIAgent(BaseAgent):
         if not legal_targets:
             return None
 
+        # Decision noise: add noise to each candidate's score
+        noise_key = f"nom_target_day{getattr(visible_state, 'day_number', 1)}_round{getattr(visible_state, 'round_number', 1)}"
+        base_scores = {tid: self._target_signal_score(tid, visible_state) for tid in legal_targets}
+        noisy_scores = {
+            tid: score + self.decision_noise.threshold_noise(f"{noise_key}_{tid}")
+            for tid, score in base_scores.items()
+        }
         scored_targets = sorted(
-            ((self._target_signal_score(target_id, visible_state), target_id) for target_id in legal_targets),
+            ((noisy_scores[tid], tid) for tid in legal_targets),
             key=lambda item: (-item[0], item[1]),
         )
         best_score, best_target = scored_targets[0]

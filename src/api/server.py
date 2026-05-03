@@ -556,6 +556,7 @@ async def setup_game(data: Dict[str, Any]):
     audit_mode = bool(data.get("audit_mode", False))
     max_nomination_rounds = data.get("max_nomination_rounds")
     ai_discussion_message_limit = data.get("ai_discussion_message_limit")
+    difficulty = data.get("difficulty", "standard")
     
     if player_count < 5 or player_count > 15:
         return {"status": "error", "message": "Player count must be between 5 and 15"}
@@ -575,6 +576,7 @@ async def setup_game(data: Dict[str, Any]):
             human_client_id=human_client_id,
             storyteller_client_id=storyteller_client_id,
             storyteller_delegated=storyteller_delegated,
+            difficulty=difficulty,
         )
     except RuntimeError as exc:
         return {"status": "error", "message": str(exc)}

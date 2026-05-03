@@ -89,6 +89,14 @@ class AbilityType(str, Enum):
     PASSIVE_EFFECT = "passive_effect" # 被动效果
 
 
+class DifficultyLevel(str, Enum):
+    """AI difficulty presets."""
+    CASUAL = "casual"
+    STANDARD = "standard"
+    MASTER = "master"
+    CHAOS = "chaos"
+
+
 class Ability(BaseModel):
     """角色技能定义"""
     trigger: AbilityTrigger
@@ -409,6 +417,7 @@ class GameConfig(BaseModel):
     ai_discussion_message_limit: Optional[int] = None  # 有真人玩家时，每轮最多允许多少条 AI 白天发言
     max_nomination_rounds: Optional[int] = None
     turn_timeout: int = 300          # 人类玩家行动超时（秒）
+    difficulty: DifficultyLevel = DifficultyLevel.STANDARD
 
 
 # ============================================================
