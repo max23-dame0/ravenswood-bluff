@@ -56,3 +56,12 @@ data/*-journal.corrupt_*
 # Evaluation
 storyteller_eval_samples/
 storyteller_eval_samples_debug/
+
+# Parallel pytest artifacts
+*.pyc.*
+
+# AI trace sessions (large JSONL files, not for version control)
+data/sessions/
+
+# Debug logs
+data/debug_game_logs/
