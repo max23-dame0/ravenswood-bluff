@@ -26,7 +26,7 @@ class MockLLMBackend(LLMBackend):
         messages: list[Message],
         tools=None,
         temperature: float = 0.7,
-        max_tokens: int = 1024,
+        max_tokens: int | None = None,
     ) -> LLMResponse:
         self._call_count += 1
         self._last_system_prompt = system_prompt

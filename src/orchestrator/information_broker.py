@@ -7,6 +7,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from typing import Optional
 
@@ -211,9 +212,11 @@ class InformationBroker:
             if st_id:
                 recipients.add(st_id)
 
-        # 执行分发
-        for pid in recipients:
+        # 执行分发（并行通知所有 Agent）
+        async def _broadcast_one(pid: str) -> None:
             if pid in self.agents:
                 visible_state = self.get_visible_state(pid, game_state)
                 if visible_state:
                     await self.agents[pid].observe_event(event, visible_state)
+
+        await asyncio.gather(*[_broadcast_one(pid) for pid in recipients])

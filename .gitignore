@@ -65,3 +65,4 @@ data/sessions/
 
 # Debug logs
 data/debug_game_logs/
+.claude/worktrees/

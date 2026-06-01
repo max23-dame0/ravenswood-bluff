@@ -31,9 +31,10 @@ class VectorMemory:
     基于向量检索的长期记忆模块。
     """
 
-    def __init__(self, backend: LLMBackend, dimension: int = 1536) -> None:
+    def __init__(self, backend: LLMBackend, dimension: int = 1536, max_capacity: int = 1000) -> None:
         self.backend = backend
         self.dimension = dimension
+        self.max_capacity = max_capacity
         self._last_query = ""
         self._last_hits_preview: list[str] = []
         
@@ -48,6 +49,7 @@ class VectorMemory:
             
         # 存储原始数据和元数据
         self.metadata: list[dict[str, Any]] = []
+        self._vectors: list[Any] = []  # 保留原始向量用于索引重建
         self._stats = {
             "enabled": bool(self.index),
             "indexed_items": 0,
@@ -83,6 +85,7 @@ class VectorMemory:
                 
             vector = np.array(embeddings).astype('float32')
             self.index.add(vector)
+            self._vectors.append(vector)
             
             # 记录元数据
             self.metadata.append({
@@ -91,6 +94,17 @@ class VectorMemory:
             })
             self._stats["indexed_items"] = len(self.metadata)
             self._stats["text_ingests"] += 1
+
+            # 容量超限时淘汰最旧条目（FIFO）
+            if len(self.metadata) > self.max_capacity:
+                excess = len(self.metadata) - self.max_capacity
+                self.metadata = self.metadata[excess:]
+                self._vectors = self._vectors[excess:]
+                # Faiss IndexFlatL2 不支持删除元素，从剩余向量重建索引
+                self.index = faiss.IndexFlatL2(self.dimension)
+                if self._vectors:
+                    self.index.add(np.vstack(self._vectors))
+                self._stats["indexed_items"] = len(self.metadata)
         except Exception as e:
             logger.error(f"Failed to add text to VectorMemory: {e}")
 
@@ -177,6 +191,7 @@ class VectorMemory:
         if self.index:
             self.index = faiss.IndexFlatL2(self.dimension)
             self.metadata.clear()
+            self._vectors.clear()
             self._stats["indexed_items"] = 0
             self._stats["last_hit_count"] = 0
             self._last_query = ""

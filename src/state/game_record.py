@@ -106,9 +106,7 @@ class GameRecordStore:
         return lock
 
     def _using_json_fallback(self) -> bool:
-        return not self._use_uri and (
-            self._storage_mode == "json" or self._json_fallback_path.exists()
-        )
+        return not self._use_uri and self._storage_mode == "json"
 
     def _build_record_payload(
         self,
@@ -254,6 +252,13 @@ class GameRecordStore:
             self._initialized_paths.add(self._path_key)
             self._initialized = True
             return
+        if not self._use_uri and self._json_fallback_path.exists():
+            db_file = Path(self.db_path)
+            if not db_file.exists() or self._should_backup_primary_db(db_file):
+                self._initialize_json_fallback()
+                self._initialized_paths.add(self._path_key)
+                self._initialized = True
+                return
         if self._initialized or self._path_key in self._initialized_paths:
             self._initialized = True
             return

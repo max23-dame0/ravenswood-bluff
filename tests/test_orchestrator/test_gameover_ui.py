@@ -11,7 +11,7 @@ def test_settlement_overlay_hooks_exist():
     assert "settlementShownFor !== gameState.game_id" in INDEX_HTML
     assert "!settlementDismissed(gameState.game_id)" in INDEX_HTML
     assert "function rememberSettlementDismissed(gameId)" in INDEX_HTML
-    assert "onclick=\"closeSettlementOverlay(true)\"" in INDEX_HTML
+    assert "onclick=\"confirmReset()\"" in INDEX_HTML
     assert "showSettlementOverlay(data);" in INDEX_HTML
 
 

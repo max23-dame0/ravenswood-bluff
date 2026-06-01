@@ -46,6 +46,7 @@ from fastapi.responses import RedirectResponse
 from src.agents.human_agent import HumanAgent
 from src.content.trouble_brewing_terms import get_role_name, get_role_term
 from src.content.trouble_brewing_night_order import export_rulebook_night_order
+from src.debug.game_debug_logger import game_debug_logger
 from src.orchestrator.game_loop import GameOrchestrator
 from src.state.game_state import GameState, PlayerState, Team, GamePhase
 from src.state.event_log import Visibility
@@ -62,6 +63,7 @@ global_game_loop_started_at: datetime | None = None
 global_game_loop_game_id: str | None = None
 global_last_loop_exception: dict[str, Any] | None = None
 human_agents: Dict[str, HumanAgent] = {}
+_game_lock = asyncio.Lock()
 
 class ConnectionManager:
     def __init__(self):
@@ -152,17 +154,27 @@ async def stop_game_loop_task() -> None:
         task.cancel()
         with suppress(asyncio.CancelledError):
             await task
+    game_debug_logger.end_game()
 
 
-def ensure_game_loop_running() -> bool:
+async def ensure_game_loop_running() -> bool:
     global global_game_loop_task, global_game_loop_started_at, global_game_loop_game_id
 
-    if global_game_loop_task and not global_game_loop_task.done():
-        return False
-    global_game_loop_started_at = datetime.now()
-    global_game_loop_game_id = global_orchestrator.state.game_id if global_orchestrator else None
-    global_game_loop_task = asyncio.create_task(run_game_loop_safe())
-    return True
+    async with _game_lock:
+        if global_game_loop_task and not global_game_loop_task.done():
+            return False
+        global_game_loop_started_at = datetime.now()
+        global_game_loop_game_id = global_orchestrator.state.game_id if global_orchestrator else None
+        if global_orchestrator:
+            game_debug_logger.start_game(
+                global_orchestrator.state.game_id,
+                {
+                    "source": "game_loop_start",
+                    "phase": global_orchestrator.state.phase.value,
+                },
+            )
+        global_game_loop_task = asyncio.create_task(run_game_loop_safe())
+        return True
 
 
 def collect_metrics(orchestrator: GameOrchestrator) -> dict[str, Any]:
@@ -240,24 +252,27 @@ def collect_metrics(orchestrator: GameOrchestrator) -> dict[str, Any]:
 
 def resolve_viewer_mode(orchestrator: GameOrchestrator, player_id: str | None) -> str:
     config = orchestrator.state.config
-    # 如果尚未配置，且 player_id 是 h1 (默认 Host)，则临时授予说书人权限
+
     if not config:
         if player_id == "h1":
             return "storyteller"
         return "observer"
-    
+
     if not player_id:
         return "observer"
-        
+
+    # 1) 明确配置的说书人
     if config.storyteller_client_id and player_id == config.storyteller_client_id:
         return "storyteller"
+    # 2) human_mode 决定 h1 的身份
     if config.human_mode == "player" and config.human_client_id == player_id:
         return "player"
-
-    # 后门/固定 ID 支持，确保控制台始终可用 (在没有明确配置冲突时生效)
+    if config.human_mode == "storyteller" and config.human_client_id == player_id:
+        return "storyteller"
+    # 3) 固定 backdoor ID（仅限非 h1 的管理 ID）
     if player_id in ["storyteller", "admin"]:
         return "storyteller"
-    
+
     return "observer"
 
 def filter_chat_history(orchestrator: GameOrchestrator, player_id: str | None, viewer_mode: str) -> list[dict[str, Any]]:
@@ -466,7 +481,7 @@ async def lifespan(app: FastAPI):
     global global_orchestrator
     try:
         global_orchestrator = build_fresh_orchestrator()
-        ensure_game_loop_running()
+        await ensure_game_loop_running()
         logger.info("Global Orchestrator started in SETUP phase.")
     except Exception as e:
         logger.error(f"Failed to startup: {e}", exc_info=True)
@@ -536,6 +551,14 @@ async def websocket_endpoint(websocket: WebSocket, player_id: str):
     try:
         while True:
             data = await websocket.receive_text()
+            if len(data) > 10000:
+                await websocket.send_text(json.dumps({"type": "error", "message": "消息过长"}))
+                continue
+            try:
+                msg = json.loads(data)
+            except (json.JSONDecodeError, ValueError):
+                await websocket.send_text(json.dumps({"type": "error", "message": "无效的JSON格式"}))
+                continue
             await agent.receive_client_message(data)
     except WebSocketDisconnect:
         manager.disconnect(player_id)
@@ -580,6 +603,7 @@ async def setup_game(data: Dict[str, Any]):
         )
     except RuntimeError as exc:
         return {"status": "error", "message": str(exc)}
+    await ensure_game_loop_running()
     return {
         "status": "ok",
         "message": f"Game setup for {player_count} players started",
@@ -593,7 +617,7 @@ async def start_game():
     logger.info("[start_game] Received start request")
     if not global_orchestrator:
         return {"status": "error", "message": "Orchestrator not initialized"}
-    started = ensure_game_loop_running()
+    started = await ensure_game_loop_running()
     logger.info(f"[start_game] ensure_game_loop_running returned: {started}")
     return {
         "status": "ok",
@@ -607,9 +631,10 @@ async def reset_game(data: Dict[str, Any] | None = None):
     logger.info("Resetting game orchestrator and sessions.")
     await stop_game_loop_task()
     backend_mode = data.get("backend_mode") if isinstance(data, dict) else None
-    global_orchestrator = build_fresh_orchestrator(backend_mode)
-    human_agents.clear()
-    ensure_game_loop_running()
+    async with _game_lock:
+        global_orchestrator = build_fresh_orchestrator(backend_mode)
+        human_agents.clear()
+    await ensure_game_loop_running()
     return {"status": "ok", "message": "Game reset to SETUP phase"}
 
 @app.get("/api/game/roles")
@@ -914,13 +939,15 @@ async def rematch_game():
     # 停止旧循环
     logger.info("[rematch_game] Starting rematch")
     await stop_game_loop_task()
-    global_orchestrator = build_fresh_orchestrator()
+    async with _game_lock:
+        global_orchestrator = build_fresh_orchestrator()
     logger.info(f"[rematch_game] New orchestrator built: {global_orchestrator.state.game_id}")
 
     # 重连已有的 human_agents，确保他们在准备大厅依然在线
-    for pid, agent in human_agents.items():
-        if pid not in global_orchestrator.broker.agents:
-            global_orchestrator.register_agent(agent)
+    async with _game_lock:
+        for pid, agent in human_agents.items():
+            if pid not in global_orchestrator.broker.agents:
+                global_orchestrator.register_agent(agent)
 
     # 不再自动执行 run_setup_with_options 和 ensure_game_loop_running
     # 这样前端 fetchGameState 时 loop_running 为 false，会自动弹出准备界面（Lobby）

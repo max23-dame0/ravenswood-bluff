@@ -39,6 +39,10 @@ class HumanAgent(BaseAgent):
         # 等待前端消息的队列。为了避免串联多个动作，每次 act() 会消耗一个指令
         self.pending_actions: asyncio.Queue[dict[str, Any]] = asyncio.Queue()
 
+    def _action_timeout_seconds(self, action_type: str) -> float:
+        """Human players need generous timeouts for non-speech actions."""
+        return 30.0
+
     async def observe_event(self, event: GameEvent, visible_state: AgentVisibleState) -> None:
         """事件通知。转发给前端"""
         obs_msg = {

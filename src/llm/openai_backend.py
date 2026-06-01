@@ -8,8 +8,11 @@ from __future__ import annotations
 
 import json
 import logging
+import os
+import uuid
 from typing import Optional
 
+from src.debug.game_debug_logger import game_debug_logger
 from src.llm.base_backend import (
     LLMBackend,
     LLMResponse,
@@ -34,7 +37,6 @@ class OpenAIBackend(LLMBackend):
         api_key: Optional[str] = None,
         base_url: Optional[str] = None,
     ) -> None:
-        import os
         from dotenv import load_dotenv
         
         load_dotenv() # Load variables from .env if present
@@ -45,6 +47,7 @@ class OpenAIBackend(LLMBackend):
         self._embedding_api_key = os.getenv("EMBEDDING_API_KEY") or self._api_key
         self._embedding_base_url = os.getenv("EMBEDDING_BASE_URL") or self._base_url
         self._embedding_model = os.getenv("EMBEDDING_MODEL", "text-embedding-3-small")
+        self._request_timeout_seconds = float(os.getenv("OPENAI_REQUEST_TIMEOUT_SECONDS", "300"))
         self._client = None
         self._embedding_client = None
         self._embeddings_disabled = False
@@ -64,7 +67,7 @@ class OpenAIBackend(LLMBackend):
                 kwargs["api_key"] = self._api_key
             if self._base_url:
                 kwargs["base_url"] = self._base_url
-            self._client = AsyncOpenAI(**kwargs, timeout=60.0)
+            self._client = AsyncOpenAI(**kwargs, timeout=self._request_timeout_seconds)
         return self._client
 
     def _get_embedding_client(self):
@@ -90,7 +93,7 @@ class OpenAIBackend(LLMBackend):
         messages: list[Message],
         tools: Optional[list[ToolDef]] = None,
         temperature: float = 0.7,
-        max_tokens: int = 1024,
+        max_tokens: Optional[int] = None,
     ) -> LLMResponse:
         """通过 OpenAI API 生成响应"""
         client = self._get_client()
@@ -110,8 +113,9 @@ class OpenAIBackend(LLMBackend):
             "model": self._model,
             "messages": api_messages,
             "temperature": temperature,
-            "max_tokens": max_tokens,
         }
+        if max_tokens is not None:
+            kwargs["max_tokens"] = max_tokens
 
         # 构建工具定义
         if tools:
@@ -128,17 +132,63 @@ class OpenAIBackend(LLMBackend):
             ]
 
         # 调用 API
+        request_id = uuid.uuid4().hex[:12]
+        game_debug_logger.log_llm_request(
+            request_id=request_id,
+            model=self._model,
+            base_url=self._base_url,
+            system_prompt=system_prompt,
+            messages=api_messages,
+            parameters={
+                "temperature": temperature,
+                "max_tokens": max_tokens,
+                "tools": [tool.name for tool in tools] if tools else [],
+            },
+        )
         logger.info(f"Sending LLM request to {self._model} (base_url: {self._base_url})")
         try:
-            response = await client.chat.completions.create(**kwargs, timeout=30.0)
+            response = await client.chat.completions.create(**kwargs, timeout=self._request_timeout_seconds)
             logger.info("Received LLM response successfully.")
         except Exception as e:
+            game_debug_logger.log_llm_response(
+                request_id=request_id,
+                model=self._model,
+                content=None,
+                tool_calls=[],
+                usage={},
+                finish_reason=None,
+                error=f"{type(e).__name__}: {e}",
+            )
             logger.error(f"OpenAI API error: {type(e).__name__}: {e}")
             raise
 
         # 解析响应
         choice = response.choices[0]
         message = choice.message
+        content = message.content
+        if isinstance(content, list):
+            parts: list[str] = []
+            for part in content:
+                if isinstance(part, dict):
+                    parts.append(str(part.get("text") or part.get("content") or ""))
+                else:
+                    parts.append(str(getattr(part, "text", "") or getattr(part, "content", "") or ""))
+            content = "".join(parts).strip()
+        if not str(content or "").strip():
+            diagnostic_fields = {
+                "finish_reason": getattr(choice, "finish_reason", None),
+                "model": getattr(response, "model", self._model),
+                "prompt_tokens": response.usage.prompt_tokens if response.usage else 0,
+                "completion_tokens": response.usage.completion_tokens if response.usage else 0,
+                "total_tokens": response.usage.total_tokens if response.usage else 0,
+                "tool_call_count": len(message.tool_calls or []),
+                "refusal": str(getattr(message, "refusal", "") or "")[:300],
+                "reasoning_content_preview": str(getattr(message, "reasoning_content", "") or "")[:300],
+                "reasoning_preview": str(getattr(message, "reasoning", "") or "")[:300],
+            }
+            logger.warning("LLM response content is empty: %s", diagnostic_fields)
+        else:
+            diagnostic_fields = {}
 
         # 解析 tool calls
         tool_calls = []
@@ -156,15 +206,29 @@ class OpenAIBackend(LLMBackend):
                     )
                 )
 
+        usage = {
+            "prompt_tokens": response.usage.prompt_tokens if response.usage else 0,
+            "completion_tokens": response.usage.completion_tokens if response.usage else 0,
+            "total_tokens": response.usage.total_tokens if response.usage else 0,
+        }
+        game_debug_logger.log_llm_response(
+            request_id=request_id,
+            model=response.model,
+            content=content,
+            tool_calls=[
+                tc.model_dump() if hasattr(tc, "model_dump") else dict(tc)
+                for tc in tool_calls
+            ],
+            usage=usage,
+            finish_reason=getattr(choice, "finish_reason", None),
+            diagnostics=diagnostic_fields,
+        )
+
         return LLMResponse(
-            content=message.content,
+            content=content,
             tool_calls=tool_calls,
             model=response.model,
-            usage={
-                "prompt_tokens": response.usage.prompt_tokens if response.usage else 0,
-                "completion_tokens": response.usage.completion_tokens if response.usage else 0,
-                "total_tokens": response.usage.total_tokens if response.usage else 0,
-            },
+            usage=usage,
         )
 
     def get_model_name(self) -> str:

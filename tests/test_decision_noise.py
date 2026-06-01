@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from src.agents.decision_noise import DecisionNoise, _NOISE_MAGNITUDE, _BOLD_MOVE_PROB
+from src.agents.decision_noise import BoldMoveResult, DecisionNoise, _NOISE_MAGNITUDE, _BOLD_MOVE_PROB
 
 
 # ============================================================
@@ -105,12 +105,12 @@ class TestThresholdNoiseVariation:
 
 
 class TestBoldMoveProbability:
-    """should_bold_move returns bool; probability roughly matches expected rate."""
+    """should_bold_move returns BoldMoveResult; probability roughly matches expected rate."""
 
-    def test_returns_bool(self):
+    def test_returns_bold_move_result(self):
         noise = DecisionNoise(difficulty="standard", player_id="p1")
         result = noise.should_bold_move("ctx")
-        assert isinstance(result, bool)
+        assert isinstance(result, BoldMoveResult)
 
     @pytest.mark.parametrize("difficulty,expected_prob", [
         ("casual", 0.08),
@@ -122,7 +122,7 @@ class TestBoldMoveProbability:
         noise = DecisionNoise(difficulty=difficulty, player_id="p1")
         trials = 5000
         count = sum(
-            noise.should_bold_move(f"ctx_{i}")
+            noise.should_bold_move(f"ctx_{i}").triggered
             for i in range(trials)
         )
         observed_rate = count / trials
@@ -148,13 +148,13 @@ class TestBoldMoveDeterminism:
         noise = DecisionNoise(difficulty="casual", player_id="p1")
         first = noise.should_bold_move("day1_nominate")
         for _ in range(20):
-            assert noise.should_bold_move("day1_nominate") == first
+            assert noise.should_bold_move("day1_nominate").triggered == first.triggered
 
     def test_determinism_across_difficulties(self):
         for difficulty in ("casual", "standard", "master", "chaos"):
             noise = DecisionNoise(difficulty=difficulty, player_id="p3")
             first = noise.should_bold_move("vote_round5")
-            assert noise.should_bold_move("vote_round5") == first
+            assert noise.should_bold_move("vote_round5").triggered == first.triggered
 
 
 # ============================================================
@@ -276,3 +276,97 @@ class TestEmptyCandidates:
             assert noise.pick_noisy_target("ctx", [], {}) is None, (
                 f"{difficulty}: did not return None for empty candidates"
             )
+
+
+# ============================================================
+# Bold move reason labels
+# ============================================================
+
+
+class TestBoldMoveReasonLabels:
+    """Bold moves include social reason labels."""
+
+    def test_triggered_has_reason(self):
+        noise = DecisionNoise(difficulty="chaos", player_id="p1")
+        for i in range(200):
+            result = noise.should_bold_move(f"ctx_{i}")
+            if result.triggered:
+                assert result.reason in ("retaliation", "pressure_test", "intuition", "story_hook")
+                return
+        pytest.skip("No bold move triggered in 200 trials")
+
+    def test_not_triggered_has_empty_reason(self):
+        noise = DecisionNoise(difficulty="master", player_id="p1")
+        for i in range(200):
+            result = noise.should_bold_move(f"ctx_{i}")
+            if not result.triggered:
+                assert result.reason == ""
+                return
+
+    def test_reason_is_deterministic(self):
+        noise = DecisionNoise(difficulty="chaos", player_id="p1")
+        first = noise.should_bold_move("fixed_ctx")
+        for _ in range(10):
+            assert noise.should_bold_move("fixed_ctx").reason == first.reason
+
+
+# ============================================================
+# Legal target filtering
+# ============================================================
+
+
+class TestLegalTargetFiltering:
+    """pick_noisy_target respects legal_targets when provided."""
+
+    def test_filters_to_legal_targets(self):
+        noise = DecisionNoise(difficulty="standard", player_id="p1")
+        candidates = ["c1", "c2", "c3"]
+        scores = {"c1": 0.9, "c2": 0.7, "c3": 0.5}
+        result = noise.pick_noisy_target("ctx", candidates, scores, legal_targets={"c1", "c2"})
+        assert result in {"c1", "c2"}
+
+    def test_returns_none_when_no_legal_targets(self):
+        noise = DecisionNoise(difficulty="standard", player_id="p1")
+        candidates = ["c1", "c2"]
+        scores = {"c1": 0.9, "c2": 0.7}
+        result = noise.pick_noisy_target("ctx", candidates, scores, legal_targets=set())
+        assert result is None
+
+    def test_none_legal_targets_means_no_filter(self):
+        noise = DecisionNoise(difficulty="standard", player_id="p1")
+        candidates = ["c1", "c2", "c3"]
+        scores = {"c1": 0.9, "c2": 0.7, "c3": 0.5}
+        result = noise.pick_noisy_target("ctx", candidates, scores, legal_targets=None)
+        assert result in candidates
+
+
+# ============================================================
+# Game ID seed binding
+# ============================================================
+
+
+class TestGameIdSeedBinding:
+    """Seeds bind to game_id to avoid cross-game pattern repetition."""
+
+    def test_different_game_ids_give_different_noise(self):
+        noise_a = DecisionNoise(difficulty="standard", player_id="p1", game_id="game_a")
+        noise_b = DecisionNoise(difficulty="standard", player_id="p1", game_id="game_b")
+        values_a = [noise_a.threshold_noise(f"ctx_{i}") for i in range(20)]
+        values_b = [noise_b.threshold_noise(f"ctx_{i}") for i in range(20)]
+        assert values_a != values_b
+
+    def test_same_game_id_gives_same_noise(self):
+        noise_a = DecisionNoise(difficulty="standard", player_id="p1", game_id="game_x")
+        noise_b = DecisionNoise(difficulty="standard", player_id="p1", game_id="game_x")
+        for i in range(20):
+            assert noise_a.threshold_noise(f"ctx_{i}") == noise_b.threshold_noise(f"ctx_{i}")
+
+    def test_empty_game_id_differs_from_named(self):
+        noise_empty = DecisionNoise(difficulty="standard", player_id="p1", game_id="")
+        noise_named = DecisionNoise(difficulty="standard", player_id="p1", game_id="game_1")
+        # At least some values should differ
+        diffs = sum(
+            noise_empty.threshold_noise(f"ctx_{i}") != noise_named.threshold_noise(f"ctx_{i}")
+            for i in range(20)
+        )
+        assert diffs > 0

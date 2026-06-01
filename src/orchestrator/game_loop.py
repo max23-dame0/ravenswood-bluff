@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import os
 import random
 import time
 import uuid
@@ -18,8 +19,17 @@ from src.engine.rule_engine import RuleEngine
 from src.engine.roles.base_role import get_role_class
 from src.engine.victory_checker import VictoryChecker
 from src.engine.data_collector import GameDataCollector
+from src.debug.game_debug_logger import game_debug_logger
+from src.orchestrator.agents import AgentManager
+from src.orchestrator.claims import ClaimExtractor
 from src.orchestrator.event_bus import EventBus
+from src.orchestrator.grimoire import GrimoireManager
+from src.orchestrator.info import PrivateInfoNormalizer
 from src.orchestrator.information_broker import InformationBroker
+from src.orchestrator.metrics import MetricsCollector
+from src.orchestrator.phases import DayDiscussionHandler, NightPhaseHandler, NominationVotingHandler
+from src.orchestrator.settlement import SettlementBuilder
+from src.orchestrator.speech_cache import SpeechPreGenCache
 from src.state.event_log import EventLog
 from src.state.game_state import (
     AgentActionLegalContext,
@@ -76,151 +86,129 @@ class GameOrchestrator:
         self._phase_started_at: float | None = None
         self._phase_started_action_positions: dict[str, int] = {}
         self._phase_duration_history: list[dict[str, Any]] = []
+        self._action_latencies: list[dict[str, Any]] = []
+        # Orchestrator 预算必须大于 agent 内部预算，让 agent 的智能 fallback 优先执行。
+        # Agent 预算: speak=2.0s, defense_speech=2.5s, vote=0.8s, nomination_intent=1.0s, night_action=1.5s
+        # vote/nomination_intent 预算提高到 2500ms，确保 agent 的智能 fallback 有足够时间执行。
+        self._action_latency_budgets: dict[str, int] = {
+            "vote": 2500,
+            "nomination_intent": 2500,
+            "night_action": 2500,
+            "speak": 3500,
+            "defense_speech": 4000,
+        }
+        # Speech pre-generation cache: created per round in _run_day_discussion
+        self._claim_extraction_tasks: set[asyncio.Task] = set()
+        self._claim_extraction_failures: dict[str, int] = {}
+        self.agent_manager = AgentManager(self)
+        self.claim_extractor = ClaimExtractor(self)
+        self.grimoire_manager = GrimoireManager(self)
+        self.metrics_collector = MetricsCollector(self)
+        self.private_info_normalizer = PrivateInfoNormalizer(self)
+        self.settlement_builder = SettlementBuilder(self)
+        self.night_phase_handler = NightPhaseHandler(self)
+        self.day_discussion_handler = DayDiscussionHandler(self)
+        self.nomination_voting_handler = NominationVotingHandler(self)
         self.event_bus.subscribe("*", self._on_any_event, priority=0)
 
     def _mark_progress(self, waiting_for: str | None = None) -> None:
         self._last_progress_at = time.time()
         self._current_waiting_for = waiting_for
 
+    # -- MetricsCollector delegation (batch 1) --
+
+    async def _timed_act(
+        self,
+        agent: BaseAgent,
+        visible_state: Any,
+        action_type: str,
+        legal_context: Any = None,
+        player_id: str = "",
+        phase: str = "",
+        **kwargs: Any,
+    ) -> dict[str, Any]:
+        return await self.metrics_collector._timed_act(agent, visible_state, action_type, legal_context, player_id, phase, **kwargs)
+
+    @staticmethod
+    def _should_wait_without_orchestrator_timeout(agent: BaseAgent, action_type: str) -> bool:
+        return MetricsCollector._should_wait_without_orchestrator_timeout(agent, action_type)
+
+    def _action_budget_ms(self, agent: BaseAgent, action_type: str) -> int:
+        return self.metrics_collector._action_budget_ms(agent, action_type)
+
+    @staticmethod
+    def _latest_agent_metric(agent: BaseAgent, action_type: str) -> dict[str, Any] | None:
+        return MetricsCollector._latest_agent_metric(agent, action_type)
+
+    def _record_speech_metric_from_action(
+        self,
+        visible_state: Any,
+        action_type: str,
+        action: dict[str, Any],
+        agent_metric: dict[str, Any] | None,
+        orchestrator_fallback: bool,
+        orchestrator_reason: str,
+    ) -> None:
+        self.metrics_collector._record_speech_metric_from_action(visible_state, action_type, action, agent_metric, orchestrator_fallback, orchestrator_reason)
+
+    @staticmethod
+    def _latency_fallback(action_type: str, legal_context: Any = None) -> dict[str, Any]:
+        return MetricsCollector._latency_fallback(action_type, legal_context)
+
+    @staticmethod
+    def _smart_latency_fallback(
+        agent: Any,
+        action_type: str,
+        visible_state: Any,
+        legal_context: Any,
+        reason: str,
+    ) -> dict[str, Any]:
+        return MetricsCollector._smart_latency_fallback(agent, action_type, visible_state, legal_context, reason)
+
+    def get_action_latency_summary(self) -> dict[str, Any]:
+        return self.metrics_collector.get_action_latency_summary()
+
     def _record_recent_exception(self, context: str, exc: Exception) -> None:
-        self._recent_exception = {
-            "context": context,
-            "type": type(exc).__name__,
-            "message": str(exc),
-            "timestamp": time.time(),
-        }
+        self.metrics_collector._record_recent_exception(context, exc)
 
     def _human_player_ids(self) -> set[str]:
-        if self.state.config and self.state.config.human_player_ids:
-            return set(self.state.config.human_player_ids)
-        return set()
+        return self.metrics_collector._human_player_ids()
 
     def _ai_discussion_message_limit(self) -> int | None:
-        config = self.state.config
-        if not config or not config.is_human_participant:
-            return None
-        if config.ai_discussion_message_limit is not None:
-            return max(0, int(config.ai_discussion_message_limit))
-        alive_ai_count = sum(
-            1
-            for player in self.state.players
-            if player.is_alive and player.player_id not in self._human_player_ids()
-        )
-        return max(1, min(2, alive_ai_count))
+        return self.metrics_collector._ai_discussion_message_limit()
 
     def _record_pace_event(self, event: dict[str, Any]) -> None:
-        payload = dict(self.state.payload)
-        events = list(payload.get("pace_events", []))
-        event.setdefault("phase", self.state.phase.value)
-        event.setdefault("day_number", self.state.day_number)
-        event.setdefault("round_number", self.state.round_number)
-        event.setdefault("timestamp", time.time())
-        events.append(event)
-        payload["pace_events"] = events[-20:]
-        self.state = self.state.with_update(payload=payload)
+        self.metrics_collector._record_pace_event(event)
 
     def _collect_ai_action_records(self) -> list[dict[str, Any]]:
-        records: list[dict[str, Any]] = []
-        for agent in self.broker.agents.values():
-            exporter = getattr(agent, "export_action_metrics", None)
-            if not exporter:
-                continue
-            try:
-                records.extend(exporter())
-            except Exception as exc:
-                logger.warning("export_action_metrics failed for %s: %s", getattr(agent, "player_id", "unknown"), exc)
-        return records
+        return self.metrics_collector._collect_ai_action_records()
 
     def _snapshot_ai_action_positions(self) -> dict[str, int]:
-        positions: dict[str, int] = {}
-        for player_id, agent in self.broker.agents.items():
-            exporter = getattr(agent, "export_action_metrics", None)
-            if not exporter:
-                continue
-            try:
-                positions[player_id] = len(exporter())
-            except Exception as exc:
-                logger.warning("export_action_metrics failed for %s: %s", getattr(agent, "player_id", "unknown"), exc)
-                positions[player_id] = 0
-        return positions
+        return self.metrics_collector._snapshot_ai_action_positions()
 
     def _collect_ai_action_records_since(self, positions: dict[str, int]) -> list[dict[str, Any]]:
-        records: list[dict[str, Any]] = []
-        for player_id, agent in self.broker.agents.items():
-            exporter = getattr(agent, "export_action_metrics", None)
-            if not exporter:
-                continue
-            try:
-                agent_records = exporter()
-            except Exception as exc:
-                logger.warning("export_action_metrics failed for %s: %s", getattr(agent, "player_id", "unknown"), exc)
-                continue
-            records.extend(agent_records[positions.get(player_id, 0):])
-        return records
+        return self.metrics_collector._collect_ai_action_records_since(positions)
+
+    # -- MetricsCollector delegation (batch 2) --
+
+    @staticmethod
+    def _percentile(sorted_values: list[float], p: float) -> float:
+        return MetricsCollector._percentile(sorted_values, p)
+
+    def _latency_stats(self, records: list[dict[str, Any]]) -> dict[str, Any]:
+        return self.metrics_collector._latency_stats(records)
+
+    def _latency_by_action_type(self, records: list[dict[str, Any]]) -> dict[str, Any]:
+        return self.metrics_collector._latency_by_action_type(records)
 
     def _summarize_ai_action_records(self, records: list[dict[str, Any]]) -> dict[str, Any]:
-        total_tokens = sum(int(item.get("total_tokens", 0) or 0) for item in records)
-        fallback_count = sum(1 for item in records if item.get("fallback_used"))
-        fallback_tokens = sum(int(item.get("total_tokens", 0) or 0) for item in records if item.get("fallback_used"))
-        by_player: dict[str, int] = {}
-        by_action_type: dict[str, int] = {}
-        by_phase: dict[str, int] = {}
-        fallback_by_player: dict[str, int] = {}
-        fallback_by_action_type: dict[str, int] = {}
-        fallback_by_phase: dict[str, int] = {}
-        for item in records:
-            player_id = str(item.get("player_id") or "unknown")
-            action_type = str(item.get("action_type") or "unknown")
-            phase = str(item.get("phase") or "unknown")
-            tokens = int(item.get("total_tokens", 0) or 0)
-            by_player[player_id] = by_player.get(player_id, 0) + tokens
-            by_action_type[action_type] = by_action_type.get(action_type, 0) + tokens
-            by_phase[phase] = by_phase.get(phase, 0) + tokens
-            if item.get("fallback_used"):
-                fallback_by_player[player_id] = fallback_by_player.get(player_id, 0) + 1
-                fallback_by_action_type[action_type] = fallback_by_action_type.get(action_type, 0) + 1
-                fallback_by_phase[phase] = fallback_by_phase.get(phase, 0) + 1
-        top_calls = sorted(records, key=lambda item: int(item.get("total_tokens", 0) or 0), reverse=True)[:10]
-        return {
-            "action_count": len(records),
-            "total_tokens": total_tokens,
-            "average_tokens_per_action": round(total_tokens / len(records), 2) if records else 0,
-            "fallback_count": fallback_count,
-            "fallback_rate": round(fallback_count / len(records), 3) if records else 0,
-            "fallback_tokens": fallback_tokens,
-            "fallback_token_share": round(fallback_tokens / total_tokens, 3) if total_tokens else 0,
-            "tokens_by_player": by_player,
-            "tokens_by_action_type": by_action_type,
-            "tokens_by_phase": by_phase,
-            "fallback_by_player": fallback_by_player,
-            "fallback_by_action_type": fallback_by_action_type,
-            "fallback_by_phase": fallback_by_phase,
-            "top_token_actions": top_calls,
-        }
+        return self.metrics_collector._summarize_ai_action_records(records)
 
     def collect_ai_action_metrics(self, limit: int = 40) -> dict[str, Any]:
-        records = self._collect_ai_action_records()
-        records.sort(key=lambda item: (item.get("day_number", 0), item.get("round_number", 0), item.get("latency_ms", 0)))
-        return {
-            "summary": self._summarize_ai_action_records(records),
-            "recent": records[-limit:],
-        }
+        return self.metrics_collector.collect_ai_action_metrics(limit)
 
     def collect_runtime_diagnostics(self) -> dict[str, Any]:
-        now = time.time()
-        phase_elapsed_ms = int((now - self._phase_started_at) * 1000) if self._phase_started_at else None
-        current_phase_records = self._collect_ai_action_records_since(self._phase_started_action_positions)
-        return {
-            "current_phase": self.state.phase.value,
-            "current_waiting_for": self._current_waiting_for,
-            "last_progress_at": self._last_progress_at,
-            "seconds_since_progress": round(now - self._last_progress_at, 2) if self._last_progress_at else None,
-            "phase_elapsed_ms": phase_elapsed_ms,
-            "recent_exception": self._recent_exception,
-            "current_phase_ai_action_summary": self._summarize_ai_action_records(current_phase_records),
-            "phase_durations": self._phase_duration_history[-20:],
-            "pace_events": list(self.state.payload.get("pace_events", []))[-20:],
-        }
+        return self.metrics_collector.collect_runtime_diagnostics()
 
     def _make_trace_id(self, prefix: str) -> str:
         return f"{prefix}-{str(uuid.uuid4())[:8]}"
@@ -274,145 +262,22 @@ class GameOrchestrator:
             or getattr(self.storyteller_agent, "delegated", False)
         )
 
+    # -- GrimoireManager delegation --
+
     def _log_storyteller(self, event: str, **fields: Any) -> None:
-        parts = [f"{key}={value}" for key, value in fields.items() if value is not None]
-        storyteller_logger.info("[%s] %s", event, " ".join(parts) if parts else "")
+        self.grimoire_manager._log_storyteller(event, **fields)
 
     def _record_storyteller_judgement(self, category: str, decision: str, reason: str | None = None, **fields: Any) -> None:
-        fields.setdefault("phase", self.state.phase.value)
-        fields.setdefault("day_number", self.state.day_number)
-        fields.setdefault("round_number", self.state.round_number)
-        if self.storyteller_agent and hasattr(self.storyteller_agent, "record_judgement"):
-            self.storyteller_agent.record_judgement(category, decision, reason, **fields)
-            return
-        parts = [f"decision={decision}"]
-        if reason:
-            parts.append(f"reason={reason}")
-        parts.extend(f"{key}={value}" for key, value in fields.items() if value is not None)
-        storyteller_logger.info("[judgement][%s] %s", category, " ".join(parts))
+        self.grimoire_manager._record_storyteller_judgement(category, decision, reason, **fields)
 
     def _normalize_private_info_payload(self, player: PlayerState, payload: dict) -> dict:
-        if not payload:
-            return {}
-        if payload.get("title") and payload.get("lines"):
-            return payload
-
-        role_id = player.true_role_id or player.role_id
-        normalized = dict(payload)
-        info_type = payload.get("type", "night_info")
-        title = payload.get("title")
-        lines: list[str] = list(payload.get("lines", []))
-
-        if info_type == "evil_reveal":
-            title = title or "邪恶阵营互认"
-            teammates = payload.get("teammates", [])
-            bluffs = payload.get("bluffs", [])
-            lines = [f"你的邪恶队友：{', '.join(teammates) if teammates else '无'}"]
-            if bluffs:
-                bluff_names = ", ".join(get_role_name(role_id) for role_id in bluffs)
-                lines.append(f"你的 3 个不在场角色：{bluff_names}")
-        elif info_type == "washerwoman_info":
-            title = title or f"{get_role_name(role_id)}信息"
-            candidates = ", ".join(self._player_label(pid) for pid in payload.get("players", [])) or "无"
-            lines = [f"{candidates} 之中，有一人是 {get_role_name(payload.get('role_seen', 'unknown'))}。"]
-        elif info_type == "librarian_info":
-            title = title or f"{get_role_name(role_id)}信息"
-            if payload.get("has_outsider"):
-                candidates = ", ".join(self._player_label(pid) for pid in payload.get("players", [])) or "无"
-                lines = [f"{candidates} 之中，有一人是 {get_role_name(payload.get('role_seen', 'unknown'))}。"]
-            else:
-                lines = ["本局没有外来者。"]
-        elif info_type == "investigator_info":
-            title = title or f"{get_role_name(role_id)}信息"
-            candidates = ", ".join(self._player_label(pid) for pid in payload.get("players", [])) or "无"
-            lines = [f"{candidates} 之中，有一人是 {get_role_name(payload.get('role_seen', 'unknown'))}。"]
-        elif info_type == "chef_info":
-            title = title or f"{get_role_name(role_id)}信息"
-            lines = [f"相邻的邪恶玩家对数：{payload.get('pairs', 0)}。"]
-        elif info_type == "empath_info":
-            title = title or f"{get_role_name(role_id)}信息"
-            lines = [f"你存活的邻座中，邪恶玩家数量：{payload.get('evil_count', 0)}。"]
-        elif info_type == "undertaker_info":
-            title = title or f"{get_role_name(role_id)}信息"
-            seen_role = get_role_name(payload.get("role_seen", "unknown"))
-            seen_player = self._player_label(payload.get("player_id")) if payload.get("player_id") else "今天被处决的玩家"
-            lines = [f"{seen_player} 的身份是：{seen_role}。"]
-        elif info_type == "fortune_teller_info":
-            title = title or f"{get_role_name(role_id)}信息"
-            pair = ", ".join(self._player_label(pid) for pid in payload.get("players", [])) or "这两人"
-            result = "至少有一人是恶魔" if payload.get("has_demon") else "这两人都不是恶魔"
-            lines = [f"{pair}：{result}。"]
-        elif info_type == "ravenkeeper_info":
-            title = title or f"{get_role_name(role_id)}信息"
-            seen_role = get_role_name(payload.get("role_seen", "unknown"))
-            seen_player = self._player_label(payload.get("player_id")) if payload.get("player_id") else "该玩家"
-            lines = [f"你得知 {seen_player} 的身份是：{seen_role}。"]
-        else:
-            title = title or f"{get_role_name(role_id)}信息"
-            if not lines:
-                lines = [
-                    f"{key}: {value}"
-                    for key, value in payload.items()
-                    if key not in {"type", "title", "lines"}
-                ] or ["你收到了新的私密信息。"]
-
-        normalized["type"] = info_type
-        normalized["title"] = title
-        normalized["lines"] = lines
-        return normalized
+        return self.private_info_normalizer._normalize_private_info_payload(player, payload)
 
     def _record_data_snapshot(self, stage: str, **extra_summary: Any) -> None:
-        last_event = self.state.event_log[-1].event_type if self.state.event_log else None
-        nomination_state = self.state.payload.get("nomination_state", {})
-        ai_snapshot = self._build_ai_data_snapshot_summary()
-        snapshot = {
-            "game_id": self.state.game_id,
-            "stage": stage,
-            "phase": self.state.phase.value,
-            "day_number": self.state.day_number,
-            "round_number": self.state.round_number,
-            "summary": {
-                "alive_count": self.state.alive_count,
-                "dead_count": self.state.player_count - self.state.alive_count,
-                "player_count": self.state.player_count,
-                "chat_messages": len(self.state.chat_history),
-                "last_event_type": last_event,
-                "nomination_stage": nomination_state.get("stage"),
-                "visible_state_summary": {
-                    "alive_players": [player.name for player in self.state.get_alive_players()],
-                    "dead_players": [player.name for player in self.state.players if not player.is_alive],
-                    "current_nominee": self._player_label(self.state.current_nominee) if self.state.current_nominee else None,
-                    "current_nominator": self._player_label(self.state.current_nominator) if self.state.current_nominator else None,
-                },
-                "working_memory_summary": ai_snapshot["working_memory_summary"],
-                "social_graph_summary": ai_snapshot["social_graph_summary"],
-                "claim_history_summary": ai_snapshot["claim_history_summary"],
-                "retrieval_summary": ai_snapshot["retrieval_summary"],
-                **extra_summary,
-            },
-        }
-        self.data_collector.record_snapshot(snapshot)
+        self.metrics_collector._record_data_snapshot(stage, **extra_summary)
 
     def _build_ai_data_snapshot_summary(self) -> dict[str, Any]:
-        summary = {
-            "working_memory_summary": {},
-            "social_graph_summary": {},
-            "claim_history_summary": {},
-            "retrieval_summary": {},
-        }
-        for player_id, agent in self.broker.agents.items():
-            if not hasattr(agent, "build_data_snapshot_summary"):
-                continue
-            try:
-                agent_summary = agent.build_data_snapshot_summary()
-            except Exception as exc:
-                logger.warning("build_data_snapshot_summary failed for %s: %s", player_id, exc)
-                continue
-            summary["working_memory_summary"][player_id] = agent_summary.get("working_memory_summary", {})
-            summary["social_graph_summary"][player_id] = agent_summary.get("social_graph_summary", "")
-            summary["claim_history_summary"][player_id] = agent_summary.get("claim_history_summary", {})
-            summary["retrieval_summary"][player_id] = agent_summary.get("retrieval_summary", {})
-        return summary
+        return self.metrics_collector._build_ai_data_snapshot_summary()
 
     async def _publish_event(self, event: GameEvent) -> None:
         try:
@@ -421,98 +286,52 @@ class GameOrchestrator:
             if getattr(event, 'day_number', 1) == 1 and self.state.day_number != 1:
                 updates["day_number"] = self.state.day_number
                 
-            if event.event_type in {"player_speaks", "defense_started"} and "extracted_claims" not in event.payload:
-                extracted = await self._extract_claims_via_llm(event)
-                new_payload = dict(event.payload)
-                new_payload["extracted_claims"] = extracted
-                updates["payload"] = new_payload
-                
             if updates:
                 event = event.model_copy(update=updates)
         except Exception as e:
             logger.warning(f"Error updating event before publish: {e}")
         self.state = self.state.with_event(event)
         await self.event_bus.publish(event)
+        if event.event_type in {"player_speaks", "defense_started"} and "extracted_claims" not in event.payload:
+            self._schedule_claim_extraction(event)
+
+    # -- ClaimExtractor delegation --
+
+    def _schedule_claim_extraction(self, event: GameEvent) -> None:
+        self.claim_extractor._schedule_claim_extraction(event)
+
+    async def _extract_claims_background(self, event: GameEvent) -> None:
+        await self.claim_extractor._extract_claims_background(event)
 
     async def _extract_claims_via_llm(self, event: GameEvent) -> list[dict[str, Any]]:
-        from src.llm.openai_backend import OpenAIBackend
-        from src.llm.base_backend import Message
-        import json
-        
-        backend = self.default_agent_backend or (getattr(self.storyteller_agent, "backend", None)) or OpenAIBackend()
-        content = event.payload.get("content", "")
-        if not content:
-            return []
-            
-        prompt = f"""分析以下《血染钟楼》对局发言，提取发言者({event.actor})对身份的声明、否认或指控。
-可用角色(Role ID)：washerwoman, librarian, investigator, chef, empath, fortune_teller, undertaker, monk, ravenkeeper, virgin, slayer, soldier, mayor, butler, drunken, recluse, saint, poisoner, spy, scarlet_woman, baron, imp。
-注意：
-1. self_claim: "我是市长" (注意排除"如果我是...")。
-2. denial: "我不是毒师"。
-3. accusation: "我觉得他(p2)是毒师"。
-4. relay: "p2说他是调查员"。
-发言内容："{content}"
+        return await self.claim_extractor._extract_claims_via_llm(event)
 
-必须以严格的 JSON 对象格式返回，包含一个 "claims" 数组。格式示例：
-{{
-    "claims": [
-        {{"role_id": "mayor", "claim_type": "self_claim", "subject_player_ids": ["{event.actor}"]}}
-    ]
-}}
-如果未提及任何角色或没有明确声明，返回 {{"claims": []}}。
-"""
-        try:
-            response = await backend.generate([Message(role="user", content=prompt)], response_format={"type": "json_object"})
-            text = response.message.content.strip()
-            data = json.loads(text)
-            return data.get("claims", [])
-        except Exception as e:
-            logger.warning(f"LLM 提取身份声明失败: {e}")
-            return []
+    # -- AgentManager delegation --
 
     def register_agent(self, agent: BaseAgent) -> None:
-        self.broker.register_agent(agent)
-        self._sync_agent(agent.player_id, "BOTC-FLOW-SYNC")
+        self.agent_manager.register_agent(agent)
 
     def _sync_agent(self, player_id: str, trace_id: str) -> None:
-        if player_id not in self.broker.agents:
-            return
-        private_view = self.broker.get_private_view(player_id, self.state)
-        if not private_view:
-            return
-        self.broker.agents[player_id].synchronize_role(private_view)
-        p_state = self.state.get_player(player_id)
-        logger.info(
-            "[role_sync][%s] %s true_role=%s perceived_role=%s current_team=%s",
-            trace_id,
-            player_id,
-            p_state.true_role_id if p_state else "unknown",
-            private_view.perceived_role_id,
-            private_view.current_team.value,
-        )
+        self.agent_manager._sync_agent(player_id, trace_id)
 
     def _sync_all_agents(self, trace_id: str = "BOTC-FLOW-SYNC") -> None:
-        for player_id in self.broker.agents:
-            self._sync_agent(player_id, trace_id)
+        self.agent_manager._sync_all_agents(trace_id)
+
+    async def _batch_reflect_agents(self, phase: GamePhase) -> None:
+        await self.agent_manager._batch_reflect_agents(phase)
 
     def _get_agent_visible_state(self, player_id: str) -> AgentVisibleState | None:
-        return self.broker.get_visible_state(player_id, self.state)
+        return self.agent_manager._get_agent_visible_state(player_id)
 
     def _get_agent_legal_context(
         self,
         player_id: str,
         visible_state: AgentVisibleState | None = None,
     ) -> AgentActionLegalContext:
-        return self.broker.get_action_legal_context(player_id, self.state, visible_state)
+        return self.agent_manager._get_agent_legal_context(player_id, visible_state)
 
     def _ensure_player_alive(self, player_id: str, context: str = "action") -> PlayerState:
-        """[GAME-1.2] 统一存活检查。若玩家不存在或已死亡则抛出 ValueError。"""
-        player = self.state.get_player(player_id)
-        if not player:
-            raise ValueError(f"[{context}] 玩家 {player_id} 不存在")
-        if not player.is_alive:
-            raise ValueError(f"[{context}] 玩家 {player_id} ({player.name}) 已死亡，无法执行操作")
-        return player
+        return self.agent_manager._ensure_player_alive(player_id, context)
 
     async def _on_any_event(self, event: GameEvent) -> None:
         self._mark_progress()
@@ -547,6 +366,18 @@ class GameOrchestrator:
             raise RuntimeError("BOTC-FLOW-SETUP: 当前对局已开始或已配置，不能重复 setup")
 
         self._setup_started = True
+        debug_dir = game_debug_logger.start_game(
+            self.state.game_id,
+            {
+                "player_count": player_count,
+                "host_id": host_id,
+                "human_mode": human_mode or ("player" if is_human else "none"),
+                "backend_mode": backend_mode,
+                "difficulty": difficulty,
+            },
+        )
+        if debug_dir:
+            logger.info("[run_setup_with_options] Debug logs for this game: %s", debug_dir)
         from src.engine.scripts import SCRIPTS, distribute_roles
 
         script = SCRIPTS["trouble_brewing"]
@@ -628,6 +459,8 @@ class GameOrchestrator:
         backend = self.default_agent_backend or (getattr(self.storyteller_agent, "backend", None)) or OpenAIBackend()
         player_count = len(self.state.players)
         archetype_keys = list(ARCHETYPES.keys())
+        rng = random.Random(self.state.game_id)
+        rng.shuffle(archetype_keys)
 
         self.data_collector.start_game(self.state.game_id)
         for i, player in enumerate(self.state.players):
@@ -662,36 +495,41 @@ class GameOrchestrator:
         logger.info("[run_setup_with_options] Setup completed successfully")
 
     async def run_game_loop(self) -> Team | None:
-        if not self._setup_done:
-            self._setup_done = asyncio.get_running_loop().create_future()
-        self._loop_started_at = time.time()
-        self._mark_progress("setup")
-        logger.info("=== 游戏开始 ===")
-        self.snapshot_manager.take_snapshot(self.state)
-        await self._transition_and_run(GamePhase.SETUP)
+        try:
+            if not self._setup_done:
+                self._setup_done = asyncio.get_running_loop().create_future()
+            self._loop_started_at = time.time()
+            self._mark_progress("setup")
+            logger.info("=== 游戏开始 ===")
+            self.snapshot_manager.take_snapshot(self.state)
+            await self._transition_and_run(GamePhase.SETUP)
 
-        while not self.winner:
-            self.winner = self.state.winning_team or VictoryChecker.check_victory(self.state)
-            if self.winner:
-                await self._transition_and_run(GamePhase.GAME_OVER)
-                break
+            while not self.winner:
+                self.winner = self.state.winning_team or VictoryChecker.check_victory(self.state)
+                if self.winner:
+                    await self._transition_and_run(GamePhase.GAME_OVER)
+                    break
 
-            phase = self.phase_manager.current_phase
-            if phase == GamePhase.SETUP:
-                self._mark_progress("setup_done")
-                logger.info("[run_game_loop] Waiting for _setup_done...")
-                await self._setup_done
-                logger.info("[run_game_loop] _setup_done received. Transitioning to FIRST_NIGHT")
-                await self._transition_and_run(GamePhase.FIRST_NIGHT)
-            elif phase in (GamePhase.FIRST_NIGHT, GamePhase.NIGHT):
-                await self._transition_and_run(GamePhase.DAY_DISCUSSION)
-            elif phase == GamePhase.DAY_DISCUSSION:
-                await self._transition_and_run(GamePhase.NOMINATION)
-            elif phase in (GamePhase.NOMINATION, GamePhase.EXECUTION):
-                await self._transition_and_run(GamePhase.NIGHT)
-            else:
-                break
-        return self.winner
+                phase = self.phase_manager.current_phase
+                if phase == GamePhase.SETUP:
+                    self._mark_progress("setup_done")
+                    logger.info("[run_game_loop] Waiting for _setup_done...")
+                    await self._setup_done
+                    logger.info("[run_game_loop] _setup_done received. Transitioning to FIRST_NIGHT")
+                    await self._transition_and_run(GamePhase.FIRST_NIGHT)
+                elif phase in (GamePhase.FIRST_NIGHT, GamePhase.NIGHT):
+                    await self._transition_and_run(GamePhase.DAY_DISCUSSION)
+                elif phase == GamePhase.DAY_DISCUSSION:
+                    await self._transition_and_run(GamePhase.NOMINATION)
+                elif phase in (GamePhase.NOMINATION, GamePhase.EXECUTION):
+                    await self._transition_and_run(GamePhase.NIGHT)
+                else:
+                    break
+            return self.winner
+        finally:
+            if game_debug_logger.game_id == self.state.game_id:
+                logger.info("Ending debug logs for game %s", self.state.game_id)
+                game_debug_logger.end_game()
 
     async def _transition_and_run(self, target_phase: GamePhase) -> None:
         phase_start = time.perf_counter()
@@ -780,10 +618,6 @@ class GameOrchestrator:
             await self._run_day_discussion()
         elif target_phase == GamePhase.NOMINATION:
             await self._run_nomination_phase()
-        elif target_phase == GamePhase.VOTING:
-            await self._run_voting_phase()
-        elif target_phase == GamePhase.EXECUTION:
-            await self._run_execution_phase()
         duration_ms = int((time.perf_counter() - phase_start) * 1000)
         phase_action_summary = self._summarize_ai_action_records(
             self._collect_ai_action_records_since(self._phase_started_action_positions)
@@ -808,174 +642,30 @@ class GameOrchestrator:
         self._mark_progress(None)
 
     async def _archive_agent_phase_memories(self) -> None:
+        tasks = []
         for player_id, agent in self.broker.agents.items():
             try:
                 visible_state = self._get_agent_visible_state(player_id)
                 if visible_state:
-                    await agent.archive_phase_memory(visible_state)
+                    tasks.append(agent.archive_phase_memory(visible_state))
             except Exception as exc:
-                logger.warning("archive_phase_memory failed for %s: %s", agent.player_id, exc)
+                logger.warning("archive_phase_memory setup failed for %s: %s", player_id, exc)
+        if tasks:
+            try:
+                await asyncio.wait_for(asyncio.gather(*tasks, return_exceptions=True), timeout=10.0)
+            except asyncio.TimeoutError:
+                logger.warning("[archive] phase memory archiving timed out after 10s")
 
     # --------------- 结算报告 ---------------
 
     def _build_settlement_report(self) -> dict[str, Any]:
-        """组装完整的结算报告数据"""
-        state = self.state
-        events = list(state.event_log)
-
-        # 胜负判定
-        winning_team = self.winner.value if self.winner else "unknown"
-        victory_reason = self._determine_victory_reason()
-
-        # 玩家统计
-        player_stats: dict[str, dict[str, int]] = {}
-        for p in state.players:
-            player_stats[p.player_id] = {
-                "nominations_made": 0,
-                "times_nominated": 0,
-                "votes_cast": 0,
-                "votes_yes": 0,
-            }
-
-        for event in events:
-            if event.event_type == "nomination_started":
-                if event.actor and event.actor in player_stats:
-                    player_stats[event.actor]["nominations_made"] += 1
-                if event.target and event.target in player_stats:
-                    player_stats[event.target]["times_nominated"] += 1
-            elif event.event_type == "vote_cast":
-                if event.actor and event.actor in player_stats:
-                    player_stats[event.actor]["votes_cast"] += 1
-                    if event.payload.get("vote"):
-                        player_stats[event.actor]["votes_yes"] += 1
-
-        # 角色揭示
-        human_ids = set()
-        if state.config and state.config.human_player_ids:
-            human_ids = set(state.config.human_player_ids)
-
-        players_reveal = []
-        for p in state.players:
-            players_reveal.append({
-                "player_id": p.player_id,
-                "name": p.name,
-                "true_role_id": p.true_role_id or p.role_id,
-                "perceived_role_id": p.perceived_role_id,
-                "team": (p.current_team or p.team).value,
-                "is_alive": p.is_alive,
-                "is_human": p.player_id in human_ids,
-                "stats": player_stats.get(p.player_id, {}),
-            })
-
-        # 关键事件时间线
-        key_event_types = {
-            "nomination_started", "voting_resolved", "execution_resolved",
-            "player_death", "phase_changed",
-        }
-        timeline = []
-        for event in events:
-            if event.event_type not in key_event_types:
-                continue
-            summary = self._summarize_event(event)
-            if not summary:
-                continue
-            timeline.append({
-                "round": event.round_number,
-                "phase": event.phase.value,
-                "event_type": event.event_type,
-                "actor": event.actor,
-                "target": event.target,
-                "summary": summary,
-                "timestamp": event.timestamp.isoformat(),
-            })
-
-        # 总体统计
-        total_nominations = sum(1 for e in events if e.event_type == "nomination_started")
-        total_executions = sum(1 for e in events if e.event_type == "execution_resolved" and e.payload.get("executed"))
-        total_votes = sum(1 for e in events if e.event_type == "vote_cast")
-        total_deaths = sum(1 for e in events if e.event_type == "player_death")
-        judgement_summary: list[dict[str, Any]] = []
-        if self.storyteller_agent and hasattr(self.storyteller_agent, "summarize_recent_judgements"):
-            try:
-                judgement_summary = list(self.storyteller_agent.summarize_recent_judgements(20))
-            except Exception as exc:
-                logger.warning("Failed to summarize storyteller judgements for settlement: %s", exc)
-
-        return {
-            "game_id": state.game_id,
-            "winning_team": winning_team,
-            "victory_reason": victory_reason,
-            "duration_rounds": state.round_number,
-            "days_played": state.day_number,
-            "players": players_reveal,
-            "timeline": timeline,
-            "statistics": {
-                "total_nominations": total_nominations,
-                "total_executions": total_executions,
-                "total_votes": total_votes,
-                "total_deaths": total_deaths,
-                "days_played": state.day_number,
-                "player_count": len(state.players),
-            },
-            "judgement_summary": judgement_summary,
-        }
+        return self.settlement_builder._build_settlement_report()
 
     def _determine_victory_reason(self) -> str:
-        """推断胜利原因"""
-        if not self.winner:
-            return "unknown"
-        events = list(self.state.event_log)
-        if self.winner == Team.GOOD:
-            # 检查是否恶魔被处决
-            for event in reversed(events):
-                if event.event_type == "execution_resolved" and event.payload.get("executed"):
-                    return "demon_executed"
-                if event.event_type == "player_death":
-                    return "demon_killed"
-            return "demon_killed"
-        else:
-            # 邪恶获胜 = 只剩2人且恶魔存活
-            return "last_two_alive"
+        return self.settlement_builder._determine_victory_reason()
 
     def _summarize_event(self, event: GameEvent) -> str:
-        """将事件转为人可读的摘要"""
-        actor = self._player_label(event.actor) if event.actor else ""
-        target = self._player_label(event.target) if event.target else ""
-
-        if event.event_type == "phase_changed":
-            day = event.payload.get("day_number", "?")
-            phase_names = {
-                "first_night": "第一夜",
-                "day_discussion": f"第{day}天 白天讨论",
-                "nomination": f"第{day}天 提名阶段",
-                "night": f"第{day}天 夜晚",
-                "game_over": "游戏结束",
-            }
-            return phase_names.get(event.phase.value, f"阶段: {event.phase.value}")
-
-        if event.event_type == "nomination_started":
-            return f"{actor} 提名了 {target}"
-
-        if event.event_type == "voting_resolved":
-            passed = event.payload.get("passed", False)
-            votes = event.payload.get("votes", 0)
-            needed = event.payload.get("needed", 0)
-            result = "通过" if passed else "未通过"
-            return f"投票{result} ({votes}/{needed}票) - {target}"
-
-        if event.event_type == "execution_resolved":
-            executed = event.payload.get("executed")
-            if executed:
-                return f"{self._player_label(executed)} 被处决"
-            return "今天无人被处决"
-
-        if event.event_type == "player_death":
-            reason = event.payload.get("reason", "night")
-            if reason == "night":
-                return f"{target} 在夜晚死亡"
-            return f"{target} 死亡"
-
-        return ""
+        return self.settlement_builder._summarize_event(event)
 
     # --------------- 具体阶段逻辑 ---------------
 
@@ -984,1380 +674,77 @@ class GameOrchestrator:
         logger.info("等说书人(h1)配置游戏人数...")
 
     async def _run_first_night(self) -> None:
-        self._update_grimoire()
-        evil_players = [p for p in self.state.players if (p.current_team or p.team) == Team.EVIL]
-        for player in evil_players:
-            teammates = [p.name for p in evil_players if p.player_id != player.player_id]
-            bluffs = list(self.state.bluffs)
-            await self._publish_private_info(
-                phase=GamePhase.FIRST_NIGHT,
-                target=player.player_id,
-                trace_id=self._make_trace_id("BOTC-ST-EVIL"),
-                payload={
-                    "type": "evil_reveal",
-                    "title": "邪恶阵营互认",
-                    "teammates": teammates,
-                    "bluffs": bluffs,
-                },
-            )
-            self._record_storyteller_judgement(
-                "evil_reveal",
-                decision="deliver",
-                phase="first_night",
-                player_id=player.player_id,
-                teammates=teammates,
-                bluffs=bluffs,
-            )
-        # 在首夜开始时，由说书人决定一些初始配置（如酒鬼是谁，以及洗衣妇等人的信息内容）
-        if self._should_storyteller_auto_act():
-            self.state = await self.storyteller_agent.decide_initial_setup_info(self.state)
-
-        await self._execute_night_actions(GamePhase.FIRST_NIGHT)
-        await self._distribute_night_info(GamePhase.FIRST_NIGHT)
-        self._sync_all_agents("BOTC-FLOW-NIGHT")
-        self._update_grimoire()
-        self._record_data_snapshot(
-            "first_night_complete",
-            private_info_events=sum(1 for e in self.state.event_log if e.event_type == "private_info_delivered"),
-        )
+        await self.night_phase_handler._run_first_night()
 
     def get_grimoire_info(self) -> GrimoireInfo:
-        """生成当前的魔典快照（实时计算）。"""
-        ordered_player_ids = self.state.seat_order if self.state.seat_order else tuple(p.player_id for p in self.state.players)
-        grimoire_players = []
-        for pid in ordered_player_ids:
-            player = self.state.get_player(pid)
-            if not player:
-                continue
-            grimoire_players.append(PlayerGrimoireInfo(
-                player_id=player.player_id,
-                name=player.name,
-                role_id=player.role_id,
-                true_role_id=player.true_role_id,
-                perceived_role_id=player.perceived_role_id,
-                public_claim_role_id=player.public_claim_role_id,
-                fake_role=player.fake_role,
-                team=player.team,
-                current_team=player.current_team,
-                is_alive=player.is_alive,
-                is_poisoned=player.is_poisoned,
-                is_drunk=player.is_drunk,
-                storyteller_notes=player.storyteller_notes,
-                ongoing_effects=player.ongoing_effects,
-            ))
-        
-        # 收集夜晚行动记录
-        night_actions = tuple(
-            {"event_type": event.event_type, "actor": event.actor, "target": event.target, "payload": event.payload, "trace_id": event.trace_id}
-            for event in self.state.event_log
-            if event.event_type in {"night_action_requested", "night_action_resolved", "private_info_delivered", "role_transfer"}
-        )
-        return GrimoireInfo(
-            players=tuple(grimoire_players), 
-            night_actions=night_actions,
-            reminders=tuple(self.state.payload.get("reminders", []))
-        )
+        return self.grimoire_manager.get_grimoire_info()
 
     def _update_grimoire(self) -> None:
-        """更新状态中的魔典快照（用于存档和持久化）。"""
-        grimoire = self.get_grimoire_info()
-        self.state = self.state.with_update(grimoire=grimoire)
-        self._log_storyteller(
-            "grimoire_update",
-            players=len(grimoire.players),
-            night_actions=len(grimoire.night_actions),
-        )
+        self.grimoire_manager._update_grimoire()
 
     async def _publish_private_info(self, phase: GamePhase, target: str, trace_id: str, payload: dict) -> None:
-        player = self.state.get_player(target)
-        if not player:
-            return
-        normalized_payload = self._normalize_private_info_payload(player, payload)
-        await self._publish_event(GameEvent(
-            event_type="private_info_delivered",
-            phase=phase,
-            round_number=self.state.round_number,
-            trace_id=trace_id,
-            target=target,
-            visibility=Visibility.PRIVATE,
-            payload=normalized_payload,
-        ))
-        self._log_storyteller(
-            "private_info_delivered",
-            phase=phase.value,
-            target=target,
-            trace_id=trace_id,
-            info_type=normalized_payload.get("type", "unknown"),
-            title=normalized_payload.get("title", ""),
-        )
-        self._record_storyteller_judgement(
-            "private_info",
-            decision="deliver",
-            phase=phase.value,
-            target=target,
-            trace_id=trace_id,
-            info_type=normalized_payload.get("type", "unknown"),
-            title=normalized_payload.get("title", ""),
-        )
+        await self.private_info_normalizer._publish_private_info(phase, target, trace_id, payload)
 
     async def _run_night(self) -> None:
-        pre_alive = {p.player_id for p in self.state.get_alive_players()}
-        self._clear_transient_statuses()
-        # 在每晚行动开始前，说书人可以做出一些全局性决策（如间谍/隐士是否误报）
-        if self._should_storyteller_auto_act():
-            self.state = await self.storyteller_agent.decide_misregistration(self.state)
-
-        await self._execute_night_actions(GamePhase.NIGHT)
-        await self._distribute_night_info(GamePhase.NIGHT)
-        await self._resolve_on_death_triggers(pre_alive)
-        self._sync_all_agents("BOTC-FLOW-NIGHT")
-        self._update_grimoire()
-        for dead_id in sorted(pre_alive - {p.player_id for p in self.state.get_alive_players()}):
-            await self._publish_event(GameEvent(
-                event_type="player_death",
-                phase=GamePhase.NIGHT,
-                round_number=self.state.round_number,
-                trace_id=self._make_trace_id("BOTC-RULE-DEATH"),
-                target=dead_id,
-                visibility=Visibility.PUBLIC,
-                payload={"reason": "night"},
-            ))
+        await self.night_phase_handler._run_night()
 
     async def _resolve_on_death_triggers(self, pre_alive: set[str]) -> None:
-        newly_dead_ids = sorted(pre_alive - {p.player_id for p in self.state.get_alive_players()})
-        for dead_id in newly_dead_ids:
-            player = self.state.get_player(dead_id)
-            if not player:
-                continue
-            role_id = player.true_role_id or player.role_id
-            role_cls = get_role_class(role_id)
-            if not role_cls or role_cls.get_definition().ability.trigger != AbilityTrigger.ON_DEATH:
-                continue
-            agent = self.broker.agents.get(dead_id)
-            if not agent:
-                continue
-            trace_id = self._make_trace_id("BOTC-ST-DEATH")
-            await self._publish_event(GameEvent(
-                event_type="death_trigger_requested",
-                phase=GamePhase.NIGHT,
-                round_number=self.state.round_number,
-                trace_id=trace_id,
-                actor=dead_id,
-                visibility=Visibility.STORYTELLER_ONLY,
-                payload={"role_id": role_id},
-            ))
-            self._log_storyteller(
-                "death_trigger_requested",
-                actor=dead_id,
-                role=role_id,
-                trace_id=trace_id,
-            )
-            self._record_storyteller_judgement(
-                "death_trigger",
-                decision="request",
-                actor=dead_id,
-                role=role_id,
-                trace_id=trace_id,
-            )
-            try:
-                visible_state = self._get_agent_visible_state(player.player_id)
-                if not visible_state:
-                    continue
-                legal_context = self._get_agent_legal_context(player.player_id, visible_state)
-                self._mark_progress(f"ai_action:{player.player_id}:death_trigger")
-                action = await agent.act(visible_state, "death_trigger", legal_context=legal_context)
-            except Exception as exc:
-                self._record_recent_exception(f"death_trigger:{dead_id}", exc)
-                logger.warning("死亡触发决策失败: %s", exc)
-                action = {"action": "death_trigger", "target": None, "reasoning": f"death_trigger_error:{type(exc).__name__}"}
-            target = action.get("target")
-            role = role_cls()
-            new_state, events = role.execute_ability(self.state, player, target)
-            self.state = new_state
-            for event in events:
-                if event.event_type == "night_info" and event.visibility == Visibility.PRIVATE:
-                    payload = dict(event.payload)
-                    payload.setdefault("type", f"{role_id}_info")
-                    await self._publish_private_info(
-                        phase=GamePhase.NIGHT,
-                        target=dead_id,
-                        trace_id=trace_id,
-                        payload=payload,
-                    )
-                    continue
-                await self.event_bus.publish(event)
-            self._log_storyteller(
-                "death_trigger_resolved",
-                actor=dead_id,
-                role=role_id,
-                target=target,
-                trace_id=trace_id,
-            )
-            self._record_storyteller_judgement(
-                "death_trigger",
-                decision="resolved",
-                actor=dead_id,
-                role=role_id,
-                target=target,
-                trace_id=trace_id,
-            )
+        await self.night_phase_handler._resolve_on_death_triggers(pre_alive)
 
     async def _execute_slayer_shot(self, actor_id: str, target_id: str) -> None:
-        """执行猎手技能"""
-        try:
-            actor = self._ensure_player_alive(actor_id, "slayer_shot_actor")
-            target = self._ensure_player_alive(target_id, "slayer_shot_target")
-        except ValueError as e:
-            logger.warning("猎手技能校验失败: %s", e)
-            return
-
-        from src.engine.roles.townsfolk import SlayerRole
-        role = SlayerRole()
-        
-        trace_id = self._make_trace_id("BOTC-FLOW-SLAYER")
-        await self._publish_event(GameEvent(
-            event_type="slayer_shot_announced",
-            phase=self.phase_manager.current_phase,
-            round_number=self.state.round_number,
-            trace_id=trace_id,
-            actor=actor_id,
-            target=target_id,
-            visibility=Visibility.PUBLIC,
-            payload={"message": f"{actor.name} 对 {target.name} 发动了猎手技能！"}
-        ))
-        
-        # 执行技能
-        try:
-            self.state, events = role.execute_ability(self.state, actor, target_id)
-            for event in events:
-                # 确保 trace_id 一致
-                event_dict = event.model_dump()
-                event_dict["trace_id"] = trace_id
-                #重新封装以通过 event_bus
-                new_event = GameEvent(**event_dict)
-                await self._publish_event(new_event)
-                
-            self._record_storyteller_judgement(
-                "slayer_shot",
-                decision="execute",
-                actor=actor_id,
-                target=target_id,
-                trace_id=trace_id,
-            )
-        except Exception as e:
-            logger.error(f"Slayer shot execution failed: {e}")
+        await self.night_phase_handler._execute_slayer_shot(actor_id, target_id)
 
     async def _execute_night_actions(self, phase: GamePhase) -> None:
-        steps = await self.storyteller_agent.build_night_order(self.state, phase) if self._should_storyteller_auto_act() else []
-        self._log_storyteller("night_action_queue", phase=phase.value, steps=len(steps))
-        self._record_storyteller_judgement(
-            "night_queue",
-            decision="queue",
-            phase=phase.value,
-            steps=[{"player_id": step["player_id"], "role_id": step["role_id"], "night_order": step["night_order"]} for step in steps],
-        )
-        self._current_night_steps = steps
-        for i, step in enumerate(steps):
-            self._current_night_step_index = i
-            player = self.state.get_player(step["player_id"])
-            agent = self.broker.agents.get(step["player_id"])
-            if not player or not agent:
-                continue
-            
-            self._mark_progress(f"night_action:{player.player_id}:{step['role_id']}")
-            # [FIX] 夜晚行动顺序校验：如果玩家已死亡且不是守鸦人（ON_DEATH 触发），则跳过
-            if not player.is_alive:
-                role_cls = get_role_class(player.true_role_id or player.role_id)
-                if role_cls:
-                    role_def = role_cls.get_definition()
-                    # 守鸦人等 ON_DEATH 角色允许在当晚死后行动一次
-                    if role_def.ability.trigger != AbilityTrigger.ON_DEATH:
-                        logger.info(f"BOTC-FLOW-NIGHT: 跳过已死亡玩家 {player.player_id} ({player.role_id}) 的行动")
-                        continue
-                else:
-                    continue
-            trace_id = self._make_trace_id("BOTC-ST-ACT")
-            
-            visible_state = self._get_agent_visible_state(player.player_id)
-            if not visible_state:
-                continue
-            legal_context = self._get_agent_legal_context(player.player_id, visible_state)
-
-            # 持久化当前待办动作，供 API 查询
-            self._pending_night_action = {
-                "player_id": player.player_id,
-                "action_type": "night_action",
-                "legal_context": legal_context.model_dump(mode="json"),
-                "role_id": player.true_role_id or player.role_id,
-            }
-
-            trying_empty = False
-            retry_count = 0
-            last_error = None
-            while retry_count < self.MAX_AGENT_RETRIES:
-                retry_count += 1
-                reminder_msg = ""
-                if trying_empty:
-                    reminder_msg = "请选择目标后再提交，不可空跳。"
-                elif last_error:
-                    reminder_msg = f"操作失败: {last_error}。由于规则或格式限制，请修正后重新提交。"
-
-                await self._publish_event(GameEvent(
-                    event_type="night_action_requested",
-                    phase=phase,
-                    round_number=self.state.round_number,
-                    trace_id=trace_id,
-                    actor=player.player_id,
-                    visibility=Visibility.STORYTELLER_ONLY,
-                    payload={
-                        "role_id": player.true_role_id or player.role_id, 
-                        "requires_choice": True,
-                        "required_targets": legal_context.required_targets,
-                        "can_target_self": legal_context.can_target_self,
-                        "reminder": reminder_msg if reminder_msg else None
-                    },
-                ))
-                self._log_storyteller(
-                    "night_action_requested",
-                    phase=phase.value,
-                    actor=player.player_id,
-                    role=player.true_role_id or player.role_id,
-                    trace_id=trace_id,
-                )
-                self._record_storyteller_judgement(
-                    "night_action",
-                    decision="request",
-                    phase=phase.value,
-                    actor=player.player_id,
-                    role=player.true_role_id or player.role_id,
-                    trace_id=trace_id,
-                )
-
-                try:
-                    self._mark_progress(f"ai_action:{player.player_id}:night_action")
-                    action = await agent.act(
-                        visible_state,
-                        "night_action",
-                        legal_context=legal_context,
-                        reminder=reminder_msg if reminder_msg else None,
-                        retry_count=retry_count,
-                        last_error=last_error,
-                    )
-                except Exception as exc:
-                    self._record_recent_exception(f"night_action:{player.player_id}", exc)
-                    logger.warning("夜晚行动决策失败: %s", exc)
-                    action = {"action": "night_action", "target": None, "targets": [], "reasoning": f"night_action_error:{type(exc).__name__}"}
-
-                if (
-                    player
-                    and (player.current_team or player.team) == Team.EVIL
-                    and hasattr(agent, "build_evil_night_coordination_message")
-                ):
-                    try:
-                        coordination_msg = agent.build_evil_night_coordination_message(action, visible_state, legal_context)
-                    except Exception:
-                        coordination_msg = ""
-                    if coordination_msg:
-                        await self.handle_chat(player.player_id, coordination_msg, is_private=True)
-
-                role_cls = get_role_class(player.true_role_id or player.role_id)
-                
-                # 鲁棒性：解析 targets 并处理可能的嵌套列表
-                raw_targets = action.get("targets") or ([action["target"]] if action.get("target") else [])
-                
-                def flatten_targets(items):
-                    """递归展平列表并过滤非字符串"""
-                    res = []
-                    if isinstance(items, (list, tuple)):
-                        for item in items:
-                            res.extend(flatten_targets(item))
-                    elif isinstance(items, str):
-                        res.append(items)
-                    return res
-                
-                targets = flatten_targets(raw_targets)
-                
-                # 校验：如果不允许空选（required_targets > 0）但玩家空选了，则重试
-                if legal_context.required_targets > 0 and not targets:
-                    logger.warning(f"[GameLoop] 玩家 {player.player_id} ({player.role_id}) 尝试空选，重新请求。")
-                    trying_empty = True
-                    last_error = "必须选择目标"
-                    continue
-
-                if role_cls and action.get("action") == "night_action":
-                    try:
-                        primary_target = targets[0] if targets else None
-                        self.state, events = role_cls().execute_ability(
-                            self.state,
-                            player,
-                            target=primary_target,
-                            targets=targets,
-                        )
-                        
-                        # 成功执行，发布事件并记录
-                        for event in events:
-                            await self.event_bus.publish(event)
-                            if (
-                                event.event_type == "night_kill"
-                                and event.payload.get("redirected_from")
-                            ):
-                                self._record_storyteller_judgement(
-                                    "mayor_redirect",
-                                    decision="redirect",
-                                    reason="mayor_night_death_redirect",
-                                    actor=event.actor,
-                                    original_target=event.payload.get("redirected_from"),
-                                    target=event.target,
-                                    killer_role=event.payload.get("killer_role"),
-                                    resolved_target_role=event.payload.get("resolved_target_role"),
-                                    trace_id=trace_id,
-                                )
-                        
-                        self._log_storyteller(
-                            "night_action_executed",
-                            phase=phase.value,
-                            actor=player.player_id,
-                            role=player.true_role_id or player.role_id,
-                            targets=",".join(targets) if targets else "none",
-                            trace_id=trace_id,
-                        )
-                        self._record_storyteller_judgement(
-                            "night_action",
-                            decision="execute",
-                            phase=phase.value,
-                            actor=player.player_id,
-                            role=player.true_role_id or player.role_id,
-                            targets=targets,
-                            trace_id=trace_id,
-                        )
-                        break  # 执行成功，跳出重试循环
-                    except Exception as exc:
-                        logger.warning("夜晚行动无效: actor=%s role=%s targets=%s error=%s. 重新请求。", 
-                                       player.player_id, player.true_role_id or player.role_id, targets, exc)
-                        last_error = str(exc)
-                        # 执行失败（如校验不通过），继续循环重试
-                        continue
-                else:
-                    # 如果不是目标行动或解析失败，也认为需要重试（或根据逻辑跳过，但这里我们偏向严格）
-                    break
-
-            # 清除待办
-            self._pending_night_action = None
-
-            await self._publish_event(GameEvent(
-                event_type="night_action_resolved",
-                phase=phase,
-                round_number=self.state.round_number,
-                trace_id=trace_id,
-                actor=player.player_id,
-                target=action.get("target"),
-                visibility=Visibility.STORYTELLER_ONLY,
-                payload={"role_id": player.true_role_id or player.role_id, "targets": targets},
-            ))
-            self._log_storyteller(
-                "night_action_resolved",
-                phase=phase.value,
-                actor=player.player_id,
-                role=player.true_role_id or player.role_id,
-                targets=",".join(targets) if targets else "none",
-                trace_id=trace_id,
-            )
-            self._record_storyteller_judgement(
-                "night_action",
-                decision="resolved",
-                phase=phase.value,
-                actor=player.player_id,
-                role=player.true_role_id or player.role_id,
-                targets=targets,
-                trace_id=trace_id,
-            )
+        await self.night_phase_handler._execute_night_actions(phase)
 
     async def _distribute_night_info(self, phase: GamePhase) -> None:
-        players_needing_info = [
-            p for p in self.state.get_alive_players()
-            if self.storyteller_agent and self.storyteller_agent.role_receives_storyteller_info(p.true_role_id or p.role_id)
-        ]
-        self._current_night_steps = [
-            {"player_id": p.player_id, "role_id": p.true_role_id or p.role_id, "type": "info"}
-            for p in players_needing_info
-        ]
-        
-        for i, player in enumerate(players_needing_info):
-            self._current_night_step_index = i
-            role_id = player.true_role_id or player.role_id
-            info = await self.storyteller_agent.decide_night_info(self.state, player.player_id, role_id) if self._should_storyteller_auto_act() else {}
-            if not info:
-                # 针对酒鬼，使用其以为的身份去获取信息，并强制干扰
-                active_role_id = role_id
-                if active_role_id == "drunken" and player.perceived_role_id:
-                    active_role_id = player.perceived_role_id
+        await self.night_phase_handler._distribute_night_info(phase)
 
-                role_cls = get_role_class(active_role_id)
-                role = role_cls() if role_cls else None
-                info = role.build_storyteller_info(self.state, player) if role else {}
-                
-                # 如果中毒或醉酒，打乱信息
-                if info and player.ability_suppressed:
-                    info = self._scramble_info(info)
-                    
-                if info:
-                    self._record_storyteller_judgement(
-                        "night_info",
-                        decision="fallback",
-                        reason="storyteller_returned_empty",
-                        phase=phase.value,
-                        actor=player.player_id,
-                        role=role_id,
-                        info_type=info.get("type", "unknown"),
-                    )
-            if info:
-                await self._publish_private_info(
-                    phase=phase,
-                    target=player.player_id,
-                    trace_id=self._make_trace_id("BOTC-ST-INFO"),
-                    payload=info,
-                )
-                self._log_storyteller(
-                    "night_info_distributed",
-                    phase=phase.value,
-                    actor=player.player_id,
-                    role=role_id,
-                    info_type=info.get("type", "unknown"),
-                )
-                self._record_storyteller_judgement(
-                    "night_info",
-                    decision="deliver",
-                    phase=phase.value,
-                    actor=player.player_id,
-                    role=role_id,
-                    info_type=info.get("type", "unknown"),
-                )
-        # 移除立即重置，由 _run_day_discussion 负责在进入白天时清空
-        # self._current_night_steps = None
-        # self._current_night_step_index = -1
     def _scramble_info(self, info: dict) -> dict:
-        import random
-        from src.engine.roles.base_role import get_all_role_ids
-        scrambled = dict(info)
-        info_type = scrambled.get("type", "")
-        
-        if info_type == "empath_info":
-            options = [0, 1, 2]
-            if "evil_count" in scrambled and scrambled["evil_count"] in options:
-                options.remove(scrambled["evil_count"])
-            scrambled["evil_count"] = random.choice(options) if options else 0
-        elif info_type == "chef_info":
-            scrambled["pairs"] = (scrambled.get("pairs", 0) + random.randint(1, 2)) % 4
-        elif info_type == "fortune_teller_info":
-            scrambled["has_demon"] = not scrambled.get("has_demon", False)
-        elif info_type in ["investigator_info", "librarian_info", "washerwoman_info", "undertaker_info", "ravenkeeper_info"]:
-            scrambled["role_seen"] = random.choice(list(get_all_role_ids()))
-            
-        return scrambled
+        return self.night_phase_handler._scramble_info(info)
 
     def _clear_transient_statuses(self) -> None:
-        """清理夜晚开始时的瞬时状态（如僧侣保护、中毒、醉酒等）"""
-        players = []
-        for player in self.state.players:
-            # 清理状态列表
-            # 只清理 POISONED 和 PROTECTED。
-            # 注意：DRUNK (醉酒) 通常是持久的 (如酒鬼角色)，不应在每晚结束时自动清除。
-            statuses = tuple(status for status in player.statuses if status not in {PlayerStatus.PROTECTED, PlayerStatus.POISONED})
-            if not statuses:
-                statuses = (PlayerStatus.ALIVE,) if player.is_alive else (PlayerStatus.DEAD,)
-            
-            # botc 标准逻辑：中毒通常持续一个昼夜 cycle。
-            # 这里我们简单清理，后续可根据具体角色技能持续时间细化。
-            players.append(player.with_update(statuses=statuses))
-        
-        self.state = self.state.with_update(players=tuple(players))
-        self._log_storyteller("transient_statuses_cleared")
+        self.night_phase_handler._clear_transient_statuses()
+
+    def _compute_discussion_rounds(self) -> int:
+        return self.day_discussion_handler._compute_discussion_rounds()
 
     async def _run_day_discussion(self) -> None:
-        # 进入白天讨论时，清空昨晚的进度卡片
-        self._current_night_steps = None
-        self._current_night_step_index = -1
-        
-        self.state = self.state.with_update(
-            nominations_today=(),
-            nominees_today=(),
-            votes_today={},
-            current_nominee=None,
-            current_nominator=None,
-            execution_candidates=(),
-        )
-        self._update_payload(nomination_history=[])
-        rounds = self.state.config.discussion_rounds if self.state.config else 3
-        human_ids = self._human_player_ids()
-        ai_message_limit = self._ai_discussion_message_limit()
-        for discussion_round in range(1, rounds + 1):
-            ai_messages_emitted = 0
-            for player in self.state.players:
-                agent = self.broker.agents.get(player.player_id)
-                if not agent:
-                    continue
-                is_human_player = player.player_id in human_ids
-                if (
-                    not is_human_player
-                    and ai_message_limit is not None
-                    and ai_messages_emitted >= ai_message_limit
-                ):
-                    self._record_pace_event(
-                        {
-                            "kind": "ai_discussion_throttled",
-                            "player_id": player.player_id,
-                            "discussion_round": discussion_round,
-                            "ai_message_limit": ai_message_limit,
-                        }
-                    )
-                    continue
-                visible_state = self._get_agent_visible_state(player.player_id)
-                if not visible_state:
-                    continue
-                legal_context = self._get_agent_legal_context(player.player_id, visible_state)
-                self._mark_progress(
-                    f"{'human_action' if is_human_player else 'ai_action'}:{player.player_id}:speak"
-                )
-                action = await agent.act(visible_state, "speak", legal_context=legal_context)
-                if action.get("action") == "skip_discussion":
-                    self._record_data_snapshot(
-                        "day_discussion_complete",
-                        discussion_round=discussion_round,
-                    )
-                    return
-                if action.get("action") == "speak" and action.get("content"):
-                    payload = {"content": action["content"], "tone": action.get("tone", "calm"), "round": discussion_round}
-                    if "extracted_claims" in action:
-                        payload["extracted_claims"] = action["extracted_claims"]
-                    await self._publish_event(GameEvent(
-                        event_type="player_speaks",
-                        phase=GamePhase.DAY_DISCUSSION,
-                        round_number=self.state.round_number,
-                        trace_id=self._make_trace_id("BOTC-FLOW-SPEAK"),
-                        actor=player.player_id,
-                        visibility=Visibility.PUBLIC,
-                        payload=payload,
-                    ))
-                    if not is_human_player:
-                        ai_messages_emitted += 1
-                
-                # [FIX] 猎手技能发动逻辑
-                if action.get("action") == "slayer_shot":
-                    target_id = action.get("target")
-                    if target_id:
-                        await self._execute_slayer_shot(player.player_id, target_id)
-        self._record_data_snapshot(
-            "day_discussion_complete",
-            discussion_round=rounds,
-        )
+        await self.day_discussion_handler._run_day_discussion()
+
+    def _dedupe_public_speech_content(self, content: str, actor_id: str, discussion_round: int) -> str:
+        return self.day_discussion_handler._dedupe_public_speech_content(content, actor_id, discussion_round)
+
+    @staticmethod
+    def _player_name_for_event(player_id: str, visible_state: AgentVisibleState) -> str:
+        return DayDiscussionHandler._player_name_for_event(player_id, visible_state)
+
+    def _draft_focus_target(self, self_player_id: str, visible_state: AgentVisibleState) -> str:
+        return self.day_discussion_handler._draft_focus_target(self_player_id, visible_state)
 
     async def handle_chat(self, sender_id: str, content: str, is_private: bool = False) -> None:
-        sender = self.state.get_player(sender_id)
-        # 允许说书人发消息，即使他不在玩家列表中
-        is_storyteller = sender_id in ["h1", "storyteller", "admin"] or (self.state.config and sender_id == self.state.config.storyteller_client_id)
-        
-        if not sender and not is_storyteller:
-            return
-
-        current_phase = self.state.phase if self.state.phase != GamePhase.SETUP else self.phase_manager.current_phase
-        private_window_open = current_phase in {GamePhase.FIRST_NIGHT, GamePhase.NIGHT}
-        can_use_evil_chat = is_private and private_window_open and sender and (sender.current_team or sender.team) == Team.EVIL
-        visibility = Visibility.TEAM_EVIL if can_use_evil_chat else Visibility.PUBLIC
-        recipient_ids = tuple(p.player_id for p in self.state.players if (p.current_team or p.team) == Team.EVIL) if visibility == Visibility.TEAM_EVIL else None
-        self.state = self.state.with_message(ChatMessage(
-            speaker=sender_id,
-            content=content,
-            phase=current_phase,
-            round_number=self.state.round_number or self.phase_manager.round_number,
-            recipient_ids=recipient_ids,
-        ))
-        await self._publish_event(GameEvent(
-            event_type="player_speaks",
-            phase=current_phase,
-            round_number=self.state.round_number or self.phase_manager.round_number,
-            trace_id=self._make_trace_id("BOTC-FLOW-CHAT"),
-            actor=sender_id,
-            visibility=visibility,
-            payload={"content": content, "is_private": can_use_evil_chat},
-        ))
+        await self.day_discussion_handler.handle_chat(sender_id, content, is_private)
 
     async def _run_nomination_phase(self) -> None:
-        # [A3-DATA-2] 提名前快照
-        self._record_data_snapshot("before_nomination")
-
-        self._set_nomination_state(
-            stage="window_open",
-            result_phase="window_open",
-            current_nominator=None,
-            current_nominee=None,
-            votes_cast=0,
-            yes_votes=0,
-        )
-        self._record_data_snapshot(
-            "nomination_window_open",
-            threshold=RuleEngine.votes_required(self.state),
-        )
-        max_rounds = self.state.config.max_nomination_rounds if self.state.config and self.state.config.max_nomination_rounds else max(1, self.state.alive_count)
-        nomination_round = 0
-        had_any_nomination = False
-        self._log_storyteller("nomination_phase_open", max_rounds=max_rounds, alive=self.state.alive_count)
-        self._record_storyteller_judgement(
-            "nomination_started",
-            decision="open",
-            max_rounds=max_rounds,
-            alive=self.state.alive_count,
-        )
-
-        while nomination_round < max_rounds:
-            nomination_round += 1
-            self._mark_progress(f"nomination_intents:round:{nomination_round}")
-            intents = await self._collect_nomination_intents(nomination_round)
-            
-            # [FIX] 优先处理猎手技能发动
-            for intent_pid, intent_data in intents.items():
-                if intent_data.get("action") == "slayer_shot":
-                    target_id = intent_data.get("target")
-                    if target_id:
-                        await self._execute_slayer_shot(intent_pid, target_id)
-
-            chosen = self._select_nomination_intent(intents)
-            if not chosen:
-                self._set_nomination_state(
-                    stage="no_nomination" if not had_any_nomination else "resolved",
-                    result_phase="no_nomination" if not had_any_nomination else "vote_resolved",
-                    current_nominator=None,
-                    current_nominee=None,
-                    votes_cast=0,
-                    yes_votes=0,
-                    round=nomination_round,
-                    last_result={"executed": None, "reason": "no_nomination"} if not had_any_nomination else self.state.payload.get("nomination_state", {}).get("last_result", {"executed": None}),
-                )
-                if not had_any_nomination:
-                    self._append_nomination_history({
-                        "kind": "no_nomination",
-                        "round": nomination_round,
-                        "reason": "no_legal_intent",
-                        "trace_id": self._make_trace_id("BOTC-FLOW-NOM-NONE"),
-                    })
-                self._log_storyteller(
-                    "nomination_round_no_nomination",
-                    round=nomination_round,
-                    had_any_nomination=had_any_nomination,
-                )
-                self._record_storyteller_judgement(
-                    "nomination_choice",
-                    decision="none",
-                    reason="no_legal_intent",
-                    round=nomination_round,
-                    intents={pid: intent.get("target") if intent else None for pid, intent in intents.items()},
-                )
-                break
-
-            had_any_nomination = True
-            nominator_id, target_id = chosen
-            self._record_storyteller_judgement(
-                "nomination_choice",
-                decision="choose",
-                reason="first_legal_intent",
-                round=nomination_round,
-                nominator=nominator_id,
-                nominee=target_id,
-            )
-            trace_id = self._make_trace_id("BOTC-FLOW-NOM")
-            try:
-                self._ensure_player_alive(nominator_id, "nomination_actor")
-                self._ensure_player_alive(target_id, "nomination_target")
-                self.state, events = NominationManager.nominate(self.state, nominator_id, target_id, trace_id)
-                # [FIX] 如果由于特殊技能（如圣女）导致了即时处决，处决事件会修改 phase 为非提名且非投票状态（如直接进入结算或回退讨论）
-                if self.state.phase not in [GamePhase.NOMINATION, GamePhase.VOTING]:
-                    logger.info("提名阶段被特殊技能(如圣女)中断，或已直接进入处决结算。")
-                    break
-            except ValueError as exc:
-                logger.warning("无效提名: %s", exc)
-                self._set_nomination_state(
-                    stage="invalid_nomination",
-                    result_phase="invalid_nomination",
-                    reason=str(exc),
-                    round=nomination_round,
-                    last_result={"executed": None, "reason": "invalid_nomination"},
-                )
-                self._append_nomination_history({
-                    "kind": "invalid_nomination",
-                    "round": nomination_round,
-                    "nominator": nominator_id,
-                    "nominee": target_id,
-                    "reason": str(exc),
-                    "trace_id": trace_id,
-                })
-                self._log_storyteller(
-                    "nomination_invalid",
-                    round=nomination_round,
-                    nominator=nominator_id,
-                    nominee=target_id,
-                    reason=str(exc),
-                )
-                self._record_storyteller_judgement(
-                    "nomination_choice",
-                    decision="invalid",
-                    reason=str(exc),
-                    round=nomination_round,
-                    nominator=nominator_id,
-                    nominee=target_id,
-                )
-                continue
-
-            await self._publish_event(GameEvent(
-                event_type="nomination_attempted",
-                phase=GamePhase.NOMINATION,
-                round_number=self.state.round_number,
-                trace_id=trace_id,
-                actor=nominator_id,
-                target=target_id,
-                visibility=Visibility.STORYTELLER_ONLY,
-                payload={"accepted": True, "round": nomination_round},
-            ))
-            for event in events:
-                await self.event_bus.publish(event)
-            self._set_nomination_state(
-                stage="defense",
-                result_phase="nomination_started",
-                current_nominator=nominator_id,
-                current_nominee=target_id,
-                votes_cast=0,
-                yes_votes=0,
-                threshold=RuleEngine.votes_required(self.state),
-                round=nomination_round,
-                trace_id=trace_id,
-                defense_text=None,
-                votes={},
-            )
-            self._log_storyteller(
-                "nomination_started",
-                round=nomination_round,
-                nominator=nominator_id,
-                nominee=target_id,
-                threshold=RuleEngine.votes_required(self.state),
-            )
-            self._append_nomination_history({
-                "kind": "nomination_started",
-                "round": nomination_round,
-                "nominator": nominator_id,
-                "nominee": target_id,
-                "threshold": RuleEngine.votes_required(self.state),
-                "trace_id": trace_id,
-            })
-            self._record_storyteller_judgement(
-                "nomination_started",
-                decision="start",
-                round=nomination_round,
-                nominator=nominator_id,
-                nominee=target_id,
-                threshold=RuleEngine.votes_required(self.state),
-                trace_id=trace_id,
-            )
-            if await self._handle_virgin_trigger(nominator_id, target_id, trace_id):
-                self._update_payload(skip_execution_finalize=True)
-                self._set_nomination_state(
-                    stage="executed",
-                    result_phase="execution_resolved",
-                    current_nominator=nominator_id,
-                    current_nominee=target_id,
-                    round=nomination_round,
-                    last_result={"executed": nominator_id, "reason": "virgin"},
-                )
-                self._append_nomination_history({
-                    "kind": "execution_resolved",
-                    "round": nomination_round,
-                    "executed": nominator_id,
-                    "reason": "virgin",
-                    "trace_id": trace_id,
-                })
-                self._log_storyteller(
-                    "virgin_trigger",
-                    round=nomination_round,
-                    nominator=nominator_id,
-                    nominee=target_id,
-                )
-                self._record_storyteller_judgement(
-                    "execution",
-                    decision="virgin_trigger",
-                    round=nomination_round,
-                    nominator=nominator_id,
-                    nominee=target_id,
-                    trace_id=trace_id,
-                )
-                break
-
-            await self._run_defense_and_voting(target_id, trace_id)
-            self._log_storyteller(
-                "nomination_round_resolved",
-                round=nomination_round,
-                nominee=target_id,
-                votes=self.state.votes_today,
-            )
-            self._record_storyteller_judgement(
-                "voting_resolution",
-                decision="resolved",
-                round=nomination_round,
-                nominee=target_id,
-                votes=self.state.votes_today,
-                trace_id=trace_id,
-            )
-            if not self._can_continue_nomination_rounds(nomination_round, max_rounds):
-                break
-
-        if self.state.payload.get("skip_execution_finalize"):
-            payload = dict(self.state.payload)
-            payload.pop("skip_execution_finalize", None)
-            self.state = self.state.with_update(payload=payload)
-            self._sync_all_agents("BOTC-FLOW-EXEC-SKIP")
-            return
-
-        trace_id = self._make_trace_id("BOTC-FLOW-EXEC")
-        self.state, events = NominationManager.finalize_execution(self.state, trace_id)
-        for event in events:
-            await self.event_bus.publish(event)
-        final_payload = events[0].payload if events else {"executed": None}
-        self._set_nomination_state(
-            stage="executed",
-            result_phase="execution_resolved",
-            current_nominator=None,
-            current_nominee=None,
-            votes={},
-            votes_cast=0,
-            yes_votes=0,
-            defense_text=None,
-            last_result=final_payload,
-            round=nomination_round,
-        )
-        self._append_nomination_history({
-            "kind": "execution_resolved",
-            "round": nomination_round,
-            "executed": final_payload.get("executed"),
-            "votes": final_payload.get("votes"),
-            "trace_id": trace_id,
-        })
-        self._sync_all_agents(trace_id)
-        self._log_storyteller(
-            "execution_finalized",
-            round=nomination_round,
-            executed=final_payload.get("executed"),
-            votes=final_payload.get("votes"),
-            trace_id=trace_id,
-        )
-        self._record_storyteller_judgement(
-            "execution",
-            decision="finalize",
-            round=nomination_round,
-            executed=final_payload.get("executed"),
-            votes=final_payload.get("votes"),
-            trace_id=trace_id,
-        )
-        
-        # [A3-DATA-2] 投票与处决后快照
-        self._record_data_snapshot("after_execution")
+        await self.nomination_voting_handler._run_nomination_phase()
 
     def _select_nomination_intent(self, intents: dict[str, dict[str, Any]]) -> tuple[str, str] | None:
-        for player_id in self.state.seat_order or tuple(p.player_id for p in self.state.players):
-            intent = intents.get(player_id)
-            if not intent:
-                continue
-            target_id = intent.get("target")
-            if intent.get("action") == "nominate" and target_id and target_id != "not_nominating":
-                return player_id, target_id
-        if self.state.config and self.state.config.audit_mode:
-            return self._select_audit_nomination_fallback()
-        return None
+        return self.nomination_voting_handler._select_nomination_intent(intents)
 
     def _select_audit_nomination_fallback(self) -> tuple[str, str] | None:
-        seat_order = self.state.seat_order or tuple(p.player_id for p in self.state.players)
-        for nominator_id in seat_order:
-            nominator = self.state.get_player(nominator_id)
-            if not nominator or not nominator.is_alive:
-                continue
-            if nominator_id in self.state.nominations_today:
-                continue
-            for target_id in seat_order:
-                if target_id == nominator_id:
-                    continue
-                target = self.state.get_player(target_id)
-                if not target or not target.is_alive:
-                    continue
-                if target_id in self.state.nominees_today:
-                    continue
-                allowed, _ = RuleEngine.can_nominate(self.state, nominator_id, target_id)
-                if allowed:
-                    self._log_storyteller(
-                        "nomination_audit_fallback",
-                        nominator=nominator_id,
-                        nominee=target_id,
-                    )
-                    self._record_storyteller_judgement(
-                        "nomination_choice",
-                        decision="audit_fallback",
-                        reason="no_agent_crossed_threshold",
-                        nominator=nominator_id,
-                        nominee=target_id,
-                    )
-                    return nominator_id, target_id
-        return None
+        return self.nomination_voting_handler._select_audit_nomination_fallback()
 
     def _can_continue_nomination_rounds(self, nomination_round: int, max_rounds: int) -> bool:
-        if nomination_round >= max_rounds:
-            return False
-        alive_players = [player for player in self.state.players if player.is_alive]
-        remaining_nominators = [player for player in alive_players if player.player_id not in self.state.nominations_today]
-        remaining_nominees = [player for player in alive_players if player.player_id not in self.state.nominees_today]
-        return bool(remaining_nominators and remaining_nominees)
+        return self.nomination_voting_handler._can_continue_nomination_rounds(nomination_round, max_rounds)
 
     async def _collect_nomination_intents(self, nomination_round: int) -> dict[str, dict[str, Any]]:
-        await self._publish_event(GameEvent(
-            event_type="nomination_window_opened",
-            phase=GamePhase.NOMINATION,
-            round_number=self.state.round_number,
-            trace_id=self._make_trace_id("BOTC-FLOW-NOMWIN"),
-            visibility=Visibility.PUBLIC,
-            payload={"round": nomination_round},
-        ))
-        self._set_nomination_state(
-            stage="nomination",
-            current_nominator=None,
-            current_nominee=None,
-            votes_cast=0,
-            yes_votes=0,
-            threshold=RuleEngine.votes_required(self.state),
-            round=nomination_round,
-        )
-        self._log_storyteller(
-            "nomination_window_opened",
-            round=nomination_round,
-            alive=self.state.alive_count,
-        )
-        ordered_players = [
-            self.state.get_player(pid)
-            for pid in (self.state.seat_order or tuple(p.player_id for p in self.state.players))
-        ]
-        eligible_players = [
-            player for player in ordered_players
-            if player and player.is_alive and player.player_id not in self.state.nominations_today
-        ]
-        tasks: list[tuple[str, asyncio.Task]] = []
-        human_ids = set(self.state.config.human_player_ids if self.state.config else [])
-        for player in eligible_players:
-            agent = self.broker.agents.get(player.player_id)
-            if not agent:
-                continue
-            action_type = "nominate" if player.player_id in human_ids else "nomination_intent"
-            visible_state = self._get_agent_visible_state(player.player_id)
-            if not visible_state:
-                continue
-            legal_context = self._get_agent_legal_context(player.player_id, visible_state)
-            
-            # 为人类玩家增加强制选择校验
-            if player.player_id in human_ids:
-                async def human_nomination_loop(v_state, a_type, l_ctx, a_agent):
-                    trying_empty = False
-                    retry_count = 0
-                    while retry_count < self.MAX_AGENT_RETRIES:
-                        retry_count += 1
-                        # 发送请求并等待
-                        self._mark_progress(f"human_action:{player.player_id}:nominate")
-                        act_res = await a_agent.act(
-                            v_state,
-                            a_type,
-                            legal_context=l_ctx,
-                            reminder="请做出选择（提名玩家或选择‘不提名’）。不可空选。" if trying_empty else None,
-                            retry_count=retry_count,
-                            last_error="必须明确选择提名对象或不提名" if trying_empty else None,
-                        )
-                        # 校验：必须有 target，且不得为空。合法的可以是 "not_nominating" 或 玩家 ID
-                        tgt = act_res.get("target")
-                        if tgt or act_res.get("action") == "none":
-                            return act_res
-                        logger.warning(f"[Nomination] 玩家 {player.player_id} 提交了空提名意图，重试 ({retry_count}/{self.MAX_AGENT_RETRIES})。")
-                        trying_empty = True
-                    
-                    # 达到最大重试次数，返回兜底跳过
-                    return {"action": "not_nominating", "target": "not_nominating", "reason": "max_retries_reached"}
-
-                tasks.append((player.player_id, asyncio.create_task(human_nomination_loop(visible_state, action_type, legal_context, agent))))
-            else:
-                self._mark_progress(f"ai_action:{player.player_id}:nomination_intent")
-                tasks.append((player.player_id, asyncio.create_task(agent.act(visible_state, action_type, legal_context=legal_context))))
-
-        results: dict[str, dict[str, Any]] = {}
-        for player_id, task in tasks:
-            trace_id = self._make_trace_id("BOTC-FLOW-NOMINTENT")
-            try:
-                action = await task
-            except Exception as exc:
-                self._record_recent_exception(f"nomination_intent:{player_id}", exc)
-                action = {"action": "none", "reasoning": f"nomination_intent_error:{type(exc).__name__}"}
-            
-            # 统一处理结果：如果结果依然为空（AI 异常等），给予默认值，防止卡死
-            if not action.get("target"):
-                action["target"] = "not_nominating"
-                action["action"] = "not_nominating"
-
-            await self._publish_event(GameEvent(
-                event_type="nomination_intent_submitted",
-                phase=GamePhase.NOMINATION,
-                round_number=self.state.round_number,
-                trace_id=trace_id,
-                actor=player_id,
-                target=action.get("target"),
-                visibility=Visibility.STORYTELLER_ONLY,
-                payload={"action": action.get("action"), "round": nomination_round},
-            ))
-            results[player_id] = action
-            self._log_storyteller(
-                "nomination_intent_submitted",
-                round=nomination_round,
-                actor=player_id,
-                action=action.get("action"),
-                target=action.get("target"),
-            )
-        return results
+        return await self.nomination_voting_handler._collect_nomination_intents(nomination_round)
 
     async def _handle_virgin_trigger(self, nominator_id: str, nominee_id: str, trace_id: str) -> bool:
-        nominee = self.state.get_player(nominee_id)
-        nominator = self.state.get_player(nominator_id)
-        if not nominee or not nominator:
-            return False
-        if nominee.true_role_id != "virgin" or "virgin_used" in nominee.storyteller_notes:
-            return False
-        role_cls = get_role_class(nominator.true_role_id or nominator.role_id)
-        if not role_cls or role_cls.get_definition().role_type != RoleType.TOWNSFOLK:
-            self.state = self.state.with_player_update(nominee_id, storyteller_notes=nominee.storyteller_notes + ("virgin_used",))
-            return False
-        self.state = self.state.with_player_update(nominator_id, is_alive=False)
-        self.state = self.state.with_player_update(nominee_id, storyteller_notes=nominee.storyteller_notes + ("virgin_used",))
-        await self._publish_event(GameEvent(
-            event_type="execution_resolved",
-            phase=GamePhase.EXECUTION,
-            round_number=self.state.round_number,
-            trace_id=trace_id,
-            target=nominator_id,
-            visibility=Visibility.PUBLIC,
-            payload={"executed": nominator_id, "reason": "virgin"},
-        ))
-        self._log_storyteller(
-            "virgin_resolved",
-            nominator=nominator_id,
-            nominee=nominee_id,
-            executed=nominator_id,
-            trace_id=trace_id,
-        )
-        return True
+        return await self.nomination_voting_handler._handle_virgin_trigger(nominator_id, nominee_id, trace_id)
 
     async def _run_defense_and_voting(self, nominee_id: str, trace_id: str) -> None:
-        # [GAME-1.2] 二次存活检查：防范提名发起后、进入防御前目标死亡（如特殊技能或圣女导致被提名人离场）
-        nominee_player = self.state.get_player(nominee_id)
-        if not nominee_player or not nominee_player.is_alive:
-            logger.info("被提名人 %s 已死亡，取消防御和投票阶段", nominee_id)
-            self._set_nomination_state(stage="resolved", result_phase="nominee_dead_abort")
-            return
-
-        agent = self.broker.agents.get(nominee_id)
-        defense_text = "我无告可陈。"
-        if agent:
-            self._record_storyteller_judgement(
-                "defense",
-                decision="request",
-                nominee=nominee_id,
-                trace_id=trace_id,
-            )
-            visible_state = self._get_agent_visible_state(nominee_id)
-            if not visible_state:
-                visible_state = self.broker.get_visible_state(nominee_id, self.state)
-            legal_context = self._get_agent_legal_context(nominee_id, visible_state) if visible_state else AgentActionLegalContext()
-            self._mark_progress(f"ai_action:{nominee_id}:defense_speech")
-            defense = await agent.act(visible_state, "defense_speech", legal_context=legal_context) if visible_state else {"action": "speak", "content": defense_text}
-            defense_text = defense.get("content", defense_text)
-            self._set_nomination_state(stage="defense", defense_text=defense_text)
-            self._log_storyteller(
-                "defense_started",
-                nominee=nominee_id,
-                trace_id=trace_id,
-                content=defense_text,
-            )
-            self._record_storyteller_judgement(
-                "defense",
-                decision="deliver",
-                nominee=nominee_id,
-                trace_id=trace_id,
-                content=defense_text,
-            )
-            payload = {"content": defense_text}
-            if "extracted_claims" in defense:
-                payload["extracted_claims"] = defense["extracted_claims"]
-            await self._publish_event(GameEvent(
-                event_type="defense_started",
-                phase=GamePhase.NOMINATION,
-                round_number=self.state.round_number,
-                trace_id=trace_id,
-                actor=nominee_id,
-                target=nominee_id,
-                visibility=Visibility.PUBLIC,
-                payload=payload,
-            ))
-        else:
-            self._record_storyteller_judgement(
-                "defense",
-                decision="skip",
-                reason="no_agent",
-                nominee=nominee_id,
-                trace_id=trace_id,
-            )
-        self._set_nomination_state(stage="voting", result_phase="defense_started")
-        self._log_storyteller("voting_opened", nominee=nominee_id, trace_id=trace_id)
-        self._record_storyteller_judgement(
-            "voting_resolution",
-            decision="open",
-            nominee=nominee_id,
-            trace_id=trace_id,
-            defense_text=defense_text,
-            threshold=RuleEngine.votes_required(self.state),
-        )
-
-        vote_details: dict[str, bool] = {}
-        votes_cast = 0
-        yes_votes = 0
-        for voter in self.state.players:
-            voter_id = voter.player_id
-            vote_agent = self.broker.agents.get(voter_id)
-            if not vote_agent:
-                continue
-            
-            # W3-D: 串行投票，每个玩家在举手前能看到当前已有的票数
-            try:
-                visible_state = self._get_agent_visible_state(voter_id)
-                if not visible_state:
-                    continue
-                legal_context = self._get_agent_legal_context(voter_id, visible_state)
-                
-                # 为人类玩家增加强制选择校验（必须明确 True 或 False）
-                human_ids = set(self.state.config.human_player_ids if self.state.config else [])
-                if voter_id in human_ids:
-                    trying_empty = False
-                    retry_count = 0
-                    while retry_count < self.MAX_AGENT_RETRIES:
-                        retry_count += 1
-                        self._mark_progress(f"human_action:{voter_id}:vote")
-                        action = await vote_agent.act(
-                            visible_state,
-                            "vote",
-                            legal_context=legal_context,
-                            reminder="请做出明确选择（同意或不赞成）。不可直接跳过。" if trying_empty else None,
-                            retry_count=retry_count,
-                            last_error="必须明确选择同意或不赞成" if trying_empty else None,
-                        )
-                        if action.get("decision") is not None:
-                            break
-                        logger.warning(f"[Voting] 玩家 {voter_id} 提交了空投票意图，重试 ({retry_count}/{self.MAX_AGENT_RETRIES})。")
-                        trying_empty = True
-                    
-                    if action.get("decision") is None:
-                        action = {"action": "vote", "decision": False, "reason": "max_retries_reached"}
-                else:
-                    self._mark_progress(f"ai_action:{voter_id}:vote")
-                    action = await vote_agent.act(visible_state, "vote", legal_context=legal_context)
-            except Exception as e:
-                self._record_recent_exception(f"vote:{voter_id}", e)
-                logger.error(f"Voter {voter_id} action error: {e}")
-                action = {"action": "vote", "decision": False}
-                
-            decision = bool(action.get("decision", False))
-            try:
-                self.state, events = NominationManager.cast_vote(self.state, voter_id, decision, trace_id)
-                for event in events:
-                    await self.event_bus.publish(event)
-            except ValueError:
-                continue
-            
-            vote_details[voter_id] = decision
-            votes_cast += 1
-            yes_votes += 1 if decision else 0
-            self._set_nomination_state(
-                votes_cast=votes_cast,
-                yes_votes=yes_votes,
-                threshold=RuleEngine.votes_required(self.state),
-                votes=vote_details,
-            )
-            self._log_storyteller(
-                "vote_cast",
-                voter=voter_id,
-                decision=decision,
-                nominee=nominee_id,
-                yes_votes=yes_votes,
-                votes_cast=votes_cast,
-                trace_id=trace_id,
-            )
-            self._record_storyteller_judgement(
-                "voting_resolution",
-                decision="cast_vote",
-                voter=voter_id,
-                nominee=nominee_id,
-                vote=decision,
-                yes_votes=yes_votes,
-                votes_cast=votes_cast,
-                trace_id=trace_id,
-            )
-            for event in events:
-                await self.event_bus.publish(event)
-
-        self.state, events = NominationManager.resolve_voting_round(self.state, trace_id)
-        for event in events:
-            await self.event_bus.publish(event)
-        if events:
-            result_payload = dict(events[0].payload)
-            result_payload["target"] = nominee_id
-            self._set_nomination_state(
-                stage="resolved",
-                result_phase="vote_resolved",
-                last_result=result_payload,
-                current_nominee=nominee_id,
-                votes=vote_details,
-                votes_cast=votes_cast,
-                yes_votes=yes_votes,
-                defense_text=defense_text,
-            )
-            self._append_nomination_history({
-                "kind": "voting_resolved",
-                "round": self.state.payload.get("nomination_state", {}).get("round"),
-                "nominee": nominee_id,
-                "passed": result_payload.get("passed"),
-                "votes": result_payload.get("votes"),
-                "needed": result_payload.get("needed"),
-                "voters": vote_details,
-                "trace_id": trace_id,
-            })
-            self._log_storyteller(
-                "voting_resolved",
-                nominee=nominee_id,
-                passed=result_payload.get("passed"),
-                votes=result_payload.get("votes"),
-                needed=result_payload.get("needed"),
-                trace_id=trace_id,
-            )
-            self._record_storyteller_judgement(
-                "voting_resolution",
-                decision="resolve",
-                nominee=nominee_id,
-                passed=result_payload.get("passed"),
-                votes=result_payload.get("votes"),
-                needed=result_payload.get("needed"),
-                yes_votes=yes_votes,
-                votes_cast=votes_cast,
-                trace_id=trace_id,
-            )
-            self._record_data_snapshot(
-                "voting_resolved",
-                nominee=nominee_id,
-                passed=result_payload.get("passed"),
-                votes=result_payload.get("votes"),
-                needed=result_payload.get("needed"),
-            )
+        await self.nomination_voting_handler._run_defense_and_voting(nominee_id, trace_id)
 
     def export_game_record(self, export_dir: str) -> None:
         """持久化输出事件日志和系统快照到外部文件系统，用于前端回放或调试"""

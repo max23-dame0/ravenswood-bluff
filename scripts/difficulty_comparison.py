@@ -152,10 +152,10 @@ def check_evil_strategy_prompt_differences() -> None:
     standard_evil = PRESETS["standard"].evil_strategy_prompt
     master_evil = PRESETS["master"].evil_strategy_prompt
 
-    _check("standard evil_strategy_prompt is empty", standard_evil == "")
+    _check("standard evil_strategy_prompt baseline exists", standard_evil != "")
     _check("master evil_strategy_prompt is non-empty", master_evil != "")
     _check(
-        "master evil_strategy_prompt is longer than standard",
+        "master evil_strategy_prompt is longer than standard (more aggressive)",
         len(master_evil) > len(standard_evil),
     )
 

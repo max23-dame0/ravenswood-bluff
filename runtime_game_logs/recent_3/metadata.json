@@ -1,0 +1,19 @@
+{
+  "game_id": "ee91f382-4301-48e0-8f37-b9efc0a9a827",
+  "started_at": "2026-06-01T19:56:25",
+  "files": {
+    "terminal": "terminal.log",
+    "llm": "llm.jsonl",
+    "metadata": "metadata.json"
+  },
+  "metadata": {
+    "source": "game_loop_start",
+    "phase": "setup",
+    "player_count": 5,
+    "host_id": "h1",
+    "human_mode": "storyteller",
+    "backend_mode": "mock",
+    "difficulty": "standard"
+  },
+  "updated_at": "2026-06-01T19:56:25"
+}

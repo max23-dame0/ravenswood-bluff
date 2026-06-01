@@ -2025,6 +2025,15 @@
                 document.querySelector('.action-area').style.opacity = '1';
                 document.querySelector('.action-area').style.pointerEvents = 'auto';
             }
+
+            // Evil Chat Toggle — show only for evil players during night and day discussion phases
+            const evilChatLabel = document.getElementById('evilChatToggleLabel');
+            if (evilChatLabel) {
+                const selfPlayer = (gameState.players || []).find(p => p.player_id === currentUserId);
+                const isEvil = selfPlayer && (selfPlayer.current_team || selfPlayer.team) === 'evil';
+                const canUseEvilChat = ['first_night', 'night', 'day_discussion'].includes(gameState.phase);
+                evilChatLabel.style.display = (isEvil && canUseEvilChat) ? 'flex' : 'none';
+            }
         }
 
         async function fetchGameState() {
@@ -2617,8 +2626,9 @@
             const content = document.getElementById('actionInput').value;
             if (!content || !ws) return;
             const isPrivate = document.getElementById('evilChatCheck').checked;
-            if (isPrivate && !['first_night', 'night'].includes(gameState.phase)) {
+            if (isPrivate && !['first_night', 'night', 'day_discussion'].includes(gameState.phase)) {
                 logMessage(t('chat_locked'));
+                return;
             }
             ws.send(JSON.stringify({
                 type: "chat",

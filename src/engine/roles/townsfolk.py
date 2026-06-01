@@ -252,7 +252,11 @@ class UndertakerRole(BaseRole):
         return game_state, []
 
     def build_storyteller_info(self, game_state: GameState, actor: PlayerState) -> Optional[dict]:
-        # 只查找“今天白天”被处决的人，不能错误读取更早轮次的旧处决结果。
+        # 死亡玩家能力不生效
+        if not actor.is_alive:
+            return None
+
+        # 只查找”今天白天”被处决的人，不能错误读取更早轮次的旧处决结果。
         target_role = None
         target_player_id = None
         for event in reversed(game_state.event_log):

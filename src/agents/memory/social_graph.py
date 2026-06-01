@@ -184,6 +184,9 @@ class SocialGraph:
         if record.claim_type == "accusation":
             speaker = record.speaker_name or record.speaker_id or "有人"
             return f"{marker} {speaker} 指认为 {record.role_id}"
+        if record.claim_type == "relay":
+            speaker = record.speaker_name or record.speaker_id or "有人"
+            return f"{marker} {speaker}转述 {record.role_id}"
         return f"{marker} {record.claim_type} {record.role_id}"
 
     def update_claim(self, player_id: str, role_id: str) -> None:

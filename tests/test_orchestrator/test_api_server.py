@@ -73,10 +73,14 @@ def test_metrics_expose_backend_and_nomination_flow(monkeypatch):
         assert setup.json()["status"] == "ok"
 
         metrics = {}
-        for _ in range(20):
+        for _ in range(50):
             time.sleep(0.1)
             metrics = client.get("/api/game/metrics").json()
-            if metrics.get("nomination_prompt_count", 0) > 0:
+            if (
+                metrics.get("nomination_prompt_count", 0) > 0
+                and metrics.get("vote_count", 0) >= 1
+                and metrics.get("execution_count", 0) >= 1
+            ):
                 break
 
         assert metrics["backend"]["type"] == "MockBackend"

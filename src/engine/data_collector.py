@@ -69,6 +69,37 @@ class GameDataCollector:
         except Exception as e:
             logger.error(f"Failed to write thought trace: {e}")
 
+    def record_action_latency(
+        self,
+        player_id: str,
+        action_type: str,
+        phase: str,
+        latency_ms: float,
+        fallback_used: bool = False,
+        fallback_reason: str = "",
+    ) -> None:
+        """Record latency for a single AI action."""
+        if not self._log_file:
+            return
+
+        entry = {
+            "timestamp": datetime.now().isoformat(),
+            "type": "action_latency",
+            "game_id": self.current_game_id,
+            "player_id": player_id,
+            "action_type": action_type,
+            "phase": phase,
+            "latency_ms": round(latency_ms, 1),
+            "fallback_used": fallback_used,
+            "fallback_reason": fallback_reason,
+        }
+
+        try:
+            with open(self._log_file, "a", encoding="utf-8") as f:
+                f.write(json.dumps(entry, ensure_ascii=False) + "\n")
+        except Exception as e:
+            logger.error(f"Failed to write action latency: {e}")
+
     def record_snapshot(self, snapshot: dict[str, Any]) -> None:
         """记录全场快照。
 

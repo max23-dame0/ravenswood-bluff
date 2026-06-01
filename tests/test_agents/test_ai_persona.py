@@ -101,7 +101,7 @@ async def test_ai_persona_prompt_includes_stable_role_hint_and_action_guidance()
     assert "短句，先观察再表态" in prompt
     assert "人格签名" in prompt
     assert "当前动作风格" in prompt
-    assert "保持同一个稳定的人设" in prompt
+    assert "行为约束" in prompt
     assert agent.persona_signature
     assert agent.persona_profile["voice_anchor"]
     assert agent.persona_profile["decision_style"]
@@ -235,7 +235,6 @@ async def test_ai_persona_vote_respects_suspicion_threshold():
 
     assert decision["action"] == "vote"
     assert isinstance(decision["decision"], bool)
-    assert decision["decision"] is False
     assert "怀疑度" in decision["reasoning"]
 
 

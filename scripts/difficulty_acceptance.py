@@ -101,14 +101,53 @@ def check_temperature_ordering() -> None:
 
 def check_prompt_content() -> None:
     print("[5] Prompt modifiers and persona overrides")
-    _check("standard prompt_modifier is empty", PRESETS["standard"].prompt_modifier == "")
+    _check("standard prompt_modifier is empty (baseline has no modifier)", PRESETS["standard"].prompt_modifier == "")
     _check("standard persona_overrides is empty", PRESETS["standard"].persona_overrides == {})
+
+    # Standard baseline contract: strategy prompts must exist
+    std = PRESETS["standard"]
+    _check("standard evil_strategy_prompt baseline exists", std.evil_strategy_prompt != "")
+    _check("standard good_strategy_prompt baseline exists", std.good_strategy_prompt != "")
+    _check("standard speech_style_prompt baseline exists", std.speech_style_prompt != "")
 
     for key in ("casual", "master", "chaos"):
         _check(f"{key} prompt_modifier non-empty", PRESETS[key].prompt_modifier != "")
         _check(f"{key} persona_overrides non-empty", len(PRESETS[key].persona_overrides) > 0)
         _check(f"{key} evil_strategy_prompt non-empty", PRESETS[key].evil_strategy_prompt != "")
         _check(f"{key} speech_style_prompt non-empty", PRESETS[key].speech_style_prompt != "")
+
+
+# ------------------------------------------------------------------
+# 5b. Multi-axis parameters
+# ------------------------------------------------------------------
+
+def check_multi_axis() -> None:
+    print("[5b] Multi-axis difficulty parameters")
+    axes = ("competence", "deception", "volatility", "expressiveness", "information_openness", "nomination_intelligence")
+    for key in ("casual", "standard", "master", "chaos"):
+        preset = PRESETS[key]
+        for axis in axes:
+            val = getattr(preset, axis)
+            _check(f"{key}.{axis} in [0,1]", 0.0 <= val <= 1.0)
+
+    # Ordering checks
+    _check("master competence >= all others",
+           PRESETS["master"].competence >= max(PRESETS[k].competence for k in ("casual", "standard", "chaos")))
+    _check("chaos volatility >= all others",
+           PRESETS["chaos"].volatility >= max(PRESETS[k].volatility for k in ("casual", "standard", "master")))
+    _check("master deception >= all others",
+           PRESETS["master"].deception >= max(PRESETS[k].deception for k in ("casual", "standard", "chaos")))
+    _check("master nomination_intelligence >= all others",
+           PRESETS["master"].nomination_intelligence >= max(PRESETS[k].nomination_intelligence for k in ("casual", "standard", "chaos")))
+    _check("casual nomination_intelligence <= standard",
+           PRESETS["casual"].nomination_intelligence <= PRESETS["standard"].nomination_intelligence)
+
+    # Latency budget structure
+    required_actions = ("vote", "nomination_intent", "night_action", "speak", "defense_speech")
+    for key in ("casual", "standard", "master", "chaos"):
+        budget = PRESETS[key].latency_budget
+        for action in required_actions:
+            _check(f"{key} latency_budget[{action}] > 0", action in budget and budget[action] > 0)
 
 
 # ------------------------------------------------------------------
@@ -156,6 +195,7 @@ def main() -> int:
     check_get_preset()
     check_temperature_ordering()
     check_prompt_content()
+    check_multi_axis()
     check_agent_construction()
 
     print("=" * 60)

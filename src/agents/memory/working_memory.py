@@ -205,7 +205,36 @@ class WorkingMemory:
         items = self.objective_memory
         if category is not None:
             items = [item for item in items if item.category == category]
-        return [item.summary for item in items]
+        return self._compact_nomination_vote_pairs(items)
+
+    @staticmethod
+    def _compact_nomination_vote_pairs(items: list[MemoryFact]) -> list[str]:
+        """Merge consecutive nomination + voting_result into compact lines."""
+        result: list[str] = []
+        i = 0
+        while i < len(items):
+            item = items[i]
+            # Try to merge nomination + next voting_result
+            if (
+                item.category == "nomination"
+                and i + 1 < len(items)
+                and items[i + 1].category == "voting_result"
+            ):
+                # Extract target name from nomination: "X 提名了 Y"
+                nomination_text = item.summary
+                vote_text = items[i + 1].summary
+                # Extract vote result: "对 Y 的投票结果：通过/未通过（N/M）"
+                if "投票结果：" in vote_text:
+                    vote_part = vote_text.split("投票结果：")[1]
+                    result.append(f"{nomination_text} → {vote_part}")
+                else:
+                    result.append(nomination_text)
+                    result.append(vote_text)
+                i += 2
+            else:
+                result.append(item.summary)
+                i += 1
+        return result
 
     def get_public_memory_summaries(self, category: str | None = None) -> list[str]:
         items = self.public_fact_memory

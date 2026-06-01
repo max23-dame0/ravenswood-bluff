@@ -58,7 +58,7 @@ class LLMBackend(ABC):
         messages: list[Message],
         tools: Optional[list[ToolDef]] = None,
         temperature: float = 0.7,
-        max_tokens: int = 1024,
+        max_tokens: Optional[int] = None,
     ) -> LLMResponse:
         """
         向 LLM 发送请求并获取响应。
@@ -68,7 +68,7 @@ class LLMBackend(ABC):
             messages: 对话消息历史
             tools: 可选的工具定义列表
             temperature: 生成温度
-            max_tokens: 最大生成 token 数
+            max_tokens: 可选的最大生成 token 数；None 表示不由本项目设置上限
 
         Returns:
             LLMResponse: LLM 的响应结果

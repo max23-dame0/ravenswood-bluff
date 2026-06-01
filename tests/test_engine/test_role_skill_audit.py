@@ -211,6 +211,31 @@ def test_undertaker_ignores_execution_from_previous_round() -> None:
     assert info is None
 
 
+def test_undertaker_no_info_when_dead() -> None:
+    role = get_role_class("undertaker")()
+    state = GameState(
+        phase=GamePhase.NIGHT,
+        round_number=2,
+        players=(
+            make_player("u", "Under", "undertaker", Team.GOOD, is_alive=False),
+            make_player("x", "Executed", "imp", Team.EVIL),
+        ),
+        event_log=(
+            GameEvent(
+                event_type="execution_resolved",
+                phase=GamePhase.EXECUTION,
+                round_number=1,
+                payload={"executed": "x"},
+                visibility=Visibility.PUBLIC,
+            ),
+        ),
+    )
+
+    info = role.get_night_info(state, state.get_player("u"))
+
+    assert info is None
+
+
 @pytest.mark.parametrize(
     "targets, red_herring, expected",
     [

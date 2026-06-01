@@ -80,7 +80,7 @@ class TrackingAgent(BaseAgent):
 
 
 class EvilCoordinationAgent(ScriptedAgent):
-    def build_evil_night_coordination_message(self, action, visible_state, legal_context=None):
+    async def build_evil_night_coordination_message(self, action, visible_state, legal_context=None):
         if action.get("action") == "night_action" and action.get("target"):
             return f"我今晚准备刀 {action['target']}，白天顺着这条线继续施压。"
         return ""

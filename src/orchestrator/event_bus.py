@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from collections import defaultdict
+from collections import defaultdict, deque
 from typing import Any, Callable, Coroutine
 
 from src.state.game_state import GameEvent
@@ -34,7 +34,7 @@ class EventBus:
     def __init__(self) -> None:
         # { event_type: [(priority, handler), ...] }
         self._handlers: dict[str, list[tuple[int, EventHandler]]] = defaultdict(list)
-        self._event_history: list[GameEvent] = []
+        self._event_history: deque[GameEvent] = deque(maxlen=500)
 
     def subscribe(
         self,

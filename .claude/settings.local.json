@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python -c \"import py_compile; py_compile.compile\\('src/agents/difficulty_presets.py', doraise=True\\); print\\('difficulty_presets.py: OK'\\)\")",
+      "Bash(python -c \"import py_compile; py_compile.compile\\('src/agents/ai_agent.py', doraise=True\\); print\\('ai_agent.py: OK'\\)\")",
+      "Bash(python -c \"from src.agents.difficulty_presets import get_preset, PRESETS, DifficultyPreset; p = get_preset\\('casual'\\); print\\(f'casual: {p.name}, temp={p.temperature}, overrides={p.persona_overrides}'\\); p2 = get_preset\\('standard'\\); print\\(f'standard: {p2.name}, temp={p2.temperature}, overrides={p2.persona_overrides}'\\); p3 = get_preset\\('master'\\); print\\(f'master: {p3.name}, temp={p3.temperature}, overrides={p3.persona_overrides}'\\); p4 = get_preset\\('chaos'\\); print\\(f'chaos: {p4.name}, temp={p4.temperature}, overrides={p4.persona_overrides}'\\); p5 = get_preset\\('unknown'\\); print\\(f'unknown -> defaults to: {p5.name}'\\)\")",
+      "Bash(python -m pytest tests/test_difficulty.py -v)",
+      "Bash(python scripts/difficulty_acceptance.py)",
+      "Bash(.\\\\.venv\\\\Scripts\\\\python.exe -m pytest tests/test_difficulty.py -v)",
+      "Bash(.\\\\.venv\\\\Scripts\\\\python.exe scripts\\\\difficulty_acceptance.py)",
+      "Bash(.\\\\.venv\\\\Scripts\\\\python.exe -m pytest tests -q --timeout=30)"
+    ]
+  }
+}

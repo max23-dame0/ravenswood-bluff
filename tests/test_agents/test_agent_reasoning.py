@@ -33,6 +33,15 @@ class BrokenDecisionBackend(DummyBackend):
         return LLMResponse(content="not-json", tool_calls=[], model="broken-model")
 
 
+class DecoratedDecisionBackend(DummyBackend):
+    async def generate(self, system_prompt: str, messages: list[Message], **kwargs) -> LLMResponse:
+        return LLMResponse(
+            content='好的，我会只给出 JSON。\n```json\n{"action":"speak","content":"我先把这个点放在台面上，后面看投票怎么对齐。","tone":"calm","reasoning":"测试"}\n```',
+            tool_calls=[],
+            model="decorated-model",
+        )
+
+
 def _agent_ctx(agent: AIAgent, state: GameState):
     visible_state = agent._build_visible_state(state)
     legal_context = agent._build_legal_action_context(state, visible_state)
@@ -96,6 +105,27 @@ async def test_ai_action_metrics_record_fallback(dummy_state):
     assert metrics[-1]["model"] == "broken-model"
     assert metrics[-1]["fallback_used"] is True
     assert metrics[-1]["fallback_reason"] == "llm_error:JSONDecodeError"
+
+
+@pytest.mark.asyncio
+async def test_ai_action_accepts_decorated_json_response(dummy_state):
+    agent = AIAgent(
+        player_id="p1",
+        name="Alice",
+        backend=DecoratedDecisionBackend(),
+        persona=Persona(description="谨慎村民", speaking_style="平稳"),
+    )
+    agent.synchronize_role(dummy_state.get_player("p1"))
+    visible_state, legal_context = _agent_ctx(agent, dummy_state)
+
+    decision = await agent.act(visible_state, "speak", legal_context=legal_context)
+
+    assert decision["action"] == "speak"
+    assert "台面" in decision["content"]
+    metrics = agent.export_action_metrics()
+    assert metrics[-1]["model"] == "decorated-model"
+    assert metrics[-1]["fallback_used"] is False
+    assert metrics[-1]["speech_source"] == "live_llm"
 
 
 @pytest.mark.asyncio
@@ -1335,7 +1365,8 @@ async def test_nominate_reasoning_prefers_high_confidence_evidence_over_public_c
 
 
 @pytest.mark.asyncio
-async def test_vote_reasoning_prefers_high_confidence_evidence_over_public_claim():
+async def test_vote_reasoning_prefers_high_confidence_evidence_over_public_claim(monkeypatch):
+    monkeypatch.setenv("AI_FAST_LOW_VALUE_ACTIONS", "0")
     class VoteBackend(DummyBackend):
         async def generate(self, system_prompt: str, messages: list[Message], **kwargs) -> LLMResponse:
             return LLMResponse(
@@ -1568,8 +1599,8 @@ async def test_speak_prompt_prioritizes_high_confidence_over_conflicting_public_
     await agent.act(visible_state, "speak", legal_context=legal_context)
 
     prompt = backend.prompts[-1]
-    assert "发言时优先依赖绝对客观事实与高可信私密信息；公开声明只作辅助参考。" in prompt
-    assert "如果公开说法和高可信信息冲突，请更偏向高可信信息。" in prompt
+    assert "发言时以你的私密信息和高可信线索作为推理基础" in prompt
+    assert "不要直接复述私密信息原文" in prompt
     assert "公开说法与高可信信息的冲突" in prompt
     assert "Bob 公开跳 厨师" in prompt
     assert "调查员信息: Bob 或 Charlie 中有一人可能是爪牙。" in prompt
@@ -1679,7 +1710,7 @@ async def test_speak_content_is_augmented_with_high_confidence_anchor_when_model
     decision = await agent.act(visible_state, "speak", legal_context=legal_context)
 
     assert decision["action"] == "speak"
-    assert "我先说我更信的一条线" in decision["content"]
+    # 锚点前缀已随机化，检查内容包含锚点信息即可
     assert "Bob" in decision["content"] or "Charlie" in decision["content"]
     assert "投毒者" not in decision["content"]
     assert "爪牙" not in decision["content"]
@@ -1911,7 +1942,8 @@ async def test_nominate_reasoning_stays_high_confidence_first_after_multi_day_ar
 
 
 @pytest.mark.asyncio
-async def test_vote_reasoning_stays_high_confidence_first_after_multi_day_archives():
+async def test_vote_reasoning_stays_high_confidence_first_after_multi_day_archives(monkeypatch):
+    monkeypatch.setenv("AI_FAST_LOW_VALUE_ACTIONS", "0")
     class VoteBackend(DummyBackend):
         async def generate(self, system_prompt: str, messages: list[Message], **kwargs) -> LLMResponse:
             return LLMResponse(

@@ -1,0 +1,13 @@
+{
+  "game_id": "0776a7e9-5d18-4ce6-afee-785ca041cb2c",
+  "started_at": "2026-06-01T19:56:25",
+  "files": {
+    "terminal": "terminal.log",
+    "llm": "llm.jsonl",
+    "metadata": "metadata.json"
+  },
+  "metadata": {
+    "source": "game_loop_start",
+    "phase": "setup"
+  }
+}
