@@ -2,7 +2,7 @@
 
 > **Purpose**: This document is the single entry point for any programming agent (Claude, Codex, Gemini, etc.) to understand, navigate, and contribute to this project. It is designed to be reusable, traceable, and kept up-to-date.
 >
-> **Last updated**: 2026-05-08 | **Current phase**: Alpha 1.1 M5 Done, M4 human playtest pending, Phase 7 refactor complete
+> **Last updated**: 2026-05-08 | **Current phase**: Alpha 1.1 Complete (M1-M7 Done, modular refactor merged)
 >
 > **Update rule**: When you make a change that affects architecture, conventions, or phase status, update the relevant section of this file and commit it with your work.
 

@@ -1,19 +1,16 @@
 {
-  "game_id": "1bbc9420-449c-48df-a96e-25237a73ec7e",
-  "started_at": "2026-06-01T19:56:25",
+  "game_id": "c809c4db-5a7a-46bf-a696-32eae223e414",
+  "started_at": "2026-06-01T19:59:06",
   "files": {
     "terminal": "terminal.log",
     "llm": "llm.jsonl",
     "metadata": "metadata.json"
   },
   "metadata": {
-    "source": "game_loop_start",
-    "phase": "setup",
     "player_count": 5,
-    "host_id": "h1",
-    "human_mode": "player",
+    "host_id": "host",
+    "human_mode": "none",
     "backend_mode": "mock",
     "difficulty": "standard"
-  },
-  "updated_at": "2026-06-01T19:56:25"
+  }
 }
