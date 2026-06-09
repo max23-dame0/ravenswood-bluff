@@ -483,6 +483,11 @@ async def lifespan(app: FastAPI):
         global_orchestrator = build_fresh_orchestrator()
         await ensure_game_loop_running()
         logger.info("Global Orchestrator started in SETUP phase.")
+        print("\n" + "="*80)
+        print("鸦木布拉夫小镇 (Ravenswood Bluff) 服务启动成功！")
+        print("  - 游戏客户端（玩家/观战端）访问链接: http://127.0.0.1:8000")
+        print("  - 说书人魔典控制台访问链接:           http://127.0.0.1:8000/ui/storyteller.html")
+        print("="*80 + "\n")
     except Exception as e:
         logger.error(f"Failed to startup: {e}", exc_info=True)
     yield

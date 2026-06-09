@@ -39,10 +39,10 @@ Mock 模式适合本地验收和不依赖外部模型的内测演示。
 .\.venv\Scripts\python.exe -m src.api.server
 ```
 
-启动后访问：
+启动后访问链接：
 
-- 玩家/说书人 UI：`http://127.0.0.1:8000`
-- 静态 UI 入口：`http://127.0.0.1:8000/ui/index.html`
+- **游戏客户端（玩家/观战端）**：[http://127.0.0.1:8000](http://127.0.0.1:8000) (或 [http://127.0.0.1:8000/ui/index.html](http://127.0.0.1:8000/ui/index.html))
+- **说书人魔典控制台**：[http://127.0.0.1:8000/ui/storyteller.html](http://127.0.0.1:8000/ui/storyteller.html)
 - 常用真人 host id：`h1`
 
 ### 3. Live 模式启动
