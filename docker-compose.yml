@@ -1,0 +1,18 @@
+version: '3.8'
+
+services:
+  game-server:
+    build: .
+    container_name: ravenswood-bluff-server
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    environment:
+      - BOTC_HOST=0.0.0.0
+      - BOTC_PORT=8000
+    volumes:
+      # 挂载数据和对局日志目录以实现宿主机持久化
+      - ./data:/app/data
+      - ./runtime_game_logs:/app/runtime_game_logs
+    restart: always

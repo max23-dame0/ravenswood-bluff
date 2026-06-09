@@ -476,6 +476,18 @@ def decorate_ws_message_with_game_id(message: str, orchestrator: GameOrchestrato
     payload["game_id"] = orchestrator.state.game_id
     return json.dumps(payload, ensure_ascii=False)
 
+def get_local_ip() -> str:
+    import socket
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    try:
+        s.connect(('8.8.8.8', 80))
+        ip = s.getsockname()[0]
+    except Exception:
+        ip = '127.0.0.1'
+    finally:
+        s.close()
+    return ip
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     global global_orchestrator
@@ -483,10 +495,18 @@ async def lifespan(app: FastAPI):
         global_orchestrator = build_fresh_orchestrator()
         await ensure_game_loop_running()
         logger.info("Global Orchestrator started in SETUP phase.")
+        
+        port = int(os.getenv("BOTC_PORT") or os.getenv("PORT") or "8000")
+        local_ip = get_local_ip()
+        
         print("\n" + "="*80)
         print("鸦木布拉夫小镇 (Ravenswood Bluff) 服务启动成功！")
-        print("  - 游戏客户端（玩家/观战端）访问链接: http://127.0.0.1:8000")
-        print("  - 说书人魔典控制台访问链接:           http://127.0.0.1:8000/ui/storyteller.html")
+        print(f"  - 本地回路直接访问: http://127.0.0.1:{port}")
+        if local_ip != "127.0.0.1":
+            print(f"  - 局域网其他玩家访问: http://{local_ip}:{port}  (请将其复制发送给您的内测朋友)")
+        print(f"  - 说书人魔典控制台:   http://127.0.0.1:{port}/ui/storyteller.html")
+        if local_ip != "127.0.0.1":
+            print(f"  - 说书人魔典(外部):   http://{local_ip}:{port}/ui/storyteller.html")
         print("="*80 + "\n")
     except Exception as e:
         logger.error(f"Failed to startup: {e}", exc_info=True)
@@ -973,5 +993,7 @@ async def rematch_game():
 
 if __name__ == "__main__":
     import uvicorn
+    host = os.getenv("BOTC_HOST", "0.0.0.0")
+    port = int(os.getenv("BOTC_PORT") or os.getenv("PORT") or "8000")
     # 使用 app 对象而不是字符串，确保在同一个进程中运行且日志配置生效
-    uvicorn.run(app, host="127.0.0.1", port=8000, log_config=None)
+    uvicorn.run(app, host=host, port=port, log_config=None)
