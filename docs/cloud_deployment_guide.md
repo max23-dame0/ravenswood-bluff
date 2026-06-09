@@ -74,7 +74,68 @@ sudo apt install -y git docker.io docker-compose
 
 ---
 
+## 三、多对局并发运行方案（多实例隔离部署）
+
+由于当前引擎在单进程中是单大厅模式，如果您想让多波朋友（如两组不同的人同时独立游玩）互相不干扰，最简单、最稳妥的办法是**启动多个容器实例（进行多实例物理隔离）**。
+
+### 1. 如果在 Railway 平台部署：
+1. 打开 Railway 的项目面板，找到您的 `ravenswood-bluff` 服务卡片。
+2. 点击卡片右上角的 **`...` (三点图标)**，选择 **`Duplicate` (复制/克隆服务)**。
+   - 这会克隆出一个完全相同的服务实例（如 `ravenswood-bluff-2`），它与原服务拉取相同的 GitHub 代码，共享同一个 API Key 配置。
+3. 点击新克隆出来的服务，进入 **Settings** -> **Networking**，点击 **Generate Domain** 为其生成一个全新的、独立的公网域名。
+4. **分配链接**：
+   - 将域名 A 分配给房间 1 的朋友。
+   - 将域名 B 分配给房间 2 的朋友。
+   - 两个容器在独立的进程中隔离运行，数据和对局完全不会冲突！
+
+### 2. 如果在传统云服务器使用 Docker Compose 部署：
+您可以修改 `docker-compose.yml`，在同一个配置文件中定义多个不同端口和数据卷的服务。示例如下：
+
+```yaml
+version: '3.8'
+
+services:
+  # 房间 1 实例
+  room1:
+    build: .
+    container_name: bluff-room1
+    ports:
+      - "8001:8000" # 映射到宿主机 8001 端口
+    env_file:
+      - .env
+    environment:
+      - BOTC_HOST=0.0.0.0
+      - BOTC_PORT=8000
+    volumes:
+      - ./data/room1:/app/data
+      - ./runtime_game_logs/room1:/app/runtime_game_logs
+    restart: always
+
+  # 房间 2 实例
+  room2:
+    build: .
+    container_name: bluff-room2
+    ports:
+      - "8002:8000" # 映射到宿主机 8002 端口
+    env_file:
+      - .env
+    environment:
+      - BOTC_HOST=0.0.0.0
+      - BOTC_PORT=8000
+    volumes:
+      - ./data/room2:/app/data
+      - ./runtime_game_logs/room2:/app/runtime_game_logs
+    restart: always
+```
+
+* 启动命令：`sudo docker-compose up -d --build`
+* 访问地址：
+  - 房间 1 玩家访问：`http://<服务器IP>:8001`
+  - 房间 2 玩家访问：`http://<服务器IP>:8002`
+
+---
+
 ## 云端公网运行的注意事项（重要）
 
-1. **单房间模式**：目前部署至云端的版本属于**单大厅对局系统**。如果有几批不同的测试组在同一时间进入，他们会进入同一个游戏大厅并相互干扰。建议在私密、约定的内测范围中使用此云端链接。
+1. **单房间模式**：目前单个部署实例属于**单大厅对局系统**。如果有多组不同的玩家在同一时间进入同一个链接，他们会进入同一个游戏大厅并相互干扰。建议在私密、约定的内测范围中使用此云端链接，或者使用上文的多实例方案进行隔离。
 2. **API 额度安全**：云端部署使用的是您在后台配置的大模型 API 密钥。为防止公开链接被路人刷爆 Token 额度，请**不要将部署链接公开在公共社交媒体上**，仅在内测小群中分享。
