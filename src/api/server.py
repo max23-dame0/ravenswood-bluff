@@ -551,7 +551,7 @@ async def run_game_loop_safe():
 
 @app.get("/")
 async def root_redirect():
-    return RedirectResponse(url="/ui/index.html")
+    return RedirectResponse(url="/ui/lobby.html")
 
 @app.websocket("/ws/{player_id}")
 async def websocket_endpoint(websocket: WebSocket, player_id: str):

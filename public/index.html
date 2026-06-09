@@ -2901,20 +2901,33 @@
         }
 
         // Init
-        const savedPlayerId = localStorage.getItem(PLAYER_ID_STORAGE_KEY);
+        const savedPlayerId = localStorage.getItem(PLAYER_ID_STORAGE_KEY) || localStorage.getItem('botc_player_id');
         if (savedPlayerId) {
             document.getElementById('playerId').value = savedPlayerId;
         }
         updateUIStrings();
         clearActionState();
         // Initial loading
-    document.addEventListener('DOMContentLoaded', () => {
-        const savedId = localStorage.getItem('botc_player_id');
-        if (savedId) {
-            document.getElementById('playerId').value = savedId;
-            currentUserId = savedId;
-        }
-    });
+        document.addEventListener('DOMContentLoaded', () => {
+            const params = new URLSearchParams(window.location.search);
+            const urlId = params.get('player_id') || params.get('id');
+            if (urlId) {
+                const cleanId = urlId.trim();
+                document.getElementById('playerId').value = cleanId;
+                localStorage.setItem(PLAYER_ID_STORAGE_KEY, cleanId);
+                localStorage.setItem('botc_player_id', cleanId);
+                currentUserId = cleanId;
+                setTimeout(() => {
+                    connect(); // 自动建立连接
+                }, 100);
+            } else {
+                const savedId = localStorage.getItem(PLAYER_ID_STORAGE_KEY) || localStorage.getItem('botc_player_id');
+                if (savedId) {
+                    document.getElementById('playerId').value = savedId;
+                    currentUserId = savedId;
+                }
+            }
+        });
 </script>
 </body>
 </html>

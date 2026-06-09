@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>鸦木布拉夫小镇 - 联机大厅</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600&family=Noto+Sans+SC:wght@300;400;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #bb86fc;
+            --secondary: #03dac6;
+            --bg: #0c0c0e;
+            --surface: rgba(255, 255, 255, 0.05);
+            --surface-strong: rgba(255, 255, 255, 0.08);
+            --error: #cf6679;
+            --text: #f4f1e8;
+            --muted: #b7b1a3;
+            --accent: #f2a900;
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            font-family: 'Outfit', 'Noto Sans SC', sans-serif;
+            background: 
+                radial-gradient(circle at top left, rgba(187, 134, 252, 0.12), transparent 40%),
+                radial-gradient(circle at bottom right, rgba(3, 218, 198, 0.08), transparent 35%),
+                linear-gradient(180deg, #121214 0%, #08080a 100%);
+            color: var(--text);
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        .portal-card {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 24px;
+            padding: 40px 30px;
+            width: 100%;
+            max-width: 440px;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.4);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            text-align: center;
+            animation: fadeIn 0.6s ease-out;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .logo-area {
+            margin-bottom: 30px;
+        }
+
+        .eyebrow {
+            color: var(--accent);
+            letter-spacing: 0.2em;
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+
+        h1 {
+            font-size: 2.2rem;
+            margin: 0;
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            letter-spacing: 2px;
+            font-weight: 700;
+        }
+
+        .subtitle {
+            font-size: 0.9rem;
+            color: var(--muted);
+            margin-top: 8px;
+        }
+
+        .form-group {
+            text-align: left;
+            margin-bottom: 22px;
+        }
+
+        .form-group label {
+            display: block;
+            font-size: 0.85rem;
+            color: var(--muted);
+            margin-bottom: 8px;
+            font-weight: 600;
+        }
+
+        input, select {
+            width: 100%;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: white;
+            padding: 14px 16px;
+            border-radius: 12px;
+            font-size: 1rem;
+            outline: none;
+            transition: all 0.3s;
+        }
+
+        input:focus, select:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 12px rgba(187, 134, 252, 0.2);
+            background: rgba(0, 0, 0, 0.4);
+        }
+
+        .btn-enter {
+            width: 100%;
+            background: linear-gradient(135deg, var(--primary) 0%, #9b59b6 100%);
+            color: #000;
+            font-weight: 700;
+            padding: 15px;
+            border-radius: 12px;
+            font-size: 1.1rem;
+            border: none;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin-top: 10px;
+            box-shadow: 0 8px 20px rgba(187, 134, 252, 0.15);
+        }
+
+        .btn-enter:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 12px 24px rgba(187, 134, 252, 0.3);
+            filter: brightness(1.1);
+        }
+
+        .btn-enter:active {
+            transform: translateY(0);
+        }
+
+        .footer-links {
+            margin-top: 30px;
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.8rem;
+            border-top: 1px solid rgba(255, 255, 255, 0.06);
+            padding-top: 20px;
+        }
+
+        .footer-links a {
+            color: var(--secondary);
+            text-decoration: none;
+            transition: color 0.2s;
+        }
+
+        .footer-links a:hover {
+            color: #d7b7fd;
+            text-decoration: underline;
+        }
+
+        .custom-url-group {
+            display: none;
+            animation: slideDown 0.3s ease-out forwards;
+        }
+
+        @keyframes slideDown {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
+</head>
+<body>
+
+<div class="portal-card">
+    <div class="logo-area">
+        <div class="eyebrow">Blood on the Clocktower</div>
+        <h1>鸦木布拉夫小镇</h1>
+        <div class="subtitle">多人在线联机大厅入口</div>
+    </div>
+
+    <form id="lobbyForm" onsubmit="handleJoin(event)">
+        <div class="form-group">
+            <label for="nickname">您的玩家昵称 (ID)</label>
+            <input type="text" id="nickname" required placeholder="例如: Alice" maxlength="12">
+        </div>
+
+        <div class="form-group">
+            <label for="roomSelect">选择游戏房间</label>
+            <select id="roomSelect" onchange="toggleCustomUrl(this.value)">
+                <option value="current">当前服务器 (自适应)</option>
+                <option value="custom">—— 自定义服务器 URL ——</option>
+            </select>
+        </div>
+
+        <div class="form-group custom-url-group" id="customUrlContainer">
+            <label for="customUrl">自定义服务器链接</label>
+            <input type="url" id="customUrl" placeholder="https://room-x.up.railway.app">
+        </div>
+
+        <button type="submit" class="btn-enter">进入对局大厅</button>
+    </form>
+
+    <div class="footer-links">
+        <a href="javascript:void(0)" onclick="openStoryteller()">说书人控制台 ➔</a>
+        <a href="https://github.com/max23-dame0/ravenswood-bluff" target="_blank">项目开源协议</a>
+    </div>
+</div>
+
+<script>
+    // 从 localStorage 中读取上次的昵称并自动填充
+    window.addEventListener('load', () => {
+        const savedName = localStorage.getItem('botc.lastNickname') || localStorage.getItem('botc_player_id');
+        if (savedName) {
+            document.getElementById('nickname').value = savedName;
+        }
+        
+        // 动态加载自定义配置的房间列表，方便扩展
+        loadRoomOptions();
+    });
+
+    // 默认房间列表，可以轻松由站长在后台定义
+    const DEFAULT_ROOMS = [
+        { name: "对局房间 1 (Room 1)", url: "https://ravenswood-bluff-production.up.railway.app" },
+        { name: "对局房间 2 (Room 2)", url: "https://ravenswood-bluff-production-2.up.railway.app" },
+        { name: "对局房间 3 (Room 3)", url: "https://ravenswood-bluff-production-3.up.railway.app" }
+    ];
+
+    function loadRoomOptions() {
+        const select = document.getElementById('roomSelect');
+        const currentOrigin = window.location.origin;
+        
+        // 动态添加配置的默认房间
+        DEFAULT_ROOMS.forEach(room => {
+            // 过滤掉跟当前 origin 重复的，避免混淆
+            if (room.url !== currentOrigin) {
+                const opt = document.createElement('option');
+                opt.value = room.url;
+                opt.textContent = room.name;
+                // 插在自定义选项前面
+                select.insertBefore(opt, select.lastElementChild);
+            }
+        });
+    }
+
+    function toggleCustomUrl(val) {
+        const container = document.getElementById('customUrlContainer');
+        const customInput = document.getElementById('customUrl');
+        if (val === 'custom') {
+            container.style.display = 'block';
+            customInput.required = true;
+            customInput.focus();
+        } else {
+            container.style.display = 'none';
+            customInput.required = false;
+        }
+    }
+
+    function handleJoin(event) {
+        event.preventDefault();
+        const nickname = document.getElementById('nickname').value.trim();
+        const roomSelect = document.getElementById('roomSelect').value;
+        
+        if (!nickname) return;
+        localStorage.setItem('botc.lastNickname', nickname);
+
+        let targetOrigin = window.location.origin;
+        if (roomSelect === 'custom') {
+            targetOrigin = document.getElementById('customUrl').value.trim();
+        } else if (roomSelect !== 'current') {
+            targetOrigin = roomSelect;
+        }
+
+        // 去除 URL 尾部的斜杠
+        if (targetOrigin.endsWith('/')) {
+            targetOrigin = targetOrigin.slice(0, -1);
+        }
+
+        // 统一重定向跳转至对应容器的 index.html，并附带昵称参数
+        const redirectUrl = `${targetOrigin}/ui/index.html?player_id=${encodeURIComponent(nickname)}`;
+        window.location.href = redirectUrl;
+    }
+
+    function openStoryteller() {
+        const roomSelect = document.getElementById('roomSelect').value;
+        let targetOrigin = window.location.origin;
+        if (roomSelect === 'custom') {
+            targetOrigin = document.getElementById('customUrl').value.trim();
+            if (!targetOrigin) {
+                alert("请输入自定义服务器链接后再打开说书人控制台。");
+                return;
+            }
+        } else if (roomSelect !== 'current') {
+            targetOrigin = roomSelect;
+        }
+        
+        if (targetOrigin.endsWith('/')) {
+            targetOrigin = targetOrigin.slice(0, -1);
+        }
+
+        window.location.href = `${targetOrigin}/ui/storyteller.html`;
+    }
+</script>
+</body>
+</html>
