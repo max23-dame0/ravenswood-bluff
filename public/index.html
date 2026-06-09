@@ -976,13 +976,18 @@
         let statusAttention = false;
         function backendHttpOrigin() {
             const { protocol, hostname, port } = window.location;
-            const resolvedPort = port || '8000';
-            return `${protocol}//${hostname}:${resolvedPort}`;
+            if (protocol.startsWith('http')) {
+                return `${protocol}//${hostname}${port ? ':' + port : ''}`;
+            }
+            return `${protocol}//${hostname}:8000`;
         }
         function backendWsOrigin() {
-            const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-            const resolvedPort = window.location.port || '8000';
-            return `${wsProtocol}//${window.location.hostname}:${resolvedPort}`;
+            const { protocol, hostname, port } = window.location;
+            const wsProtocol = protocol === 'https:' ? 'wss:' : 'ws:';
+            if (protocol.startsWith('http')) {
+                return `${wsProtocol}//${hostname}${port ? ':' + port : ''}`;
+            }
+            return `${wsProtocol}//${hostname}:8000`;
         }
         const MAIN_VIEW_STORAGE_KEY = 'botc.activeMainView';
         function readMainViewPreference() {
