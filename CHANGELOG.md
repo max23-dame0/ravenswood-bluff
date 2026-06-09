@@ -1,26 +1,51 @@
 # Changelog
 
-## [alpha1.1] - 2026-05-02
+## [alpha1.1] - 2026-06-09
 
-Alpha 1.1 引入 AI 玩家难度系统，支持 4 种难度模式，让不同水平的人类玩家都能找到合适的对局体验。
+Alpha 1.1 引入了 AI 玩家难度系统，并完成了重大的速度工程优化、对话质量修复与底层代码重构，使 AI 玩家从“最优解机器”转变为具备策略深度、性格差异且响应迅速的真实对手。
 
 ### 新增与强化
 
-- **难度系统**：新增 `DifficultyLevel` 枚举（casual/standard/master/chaos），集成到 `GameConfig`、`AIAgent`、前端 setup 页面和 API。
-- **难度预设模块**：新增 `src/agents/difficulty_presets.py`，定义 4 种难度的温度、提示词、欺诈策略和人格参数覆盖。
-- **AI Agent 难度集成**：`AIAgent` 根据难度调整 LLM 温度、系统提示词、提名/投票阈值和发言风格。
-- **前端难度选择**：setup 页面新增 4 种难度单选控件，支持中英文国际化。
-- **验收与测试**：新增 `scripts/difficulty_acceptance.py`（54 项检查）和 `tests/test_difficulty.py`（26 项单元测试）。
-- **决策噪声层**：新增 `src/agents/decision_noise.py`，为提名和投票决策注入难度分级的可控随机性（chaos 0.18 > casual 0.12 > standard 0.05 > master 0.02）。
-- **多难度对比验收**：新增 `scripts/difficulty_comparison.py`（62 项检查）和 `tests/test_decision_noise.py`（31 项测试），验证 4 种难度的行为差异。
+- **难度系统与多轴配置**：
+  - 新增 `DifficultyLevel` 难度层级（Casual/Standard/Master/Chaos）。
+  - 将难度配置扩展为多轴维度模型，涵盖 competence（推理能力）、deception（欺诈度）、volatility（波动性）、expressiveness（表达力）与 information openness（信息共享度）。
+  - 在 `DifficultyPreset` 中为各难度配置独立的温度参数、提示词模板、发言风格及性能预算。
+  - 好人与邪恶阵营分别配置 `good_strategy_prompt` 和 `evil_strategy_prompt`，且邪恶提示词绝不泄露给好人 AI，确保信息隔离安全。
+  - 为 Standard 难度建立了显式的行为基线合同。
+- **决策噪声层**：
+  - 新增 `src/agents/decision_noise.py`，在提名与投票决策中引入难度分级的随机噪声（Chaos 0.18 > Casual 0.12 > Standard 0.05 > Master 0.02），使决策模式不再单一且具备博弈不确定性，同时配有边界护栏以防止非法或违背基本规则的行为。
+- **AI 响应速度与流畅度工程**：
+  - 引入 AI 动作耗时可观测性，按 `speak/vote/nomination_intent/night_action/defense_speech` 记录 P50/P95 及 fallback 发生率。
+  - 引入 AI 动作硬超时预算，超时后安全退回本地决策或 fallback 发言，不阻塞主线程。
+  - 提名与投票默认执行本地策略优先（P95 降至 ~0ms），仅在复杂局面或关键转折点触发 LLM 决策。
+  - 实现发言预生成缓存 `SpeechPreGenCache`，在其他玩家发言及系统等待时，后台异步并行为后续 AI 生成草稿，待其发言轮次时通过增量 visible_state 快速细化并发布。
+  - 全量压缩普通动作的 Prompt 上下文，并实现了人数自适应加速策略。
+- **发言质量优化与 Live-Like 体验恢复**：
+  - 取消讨论阶段的并发 LLM 请求，改为顺序处理以确保后位 AI 基于最新发言情景做决策，解决发言“复读机”和“信息脱节”问题。
+  - 丰富了 agent 级 fallback 表态模板，基于随机盐值和社交图谱过滤，防止在长局或并发超时下出现重复和无用表态。
+  - 将 `_extract_claims_via_llm()`（身份声明提取）降级为异步、低优先级的非阻塞任务，失败时静默重试，避免影响实时交互体验。
+- **上帝对象代码重构**：
+  - 将原本 ~3500 行的 `src/agents/ai_agent.py` 拆分为 `DecisionEngine`、`PromptFactory`、`SpeechSanitizer`、`EventObserver`、`EvilStrategy`、`MemoryController`、`DeceptionTracker`、`Persona` 和 `FallbackDispatcher` 9 个职责单一的子模块。
+  - 将原本 ~2900 行的 `src/orchestrator/game_loop.py` 拆分为 `MetricsCollector`、`AgentManager`、`GrimoireManager`、`ClaimExtractor`、`PrivateInfoNormalizer`、`SettlementBuilder`，以及夜间、讨论、提名投票三大阶段处理器，大幅降低维护难度。
+  - 利用 Python 模块重导出（re-exports）机制保持包接口向后兼容，30 多个外部导入路径无需更改，并通过了全部 250+ 测试套件。
+- **前端难度选择控件**：
+  - setup 页面新增 4 种难度模式的单选控件，支持中英文双语国际化切换。
+
+### 自动化验证与证据闭环
+
+- 新增 `scripts/difficulty_acceptance.py`（54 项配置检查）和 `tests/test_difficulty.py`（26 项单元测试）。
+- 新增 `scripts/difficulty_comparison.py`（62 项对比检查）和 `tests/test_decision_noise.py`（31 项噪声测试）。
+- 新增 `scripts/ai_speed_acceptance.py`（16 项速度门禁）和 `scripts/ai_conversation_quality_acceptance.py`（10 项发言质量检测）。
+- 新增 `scripts/ai_live_speech_acceptance.py` 进行 7.5s 模型延迟下的 Live-like 模拟验收，验证了 0% 硬超时及 100% LLM 成功率。
+- 所有验收脚本统一合并入聚合门禁 `scripts/alpha1.1_acceptance.py`，实现 9 个 Gate 自动化验收。
 
 ### 验收入口
 
-- `scripts/difficulty_acceptance.py`
-- `scripts/alpha1.1_acceptance.py`
-- `tests/test_difficulty.py`
-- `scripts/difficulty_comparison.py`
-- `tests/test_decision_noise.py`
+- 聚合验收：`.\.venv\Scripts\python.exe scripts/alpha1.1_acceptance.py`
+- 速度验收：`.\.venv\Scripts\python.exe scripts/ai_speed_acceptance.py`
+- 质量验收：`.\.venv\Scripts\python.exe scripts/ai_conversation_quality_acceptance.py`
+- 难度验收：`.\.venv\Scripts\python.exe scripts/difficulty_behavior_acceptance.py`
+- Live 验收：`.\.venv\Scripts\python.exe scripts/ai_live_speech_acceptance.py`
 
 ## [alpha1.0-candidate] - 2026-04-29
 

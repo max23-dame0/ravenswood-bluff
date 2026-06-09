@@ -75,6 +75,19 @@ class MockBackend(LLMBackend):
         player_ids = self._extract_player_ids(system_prompt)
         action_type = self._extract_action_type(system_prompt)
 
+        # Check for evil night coordination message prompts (plain text)
+        if "邪恶频道" in prompt_lower or "coordination" in prompt_lower or "协调" in prompt_lower:
+            if "爪牙" in prompt_lower or "minion" in prompt_lower:
+                content = "收到恶魔的分配，我白天会配合这个方向进行伪装发言，并引导投票和提名方向。"
+            else:
+                content = "我来分配一下首夜的伪装：我准备跳洗衣妇，队友A跳共情者，队友B跳厨师。白天我们互相回应，把逻辑理顺，吸引好人注意力。"
+            return LLMResponse(
+                content=content,
+                tool_calls=[],
+                model="mock-model",
+                usage={"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0}
+            )
+
         if action_type == "night_action":
             decision["action"] = "night_action"
             decision["target"] = player_ids[1] if len(player_ids) > 1 else (player_ids[0] if player_ids else None)
