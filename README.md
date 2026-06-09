@@ -1,12 +1,11 @@
 # 鸦木布拉夫小镇 (Ravenswood Bluff) AI 引擎
 
-![Version](https://img.shields.io/badge/version-alpha--1.0--candidate-orange)
+![Version](https://img.shields.io/badge/version-alpha--1.1-orange)
 ![Python](https://img.shields.io/badge/python-3.11+-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 
-**鸦木布拉夫小镇** 是一个基于多智能体（Multi-Agent）与状态机驱动的《血染钟楼》（Blood on the Clocktower）社交推演引擎。当前版本口径为 **Alpha 1.0 内测候选**：面向真实内测局收束《暗流涌动》（Trouble Brewing）主流程、AI 玩家、AI 说书人、真人混合对局、结算历史和复盘导出。
+**鸦木布拉夫小镇** 是一个基于多智能体（Multi-Agent）与状态机驱动的《血染钟楼》（Blood on the Clocktower）社交推演引擎。当前版本口径为 **Alpha 1.1 内部测试版本**：在前一版本稳定主流程的基础上，正式引入了多轴 AI 玩家难度系统，实施了深度响应速度与对话质量优化工程，并对底层上帝对象（AIAgent 与 GameOrchestrator）完成了彻底的模块化重构。
 
-Alpha 1.0 仍是内测版本，重点是稳定、可验收、可定位问题；规则边界、live 模型耗时、浏览器真人体验和数据体积控制仍会持续打磨。
 
 ---
 
@@ -60,54 +59,46 @@ $env:OPENAI_BASE_URL="https://api.openai.com/v1"
 
 ---
 
-## Alpha 1.0 验收入口
+## Alpha 1.1 验收入口
 
-发布前优先执行当前仓库已有的门禁命令：
-
-```powershell
-.\.venv\Scripts\python.exe -m pytest tests -q
-.\.venv\Scripts\python.exe scripts\alpha3_acceptance.py
-.\.venv\Scripts\python.exe scripts\alpha1_rules_acceptance.py
-.\.venv\Scripts\python.exe scripts\frontend_acceptance.py
-.\.venv\Scripts\python.exe scripts\storyteller_acceptance.py
-.\.venv\Scripts\python.exe scripts\role_acceptance.py
-.\.venv\Scripts\python.exe -m pytest tests\test_orchestrator\test_frontend_acceptance.py -q
-```
-
-若 `scripts\alpha1_acceptance.py` 已在当前分支落地，可作为发布前聚合门禁：
+发布与验收前，必须执行一键聚合门禁命令以运行全部 9 个 Gate 自动化验收：
 
 ```powershell
-.\.venv\Scripts\python.exe scripts\alpha1_acceptance.py
+.\.venv\Scripts\python.exe scripts\alpha1.1_acceptance.py
 ```
 
-浏览器级真人/半真人 smoke 需要单独记录，至少覆盖：
+该脚本将自动执行并确保以下门禁全部通过（ok）：
+1. **pytest regression**：主流程与角色能力单元测试不回归。
+2. **agent reasoning**：AI 玩家的社交推理和博弈逻辑正常。
+3. **difficulty acceptance**：4 种难度模式（Casual/Standard/Master/Chaos）配置加载成功。
+4. **difficulty comparison**：不同难度之间的行为差异可审计、可感知。
+5. **difficulty behavior**：难度行为级断言测试正常。
+6. **ai speed**：决策速度优化正常，提名与投票本地判定 P95 ~0ms。
+7. **ai conversation quality**：发言质量监测正常，低信息率低，重复发言为 0。
+8. **ai live-like speech**：在高延迟 Live 环境下，AI 发言硬超时率 0%，LLM 成功率 100%。
+9. **alpha1 backward compatibility**：与上一版本完全兼容。
 
-- 玩家加入、身份查看、私密信息、聊天、提名、辩解、投票、死亡、结算、历史。
-- 说书人魔典、夜晚步骤、私密信息确认、裁量记录、结算复盘。
-- 玩家端无法访问完整魔典或说书人内部裁量。
-- 5 人 live 短局至少完成一次处决；mock 7-10 人局稳定完成整局。
+验收证据输出至 `docs/alpha-1.1-evidence/` 目录。
 
-详细发布门槛见 [Alpha 1.0 Release Checklist](./docs/alpha-1.0-release-checklist.md)，遗留风险见 [Alpha 1.0 Known Issues](./docs/alpha-1.0-known-issues.md)。
-内测问题反馈可直接使用 [Alpha 1.0 Feedback Template](./docs/alpha-1.0-feedback-template.md)，数据保留和清理策略见 [Alpha 1.0 Data Operations](./docs/alpha-1.0-data-operations.md)。
 
 ---
 
 ## 项目架构
 
-- `docs/alpha-1.0-plan.md`：Alpha 1.0 总体发布计划、P0/P1/P2 任务板和冻结标准。
-- `docs/alpha-1.0-plan/`：M1-M6 阶段任务板。
-- `docs/alpha-1.0-release-checklist.md`：发布前 checklist。
-- `docs/alpha-1.0-known-issues.md`：内测候选已知问题。
-- `docs/alpha-1.0-feedback-template.md`：内测问题反馈模板。
-- `docs/alpha-1.0-data-operations.md`：数据目录、导出包和清理说明。
-- `src/agents/`：AI 玩家、说书人、认知层、记忆组件。
+- `docs/alpha-1.1-plan.md`：Alpha 1.1 总体开发计划、Milestone 列表与验收标准。
+- `docs/alpha-1.1-plan/`：M5/M6/M7 各阶段具体任务板。
+- `docs/alpha-1.1-evidence/`：发布的各项测试与验收证据记录。
+- `VERSION_NOTES.md`：Alpha 1.1 内部测试版本说明。
+- `CHANGELOG.md`：项目版本迭代变更记录。
+- `src/agents/`：AI 玩家（Facade 及其下 9 大重构子模块）、说书人。
 - `src/engine/`：规则引擎、角色能力、阶段控制、数据采集。
-- `src/orchestrator/`：对局循环、信息分发、说书人裁量链路。
+- `src/orchestrator/`：对局循环（Facade 及其下阶段处理器等重构模块）、信息分发。
 - `src/state/`：状态快照、事件日志、对局记录。
 - `src/api/`：本地 API server 与前端接口。
 - `public/`：浏览器 UI。
-- `scripts/`：验收、导出、模拟和数据工具。
+- `scripts/`：验收门禁、导出、模拟和数据工具。
 - `tests/`：单元、集成与验收测试。
+
 
 ---
 
@@ -133,7 +124,8 @@ $env:OPENAI_BASE_URL="https://api.openai.com/v1"
 
 ## 版本记录
 
-此分支所有变动追踪至 [CHANGELOG.md](./CHANGELOG.md)。Alpha 1.0 发布计划见 [docs/alpha-1.0-plan.md](./docs/alpha-1.0-plan.md)。
+此分支所有变动追踪至 [CHANGELOG.md](./CHANGELOG.md)。Alpha 1.1 详细开发设计与路线见 [docs/alpha-1.1-plan.md](./docs/alpha-1.1-plan.md)。
+
 
 ## 开源协议
 
