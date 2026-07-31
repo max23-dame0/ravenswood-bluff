@@ -8,7 +8,7 @@ state through the injected ``agent`` reference — never import AIAgent itself.
 from __future__ import annotations
 
 import random
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 from src.content.trouble_brewing_terms import get_role_name
 from src.state.game_state import AgentVisibleState, Team
@@ -28,7 +28,6 @@ class SpeechSanitizer:
     # ------------------------------------------------------------------
 
     def sanitize_public_speech_content(self, content: str, visible_state: AgentVisibleState) -> str:
-        agent = self._agent
         text = content.strip()
         if not text:
             return text
@@ -79,7 +78,6 @@ class SpeechSanitizer:
         action_type: str,
     ) -> str:
         """让真实发言也能更稳定地引用高可信/客观线索。"""
-        agent = self._agent
         text = content.strip()
         if not text:
             return text

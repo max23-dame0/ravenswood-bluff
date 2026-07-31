@@ -7,9 +7,7 @@
 from __future__ import annotations
 
 import logging
-from typing import Optional
 
-from src.agents.memory.social_graph import SocialGraph
 from src.agents.memory.working_memory import WorkingMemory
 from src.llm.base_backend import LLMBackend, Message
 from src.state.game_state import GameState, PlayerState

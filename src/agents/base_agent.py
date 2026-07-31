@@ -15,7 +15,6 @@ from src.state.game_state import (
     GameEvent,
     PlayerState,
     PrivatePlayerView,
-    Team,
 )
 
 

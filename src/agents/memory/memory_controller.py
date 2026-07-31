@@ -6,13 +6,12 @@ MemoryController - 统一管理 AI Agent 的记忆与人格刷新。
 
 from __future__ import annotations
 
-import asyncio
 import logging
 from typing import TYPE_CHECKING, Any
 
 from src.agents.memory.episodic_memory import Episode
 from src.agents.memory.working_memory import Observation
-from src.agents.persona_registry import Archetype, get_archetype
+from src.agents.persona.persona_registry import Archetype, get_archetype
 from src.content.trouble_brewing_terms import (
     get_role_description,
     get_role_name,

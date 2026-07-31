@@ -4,8 +4,8 @@
 定义不同类型的玩家原型及其对应的数值偏置与行为特征。
 """
 
-from dataclasses import dataclass, field
-from typing import Dict, Any
+from dataclasses import dataclass
+from typing import Dict
 
 
 @dataclass

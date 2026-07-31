@@ -175,7 +175,7 @@ class EvilStrategy:
         if visible_state.phase not in {GamePhase.FIRST_NIGHT, GamePhase.NIGHT}:
             return ""
 
-        action_name = action.get("action")
+        action.get("action")
         target_id = action.get("target")
         role_id = agent.perceived_role_id or agent.role_id
         target_name = (
@@ -402,6 +402,6 @@ class EvilStrategy:
         if agent.role_id == "imp":
             return f"我来分配伪装身份：我跳第一个，{teammate_names[0] if teammate_names else '队友A'}跳第二个，剩下的跳第三个。白天配合好，别互相矛盾。"
         elif has_prior_messages:
-            return f"收到，我按分配的身份来。白天注意不暴露，互相别拆台。"
+            return "收到，我按分配的身份来。白天注意不暴露，互相别拆台。"
         else:
-            return f"我听恶魔安排，白天按计划发言。"
+            return "我听恶魔安排，白天按计划发言。"

@@ -14,7 +14,7 @@ from src.content.trouble_brewing_night_order import (
     get_night_order_spec,
     validate_night_order_value,
 )
-from src.state.game_state import AbilityTrigger, GamePhase, GameState, RoleType, Team, Visibility
+from src.state.game_state import GamePhase, GameState, RoleType, Team, Visibility
 
 logger = logging.getLogger(__name__)
 storyteller_logger = logging.getLogger("storyteller")
@@ -1218,7 +1218,6 @@ class StorytellerAgent:
                 # 如果局势对正义方有利（advantage > 0），选个看起来“像好人”的人作为红鲱鱼来迷惑他们。
                 if advantage >= 0:
                     # 倾向于选择非关键信息位的好人作为宿敌
-                    low_prio_roles = {RoleType.OUTSIDER, RoleType.TOWNSFOLK}
                     red_herring = random.choice(candidates)  # 兜底
                 else:
                     # 局势不利于正义方时，随便选一个，尽量不干扰核心推导。

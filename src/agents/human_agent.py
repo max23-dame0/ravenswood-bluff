@@ -10,10 +10,10 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
-from typing import Any, Callable
+from typing import Any, Callable, Optional
 
 from src.agents.base_agent import BaseAgent
-from src.state.game_state import AgentActionLegalContext, AgentVisibleState, GameEvent, PlayerState
+from src.state.game_state import AgentActionLegalContext, AgentVisibleState, GameEvent
 
 logger = logging.getLogger(__name__)
 

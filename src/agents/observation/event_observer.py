@@ -705,7 +705,6 @@ class EventObserver:
         speaker_id: str,
         visible_state: AgentVisibleState,
     ) -> list[ParsedRoleStatement]:
-        agent = self._agent
         text = (content or "").strip()
         if not text:
             return []

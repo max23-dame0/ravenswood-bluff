@@ -16,26 +16,18 @@ import time
 from typing import Any, Optional
 from src.engine.data_collector import GameDataCollector
 from src.agents.base_agent import BaseAgent
-from src.agents.memory.episodic_memory import EpisodicMemory, Episode
-from src.agents.memory.social_graph import ClaimRecord, SocialGraph
-from src.agents.memory.working_memory import Observation, WorkingMemory
+from src.agents.memory.episodic_memory import EpisodicMemory
+from src.agents.memory.social_graph import SocialGraph
+from src.agents.memory.working_memory import WorkingMemory
 from src.agents.memory.vector_memory import VectorMemory
-from src.agents.persona_registry import ARCHETYPES, Archetype, get_archetype
 from src.agents.difficulty_presets import DifficultyPreset, get_preset
-from src.agents.decision_noise import DecisionNoise
-from src.content.trouble_brewing_terms import (
-    TROUBLE_BREWING_ROLE_TERMS,
-    get_role_description,
-    get_role_name,
-    get_role_persona_hint,
-)
+from src.agents.decision.decision_noise import DecisionNoise
+from src.content.trouble_brewing_terms import get_role_name
 from src.llm.base_backend import LLMBackend
 from src.state.game_state import (
     AgentActionLegalContext,
     AgentVisibleState,
-    ChatMessage,
     GameEvent,
-    GamePhase,
     GameState,
     PlayerState,
     PrivatePlayerView,

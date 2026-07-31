@@ -7,13 +7,12 @@ state through the injected ``agent`` reference — never import AIAgent itself.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Optional
+from typing import TYPE_CHECKING, Optional
 
 from src.content.trouble_brewing_terms import get_role_description, get_role_name
 from src.state.game_state import (
     AgentActionLegalContext,
     AgentVisibleState,
-    GamePhase,
     Team,
 )
 

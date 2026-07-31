@@ -10,8 +10,7 @@ from __future__ import annotations
 import os
 from typing import TYPE_CHECKING, Any
 
-from src.content.trouble_brewing_terms import get_role_name
-from src.agents.persona_registry import Archetype
+from src.agents.persona.persona_registry import Archetype
 from src.state.game_state import (
     AgentActionLegalContext,
     AgentVisibleState,
@@ -357,7 +356,6 @@ class DecisionEngine:
         salt: str,
         tolerance: float = 0.04,
     ) -> tuple[str | None, float]:
-        agent = self._agent
         candidate_band, best_score = self.nomination_candidate_band(
             legal_targets,
             visible_state,
