@@ -12,6 +12,20 @@ from contextlib import suppress
 from datetime import datetime
 from typing import Dict, Any
 
+from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import RedirectResponse
+
+from src.agents.human_agent import HumanAgent
+from src.agents.storyteller_agent import StorytellerAgent
+from src.content.trouble_brewing_terms import get_role_term
+from src.content.trouble_brewing_night_order import export_rulebook_night_order
+from src.debug.game_debug_logger import game_debug_logger
+from src.orchestrator.game_loop import GameOrchestrator
+from src.state.event_log import Visibility
+from src.state.game_state import GameState, PlayerState, Team, GamePhase
+
 
 def _ensure_file_handler(logger_name: str, filename: str) -> logging.FileHandler:
     logger_obj = logging.getLogger(logger_name)
@@ -41,25 +55,6 @@ logger = logging.getLogger("server")
 logger.addHandler(orchestrator_fh)
 logging.getLogger("storyteller").setLevel(logging.INFO)
 logging.getLogger("storyteller").propagate = False
-
-from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
-from fastapi.responses import RedirectResponse
-
-from src.agents.human_agent import HumanAgent
-from src.content.trouble_brewing_terms import get_role_name, get_role_term
-from src.content.trouble_brewing_night_order import export_rulebook_night_order
-from src.debug.game_debug_logger import game_debug_logger
-from src.orchestrator.game_loop import GameOrchestrator
-from src.state.game_state import GameState, PlayerState, Team, GamePhase
-from src.state.event_log import Visibility
-
-# Configure logging
-# Moved to top level
-
-# Global variables
-from src.agents.storyteller_agent import StorytellerAgent
 
 global_orchestrator: GameOrchestrator | None = None
 global_storyteller: StorytellerAgent | None = None
@@ -660,7 +655,7 @@ async def websocket_endpoint(websocket: WebSocket, player_id: str):
                 await websocket.send_text(json.dumps({"type": "error", "message": "消息过长"}))
                 continue
             try:
-                msg = json.loads(data)
+                json.loads(data)
             except (json.JSONDecodeError, ValueError):
                 await websocket.send_text(
                     json.dumps({"type": "error", "message": "无效的JSON格式"})
@@ -1073,9 +1068,6 @@ async def rematch_game():
     old_config = global_orchestrator.state.config
     player_count = old_config.player_count if old_config else 5
     human_mode = old_config.human_mode if old_config else "none"
-    human_client_id = old_config.human_client_id if old_config else None
-    storyteller_client_id = old_config.storyteller_client_id if old_config else None
-    host_id = human_client_id or "h1"
 
     logger.info("Rematch requested: player_count=%d human_mode=%s", player_count, human_mode)
 

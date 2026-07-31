@@ -7,7 +7,6 @@
 from __future__ import annotations
 
 import logging
-from typing import Optional
 
 from src.state.game_state import GamePhase
 

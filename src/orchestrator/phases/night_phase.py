@@ -5,7 +5,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import random
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 from src.engine.roles.base_role import get_all_role_ids, get_role_class
 from src.state.game_state import (
@@ -19,6 +19,7 @@ from src.state.game_state import (
 
 if TYPE_CHECKING:
     from src.orchestrator.game_loop import GameOrchestrator
+    from src.state.game_state import PlayerState
 
 logger = logging.getLogger(__name__)
 

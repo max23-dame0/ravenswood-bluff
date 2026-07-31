@@ -8,9 +8,6 @@ import logging
 from typing import Any, Optional
 
 from src.engine.roles.base_role import BaseRole, register_role
-
-
-logger = logging.getLogger(__name__)
 from src.state.game_state import (
     Ability,
     AbilityTrigger,
@@ -23,6 +20,8 @@ from src.state.game_state import (
     Team,
     Visibility,
 )
+
+logger = logging.getLogger(__name__)
 
 
 @register_role("poisoner")

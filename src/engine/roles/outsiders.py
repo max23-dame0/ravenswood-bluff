@@ -14,7 +14,6 @@ from src.state.game_state import (
     AbilityTrigger,
     AbilityType,
     GameEvent,
-    GamePhase,
     GameState,
     PlayerState,
     RoleDefinition,

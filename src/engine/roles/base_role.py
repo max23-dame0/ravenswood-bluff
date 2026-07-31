@@ -11,7 +11,6 @@ from abc import ABC, abstractmethod
 from typing import Any, Optional, TYPE_CHECKING
 
 from src.state.game_state import (
-    Ability,
     AbilityTrigger,
     AbilityType,
     GameEvent,
@@ -21,7 +20,6 @@ from src.state.game_state import (
     RoleDefinition,
     RoleType,
     Team,
-    Visibility,
 )
 
 if TYPE_CHECKING:

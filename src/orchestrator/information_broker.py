@@ -9,7 +9,6 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from typing import Optional
 
 from src.agents.base_agent import BaseAgent
 from src.engine.rule_engine import RuleEngine

@@ -12,10 +12,7 @@ import uuid
 from typing import Any
 
 from src.agents.base_agent import BaseAgent
-from src.content.trouble_brewing_terms import get_role_name
-from src.engine.nomination import NominationManager
 from src.engine.phase_manager import PhaseManager
-from src.engine.rule_engine import RuleEngine
 from src.engine.roles.base_role import get_role_class
 from src.engine.victory_checker import VictoryChecker
 from src.engine.data_collector import GameDataCollector
@@ -29,12 +26,10 @@ from src.orchestrator.information_broker import InformationBroker
 from src.orchestrator.metrics import MetricsCollector
 from src.orchestrator.phases import DayDiscussionHandler, NightPhaseHandler, NominationVotingHandler
 from src.orchestrator.settlement import SettlementBuilder
-from src.orchestrator.speech_cache import SpeechPreGenCache
 from src.state.event_log import EventLog
 from src.state.game_state import (
     AgentActionLegalContext,
     AgentVisibleState,
-    AbilityTrigger,
     ChatMessage,
     DifficultyLevel,
     GameConfig,
@@ -42,10 +37,8 @@ from src.state.game_state import (
     GamePhase,
     GameState,
     GrimoireInfo,
-    PlayerGrimoireInfo,
     PlayerState,
     PlayerStatus,
-    RoleType,
     Team,
     Visibility,
 )
@@ -509,7 +502,7 @@ class GameOrchestrator:
         self._update_grimoire()
 
         from src.agents.ai_agent import AIAgent, Persona
-        from src.agents.persona_registry import ARCHETYPES
+        from src.agents.persona.persona_registry import ARCHETYPES
         from src.llm.openai_backend import OpenAIBackend
 
         backend = (
@@ -833,8 +826,6 @@ class GameOrchestrator:
 
     def export_game_record(self, export_dir: str) -> None:
         """持久化输出事件日志和系统快照到外部文件系统，用于前端回放或调试"""
-        import os
-        import json
 
         os.makedirs(export_dir, exist_ok=True)
         # 导出快照

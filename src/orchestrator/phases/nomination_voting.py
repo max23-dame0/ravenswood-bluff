@@ -11,7 +11,6 @@ from src.engine.rule_engine import RuleEngine
 from src.engine.roles.base_role import get_role_class
 from src.state.game_state import (
     AgentActionLegalContext,
-    AgentVisibleState,
     GameEvent,
     GamePhase,
     RoleType,

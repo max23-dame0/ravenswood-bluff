@@ -69,7 +69,6 @@ def distribute_roles(script: ScriptConfig, player_count: int) -> tuple[list[str]
     counts = get_role_counts(player_count)
 
     # 分类备选角色
-    import src.engine.roles
     from src.engine.roles.base_role import get_role_class
     from src.state.game_state import RoleType
 

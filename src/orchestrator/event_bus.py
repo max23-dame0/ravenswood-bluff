@@ -7,7 +7,6 @@
 
 from __future__ import annotations
 
-import asyncio
 import logging
 from collections import defaultdict, deque
 from typing import Any, Callable, Coroutine

@@ -7,10 +7,9 @@
 from __future__ import annotations
 
 import logging
-from typing import Optional
 
 from src.engine.roles.base_role import get_role_class
-from src.state.game_state import ExecutionCandidate, GamePhase, GameState, PlayerState
+from src.state.game_state import ExecutionCandidate, GamePhase, GameState
 
 logger = logging.getLogger(__name__)
 

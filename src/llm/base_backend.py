@@ -7,7 +7,7 @@ LLM 后端抽象接口
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import Any, Optional
+from typing import Optional
 
 from pydantic import BaseModel, Field
 

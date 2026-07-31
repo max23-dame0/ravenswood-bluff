@@ -123,7 +123,6 @@ class GameDataCollector:
         except Exception as e:
             logger.error(f"Failed to write snapshot: {e}")
 
-    @classmethod
     @staticmethod
     def _normalize_trace_entry(raw_entry: dict[str, Any]) -> dict[str, Any]:
         """将 jsonl 原始记录转换为稳定导出结构。"""
