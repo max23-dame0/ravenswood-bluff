@@ -34,7 +34,7 @@ class ReplayParser:
 
     def print_text_replay(self):
         """在控制台打印文字回放"""
-        print(f"=== 游戏回放开始 (日志数量: {len(self.events)}) ===")
+        logger.info(f"=== 游戏回放开始 (日志数量: {len(self.events)}) ===")
         current_round = -1
         current_phase = ""
 
@@ -42,7 +42,7 @@ class ReplayParser:
             if e["round_number"] != current_round or e.get("phase") != current_phase:
                 current_round = e["round_number"]
                 current_phase = e.get("phase", "")
-                print(f"\n--- 第 {current_round} 轮 | {current_phase} ---")
+                logger.info(f"\n--- 第 {current_round} 轮 | {current_phase} ---")
 
             etype = e["event_type"]
             vis = e["visibility"]
@@ -64,9 +64,9 @@ class ReplayParser:
             if e.get("target"):
                 content += f" | 目标: {e['target']}"
 
-            print(f"- {content} | 细节: {payload_str}")
+            logger.info(f"- {content} | 细节: {payload_str}")
 
-        print("\n=== 回放结束 ===")
+        logger.info("\n=== 回放结束 ===")
 
 
 if __name__ == "__main__":
@@ -78,4 +78,4 @@ if __name__ == "__main__":
         parser.load()
         parser.print_text_replay()
     else:
-        print("请提供带有 events.json 和 snapshots.json 的文件夹路径。")
+        logger.info("请提供带有 events.json 和 snapshots.json 的文件夹路径。")

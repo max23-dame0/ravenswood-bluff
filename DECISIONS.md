@@ -48,11 +48,13 @@
 
 ## D006: 双 facade 上帝对象仅做路由
 
-- **日期**：2026-05-08（源自 CLAUDE.md §9.1/§9.2）
-- **决策**：`ai_agent.py`(~1100)、`game_loop.py`(~766) 为 facade，行为逻辑下沉到各自 9 个子模块（agents 下 decision/prompt/speech/observation/strategy/memory/reasoning/dialogue/persona/deception；orchestrator 下 phases/agents/claims/grimoire/info/metrics/settlement）。
+- **日期**：2026-05-08（源自 CLAUDE.md §9.1/§9.2）；2026-07-31 复核并更新状态
+- **决策**：`ai_agent.py`、`game_loop.py` 为 facade，行为逻辑下沉到各自子模块（agents 下 decision/prompt/speech/observation/strategy/memory/reasoning/dialogue/persona/deception；orchestrator 下 phases/agents/claims/grimoire/info/metrics/settlement）。`storyteller_agent.py` 同属 facade，须一并治理。
 - **原因**：控制单文件规模，提升可维护性。
 - **否决方案**：逻辑全堆在 facade。
 - **约束**：改 Agent/Orchestrator 行为 → 改对应子模块，勿堆在 facade。
+- **当前状态（2026-07-31 复核，已达标 ✅）**：三 facade 已全部拆分并达行数目标——`ai_agent.py` = 802（<1000）、`game_loop.py` = 497（<700）、`storyteller_agent.py` = 25（<1100）；逻辑分别下沉至 `ai_agent_delegation.py`(706) / `game_loop_delegation.py`(383) / `storyteller_delegation.py`(1369)，行为零变更。落地方式为「facade 继承委托 Mixin/委托类」，调用点保持 `self._x(...)`（详见重构计划文档）。
+- **重构计划**：`docs/releases/v0.8/AGENTS_refactor.md`（目标已达成；含实际委托拆分映射与进度看板）。
 
 ## D007: 测试策略 — MockBackend-first + 验收门禁为发布 blocker（2026-07-31）
 

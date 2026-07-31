@@ -1,6 +1,6 @@
 # 鸦木布拉夫小镇 (Ravenswood Bluff) — Agent 操作手册
 
-> **角色**：路由器（≤200 行）。详细规范见 `CLAUDE.md`（深度参考）与 `.codebuddy/rules/` 分层规则。
+> **角色**：AI 玩家 / 说书人 facade。**设计目标**为「仅路由、逻辑下沉到子模块」（详见 `CLAUDE.md` 与 `.codebuddy/rules/`）。当前 `ai_agent.py` / `storyteller_agent.py` / `game_loop.py` 仍为上帝对象，拆分进行中（见 `DECISIONS.md` D011 与 `docs/releases/v0.8/AGENTS_refactor.md`）。
 > **上下文预算**：32768 字节
 > **最后更新**：2026-07-31
 

@@ -565,17 +565,27 @@ async def lifespan(app: FastAPI):
         port = int(os.getenv("BOTC_PORT") or os.getenv("PORT") or "8000")
         local_ip = get_local_ip()
 
-        print("\n" + "=" * 80)
-        print("鸦木布拉夫小镇 (Ravenswood Bluff) 服务启动成功！")
-        print(f"  - 本地回路直接访问: http://127.0.0.1:{port}")
-        if local_ip != "127.0.0.1":
-            print(
-                f"  - 局域网其他玩家访问: http://{local_ip}:{port}  (请将其复制发送给您的内测朋友)"
+        banner = (
+            "\n"
+            + "=" * 80
+            + "\n"
+            + "鸦木布拉夫小镇 (Ravenswood Bluff) 服务启动成功！\n"
+            + f"  - 本地回路直接访问: http://127.0.0.1:{port}\n"
+            + (
+                f"  - 局域网其他玩家访问: http://{local_ip}:{port}  (请将其复制发送给您的内测朋友)\n"
+                if local_ip != "127.0.0.1"
+                else ""
             )
-        print(f"  - 说书人魔典控制台:   http://127.0.0.1:{port}/ui/storyteller.html")
-        if local_ip != "127.0.0.1":
-            print(f"  - 说书人魔典(外部):   http://{local_ip}:{port}/ui/storyteller.html")
-        print("=" * 80 + "\n")
+            + f"  - 说书人魔典控制台:   http://127.0.0.1:{port}/ui/storyteller.html\n"
+            + (
+                f"  - 说书人魔典(外部):   http://{local_ip}:{port}/ui/storyteller.html\n"
+                if local_ip != "127.0.0.1"
+                else ""
+            )
+            + "=" * 80
+            + "\n"
+        )
+        logger.info(banner)
     except Exception as e:
         logger.error(f"Failed to startup: {e}", exc_info=True)
     yield

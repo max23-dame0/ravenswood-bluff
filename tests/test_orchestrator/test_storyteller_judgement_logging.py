@@ -8,7 +8,7 @@ from pathlib import Path
 
 import pytest
 
-from src.agents import storyteller_agent as storyteller_module
+from src.agents import storyteller_agent as storyteller_module, storyteller_delegation
 from src.agents.base_agent import BaseAgent
 from src.content.trouble_brewing_night_order import build_night_order_tie_groups
 from src.engine.roles.base_role import get_role_class
@@ -717,7 +717,7 @@ def test_build_night_order_tie_groups_resolves_by_rulebook_order():
 
 @pytest.mark.asyncio
 async def test_storyteller_records_red_herring_selection_and_hit(monkeypatch):
-    monkeypatch.setattr(storyteller_module.random, "choice", lambda items: list(items)[0])
+    monkeypatch.setattr(storyteller_delegation.random, "choice", lambda items: list(items)[0])
     agent = storyteller_module.StorytellerAgent(MockBackend())
     state = GameState(
         phase=GamePhase.FIRST_NIGHT,
@@ -766,8 +766,8 @@ async def test_storyteller_records_red_herring_selection_and_hit(monkeypatch):
 @pytest.mark.asyncio
 async def test_storyteller_records_misregistration_active_and_inactive(monkeypatch):
     values = iter([0.0, 1.0])
-    monkeypatch.setattr(storyteller_module.random, "random", lambda: next(values))
-    monkeypatch.setattr(storyteller_module.random, "choice", lambda items: list(items)[0])
+    monkeypatch.setattr(storyteller_delegation.random, "random", lambda: next(values))
+    monkeypatch.setattr(storyteller_delegation.random, "choice", lambda items: list(items)[0])
     agent = storyteller_module.StorytellerAgent(MockBackend())
     state = GameState(
         phase=GamePhase.FIRST_NIGHT,
