@@ -117,17 +117,25 @@ def run_gate(gate: Gate) -> GateResult:
 
 def build_gates(args: argparse.Namespace) -> list[Gate]:
     gates = [
-        Gate("alpha1 rules", ["scripts/alpha1_rules_acceptance.py"], args.gate_timeout_seconds),
         Gate(
-            "frontend",
-            ["scripts/frontend_acceptance.py", "--backend", "mock"],
+            "alpha1 rules",
+            ["scripts/acceptance/alpha1_rules_acceptance.py"],
             args.gate_timeout_seconds,
         ),
-        Gate("storyteller", ["scripts/storyteller_acceptance.py"], args.gate_timeout_seconds),
-        Gate("role", ["scripts/role_acceptance.py"], args.gate_timeout_seconds),
+        Gate(
+            "frontend",
+            ["scripts/acceptance/frontend_acceptance.py", "--backend", "mock"],
+            args.gate_timeout_seconds,
+        ),
+        Gate(
+            "storyteller",
+            ["scripts/acceptance/storyteller_acceptance.py"],
+            args.gate_timeout_seconds,
+        ),
+        Gate("role", ["scripts/acceptance/role_acceptance.py"], args.gate_timeout_seconds),
         Gate(
             "m5 ai experience",
-            ["scripts/m5_ai_player_experience_acceptance.py"],
+            ["scripts/acceptance/m5_ai_player_experience_acceptance.py"],
             args.gate_timeout_seconds,
         ),
         Gate("alpha3", ["scripts/alpha3_acceptance.py"], args.gate_timeout_seconds),
@@ -140,7 +148,7 @@ def build_gates(args: argparse.Namespace) -> list[Gate]:
         Gate(
             "full pytest",
             [
-                "scripts/run_full_tests_low_memory.py",
+                "scripts/acceptance/run_full_tests_low_memory.py",
                 "--timeout-seconds",
                 str(args.full_pytest_timeout_seconds),
             ],
@@ -218,7 +226,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--include-full-pytest",
         action="store_true",
-        help="Also run scripts/run_full_tests_low_memory.py.",
+        help="Also run scripts/acceptance/run_full_tests_low_memory.py.",
     )
     parser.add_argument(
         "--full-pytest-timeout-seconds",

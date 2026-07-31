@@ -23,9 +23,9 @@ def run_command(*args: str) -> None:
 
 
 def main() -> int:
-    run_command("scripts/a3_data_acceptance.py")
-    run_command("scripts/a3_memory_acceptance.py")
-    run_command("scripts/storyteller_acceptance.py")
+    run_command("scripts/acceptance/a3_data_acceptance.py")
+    run_command("scripts/acceptance/a3_memory_acceptance.py")
+    run_command("scripts/acceptance/storyteller_acceptance.py")
     print("alpha3 acceptance: ok")
     return 0
 

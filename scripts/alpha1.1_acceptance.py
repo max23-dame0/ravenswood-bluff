@@ -80,6 +80,8 @@ def run_gate(gate: Gate) -> GateResult:
             env=base_env(),
             capture_output=True,
             text=True,
+            encoding="utf-8",
+            errors="replace",
             check=False,
             timeout=gate.timeout_seconds,
         )
@@ -126,7 +128,7 @@ def build_gates(args: argparse.Namespace) -> list[Gate]:
             [
                 "-m",
                 "pytest",
-                "tests/test_difficulty.py",
+                "tests/test_agents/test_difficulty.py",
                 "tests/test_state/",
                 "tests/test_engine/",
                 "tests/test_orchestrator/test_game_loop.py",
@@ -151,52 +153,52 @@ def build_gates(args: argparse.Namespace) -> list[Gate]:
         ),
         Gate(
             "difficulty acceptance",
-            ["scripts/difficulty_acceptance.py"],
+            ["scripts/acceptance/difficulty_acceptance.py"],
             args.gate_timeout_seconds,
         ),
         Gate(
             "difficulty comparison",
-            ["scripts/difficulty_comparison.py"],
+            ["scripts/acceptance/difficulty_comparison.py"],
             args.gate_timeout_seconds,
             skip_reason=None
-            if _script_exists("scripts/difficulty_comparison.py")
+            if _script_exists("scripts/acceptance/difficulty_comparison.py")
             else "script not yet implemented",
         ),
         Gate(
             "difficulty behavior acceptance",
-            ["scripts/difficulty_behavior_acceptance.py"],
+            ["scripts/acceptance/difficulty_behavior_acceptance.py"],
             args.gate_timeout_seconds,
             skip_reason=None
-            if _script_exists("scripts/difficulty_behavior_acceptance.py")
+            if _script_exists("scripts/acceptance/difficulty_behavior_acceptance.py")
             else "script not yet implemented",
         ),
         Gate(
             "ai speed acceptance",
-            ["scripts/ai_speed_acceptance.py"],
+            ["scripts/acceptance/ai_speed_acceptance.py"],
             args.gate_timeout_seconds,
             skip_reason=None
-            if _script_exists("scripts/ai_speed_acceptance.py")
+            if _script_exists("scripts/acceptance/ai_speed_acceptance.py")
             else "script not yet implemented",
         ),
         Gate(
             "ai conversation quality",
-            ["scripts/ai_conversation_quality_acceptance.py"],
+            ["scripts/acceptance/ai_conversation_quality_acceptance.py"],
             args.gate_timeout_seconds,
             skip_reason=None
-            if _script_exists("scripts/ai_conversation_quality_acceptance.py")
+            if _script_exists("scripts/acceptance/ai_conversation_quality_acceptance.py")
             else "script not yet implemented",
         ),
         Gate(
             "ai live-like speech",
-            ["scripts/ai_live_speech_acceptance.py"],
+            ["scripts/acceptance/ai_live_speech_acceptance.py"],
             max(args.gate_timeout_seconds, 360),
             skip_reason=None
-            if _script_exists("scripts/ai_live_speech_acceptance.py")
+            if _script_exists("scripts/acceptance/ai_live_speech_acceptance.py")
             else "script not yet implemented",
         ),
         Gate(
             "alpha1 backward compatibility",
-            ["scripts/alpha1_rules_acceptance.py"],
+            ["scripts/acceptance/alpha1_rules_acceptance.py"],
             args.gate_timeout_seconds,
         ),
     ]
