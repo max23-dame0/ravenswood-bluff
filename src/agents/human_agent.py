@@ -21,11 +21,17 @@ logger = logging.getLogger(__name__)
 class HumanAgent(BaseAgent):
     """
     人类代理
-    
+
     使用 asyncio.Queue 或是回调机制异步等待前端传来的操作结果。
     """
 
-    def __init__(self, player_id: str, name: str, send_message_callback: Callable, chat_callback: Optional[Callable] = None):
+    def __init__(
+        self,
+        player_id: str,
+        name: str,
+        send_message_callback: Callable,
+        chat_callback: Optional[Callable] = None,
+    ):
         """
         Args:
             player_id: 玩家唯一标识
@@ -49,7 +55,7 @@ class HumanAgent(BaseAgent):
             "type": "event_update",
             "event": event.model_dump(mode="json"),
             "round": visible_state.round_number,
-            "phase": visible_state.phase.value
+            "phase": visible_state.phase.value,
         }
         await self._send_to_client(obs_msg)
 
@@ -76,24 +82,21 @@ class HumanAgent(BaseAgent):
                 "last_error": last_error,
                 "legal_context": legal_context.model_dump(mode="json") if legal_context else None,
                 "visible_state": visible_state.model_dump(mode="json"),
-            }
+            },
         }
         await self._send_to_client(req_msg)
-        
+
         logger.info(f"[HumanAgent {self.name}] 等待客户端响应 action_type: {action_type}...")
-        
+
         # 阻塞等待客户端输入
         action_payload = await self.pending_actions.get()
         logger.info(f"[HumanAgent {self.name}] 获得客户端响应: {action_payload}")
-        
+
         return action_payload
 
     async def think(self, prompt: str, visible_state: AgentVisibleState) -> str:
         """人类不需要被强制系统思考，但我们可以弹出一个UI提示"""
-        msg = {
-            "type": "thought_prompt",
-            "prompt": prompt
-        }
+        msg = {"type": "thought_prompt", "prompt": prompt}
         await self._send_to_client(msg)
         return "Human continues playing"
 

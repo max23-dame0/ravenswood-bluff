@@ -57,18 +57,18 @@ class RuleEngine:
         # 2. 存活检查
         if not nominator.is_alive:
             return False, "死亡玩家不能发起提名"
-        
+
         if not nominee.is_alive:
             return False, "不能提名已死亡的玩家"
 
         # 3. 每日限制检查
         if nominator_id in game_state.nominations_today:
             return False, "每位玩家每天只能发起一次提名"
-        
+
         # 被提名者每天只能被提名一次（默认规则）
         if nominee_id == game_state.current_nominee:
             return False, f"玩家 {nominee.name} 正在被提名中"
-            
+
         # 检查今天是否已经被提名过（需要在game_state中记录，暂时假设这里只查记录）
         # 血染规则：每个人每天可以被提名一次，每次可以提名一个人
         if nominee_id in game_state.nominees_today:
@@ -86,7 +86,7 @@ class RuleEngine:
         """
         if game_state.phase != GamePhase.VOTING:
             return False, f"当前不是投票阶段 ({game_state.phase.value})"
-            
+
         if not game_state.current_nominee:
             return False, "当前没有正在进行的提名"
 
@@ -131,12 +131,16 @@ class RuleEngine:
         """
         检查发言合法性 (白天讨论阶段等)
         """
-        if game_state.phase not in (GamePhase.DAY_DISCUSSION, GamePhase.NOMINATION, GamePhase.VOTING):
+        if game_state.phase not in (
+            GamePhase.DAY_DISCUSSION,
+            GamePhase.NOMINATION,
+            GamePhase.VOTING,
+        ):
             return False, "当前阶段不可公开发言"
-            
+
         speaker = game_state.get_player(speaker_id)
         if not speaker:
             return False, "发言者不存在"
-            
+
         # 官方规则：死亡玩家可以一直说话（只是不能提名，只能投一次票）
         return True, ""

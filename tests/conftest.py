@@ -81,9 +81,7 @@ class CapturingBackend(LLMBackend):
 class ScriptedAgent(BaseAgent):
     """Agent that returns pre-scripted actions by action_type, in order."""
 
-    def __init__(
-        self, pid: str, name: str, actions: dict[str, list[dict[str, Any]]]
-    ) -> None:
+    def __init__(self, pid: str, name: str, actions: dict[str, list[dict[str, Any]]]) -> None:
         super().__init__(player_id=pid, name=name)
         self.actions = actions
         self.counters: dict[str, int] = {}
@@ -143,9 +141,7 @@ class DummyStoryteller:
     def role_receives_storyteller_info(self, role_id: str) -> bool:
         return True
 
-    async def decide_night_info(
-        self, game_state: Any, player_id: str, role_id: str
-    ) -> dict:
+    async def decide_night_info(self, game_state: Any, player_id: str, role_id: str) -> dict:
         return {}
 
     async def narrate_phase(self, game_state: Any) -> str:
@@ -293,7 +289,9 @@ def make_orchestrator():
                 players=(
                     PlayerState(player_id="a1", name="Alice", role_id="imp", team=Team.EVIL),
                     PlayerState(player_id="a2", name="Bob", role_id="empath", team=Team.GOOD),
-                    PlayerState(player_id="a3", name="Charlie", role_id="washerwoman", team=Team.GOOD),
+                    PlayerState(
+                        player_id="a3", name="Charlie", role_id="washerwoman", team=Team.GOOD
+                    ),
                 ),
             )
         orch = GameOrchestrator(state)

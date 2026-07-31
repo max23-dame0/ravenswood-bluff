@@ -42,7 +42,7 @@ class GameDataCollector:
         thought: str,
         action: dict[str, Any],
         context: dict[str, Any],
-        usage: dict[str, Any] | None = None
+        usage: dict[str, Any] | None = None,
     ) -> None:
         """记录一条 AI 的思维和决策轨迹"""
         if not self._log_file:
@@ -109,14 +109,14 @@ class GameDataCollector:
         """
         if not self._log_file:
             return
-            
+
         entry = {
             "timestamp": datetime.now().isoformat(),
             "type": "snapshot",
             "game_id": self.current_game_id,
-            "data": snapshot
+            "data": snapshot,
         }
-        
+
         try:
             with open(self._log_file, "a", encoding="utf-8") as f:
                 f.write(json.dumps(entry, ensure_ascii=False) + "\n")
@@ -191,9 +191,7 @@ class GameDataCollector:
                     if not line.strip():
                         continue
                     try:
-                        normalized_entries.append(
-                            cls._normalize_trace_entry(json.loads(line))
-                        )
+                        normalized_entries.append(cls._normalize_trace_entry(json.loads(line)))
                     except Exception as e:
                         parse_error_count += 1
                         logger.warning(f"Error parsing trace line in {file_path}: {e}")

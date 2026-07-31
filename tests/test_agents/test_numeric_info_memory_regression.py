@@ -2,7 +2,15 @@ import pytest
 
 from src.agents.ai_agent import AIAgent, Persona
 from src.llm.base_backend import LLMBackend, LLMResponse, Message
-from src.state.game_state import ChatMessage, GameEvent, GamePhase, GameState, PlayerState, Team, Visibility
+from src.state.game_state import (
+    ChatMessage,
+    GameEvent,
+    GamePhase,
+    GameState,
+    PlayerState,
+    Team,
+    Visibility,
+)
 
 
 class DummyBackend(LLMBackend):
@@ -46,7 +54,11 @@ async def test_empath_info_survives_phase_archive_and_enters_context():
             round_number=2,
             target="p2",
             visibility=Visibility.PRIVATE,
-            payload={"type": "empath_info", "title": "共情者信息", "lines": ["你存活的邻座中，邪恶玩家数量：1。"]},
+            payload={
+                "type": "empath_info",
+                "title": "共情者信息",
+                "lines": ["你存活的邻座中，邪恶玩家数量：1。"],
+            },
         ),
         visible_state,
     )
@@ -69,7 +81,12 @@ async def test_chef_info_can_create_verifiable_scoring_difference():
             PlayerState(player_id="p3", name="Charlie", role_id="imp", team=Team.EVIL),
         ),
         chat_history=(
-            ChatMessage(speaker="p2", content="Charlie 很可疑。", phase=GamePhase.DAY_DISCUSSION, round_number=2),
+            ChatMessage(
+                speaker="p2",
+                content="Charlie 很可疑。",
+                phase=GamePhase.DAY_DISCUSSION,
+                round_number=2,
+            ),
         ),
     )
     agent.synchronize_role(state.get_player("p1"))
@@ -81,7 +98,11 @@ async def test_chef_info_can_create_verifiable_scoring_difference():
             round_number=1,
             target="p1",
             visibility=Visibility.PRIVATE,
-            payload={"type": "chef_info", "title": "厨师信息", "lines": ["相邻的邪恶玩家对数：1。"]},
+            payload={
+                "type": "chef_info",
+                "title": "厨师信息",
+                "lines": ["相邻的邪恶玩家对数：1。"],
+            },
         ),
         visible_state,
     )
@@ -105,7 +126,12 @@ async def test_high_confidence_numeric_info_is_not_overwritten_by_public_noise()
             PlayerState(player_id="p4", name="Far", role_id="chef", team=Team.GOOD),
         ),
         chat_history=(
-            ChatMessage(speaker="p4", content="我觉得 Left 是好人。", phase=GamePhase.DAY_DISCUSSION, round_number=2),
+            ChatMessage(
+                speaker="p4",
+                content="我觉得 Left 是好人。",
+                phase=GamePhase.DAY_DISCUSSION,
+                round_number=2,
+            ),
         ),
     )
     agent.synchronize_role(state.get_player("p2"))
@@ -117,7 +143,11 @@ async def test_high_confidence_numeric_info_is_not_overwritten_by_public_noise()
             round_number=2,
             target="p2",
             visibility=Visibility.PRIVATE,
-            payload={"type": "empath_info", "title": "共情者信息", "lines": ["你存活的邻座中，邪恶玩家数量：2。"]},
+            payload={
+                "type": "empath_info",
+                "title": "共情者信息",
+                "lines": ["你存活的邻座中，邪恶玩家数量：2。"],
+            },
         ),
         visible_state,
     )

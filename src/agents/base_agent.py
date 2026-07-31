@@ -9,7 +9,14 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import Any, Optional
 
-from src.state.game_state import AgentActionLegalContext, AgentVisibleState, GameEvent, PlayerState, PrivatePlayerView, Team
+from src.state.game_state import (
+    AgentActionLegalContext,
+    AgentVisibleState,
+    GameEvent,
+    PlayerState,
+    PrivatePlayerView,
+    Team,
+)
 
 
 class BaseAgent(ABC):
@@ -23,7 +30,7 @@ class BaseAgent(ABC):
     def __init__(self, player_id: str, name: str) -> None:
         self.player_id = player_id
         self.name = name
-        
+
         # 这些属性在游戏开始时(SETUP)会通过 update_state 被注入
         self.role_id: Optional[str] = None
         self.team: Optional[str] = None
@@ -75,7 +82,7 @@ class BaseAgent(ABC):
     async def think(self, prompt: str, visible_state: AgentVisibleState) -> str:
         """
         强制Agent进行内部思考，更新其记忆或推理状态。(主要对AI有效)
-        
+
         Args:
             prompt: 引导思考的提示，如 "白天结束了，总结一下大家的情报"
             visible_state: 当前玩家可见的游戏状态
@@ -95,7 +102,9 @@ class BaseAgent(ABC):
             player_state = PrivatePlayerView(
                 player_id=player_state.player_id,
                 name=player_state.name,
-                perceived_role_id=player_state.perceived_role_id or player_state.fake_role or player_state.role_id,
+                perceived_role_id=player_state.perceived_role_id
+                or player_state.fake_role
+                or player_state.role_id,
                 public_claim_role_id=player_state.public_claim_role_id,
                 current_team=player_state.current_team or player_state.team,
                 is_alive=player_state.is_alive,

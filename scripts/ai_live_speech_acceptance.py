@@ -138,7 +138,19 @@ async def _run_live_like_game(player_count: int = 5) -> dict:
 
 
 def _has_effective_content(content: str) -> bool:
-    markers = ("我更想", "回应", "解释", "逻辑", "提名", "投票", "票型", "发言", "方向", "线索", "站死")
+    markers = (
+        "我更想",
+        "回应",
+        "解释",
+        "逻辑",
+        "提名",
+        "投票",
+        "票型",
+        "发言",
+        "方向",
+        "线索",
+        "站死",
+    )
     return len(content.strip()) >= 18 and sum(1 for marker in markers if marker in content) >= 1
 
 
@@ -151,9 +163,7 @@ def _chain_template_rate(events: list[dict]) -> float:
         "把自己的逻辑讲清楚，尤其是他前后态度有没有对上",
     )
     chain_like = sum(
-        1
-        for event in events
-        if any(marker in event["content"] for marker in chain_markers)
+        1 for event in events if any(marker in event["content"] for marker in chain_markers)
     )
     return chain_like / len(events)
 
@@ -164,9 +174,12 @@ def _analyze_game(result: dict) -> dict:
     speak_count = len(speak_metrics)
     fallback_count = sum(1 for m in speak_metrics if m.get("fallback_used"))
     llm_success = sum(1 for m in speak_metrics if m.get("speech_source") == "live_llm")
-    cache_finalized = sum(1 for m in speak_metrics if str(m.get("speech_source") or "").startswith("cache_finalized"))
+    cache_finalized = sum(
+        1 for m in speak_metrics if str(m.get("speech_source") or "").startswith("cache_finalized")
+    )
     hard_timeout_records = [
-        m for m in result["metrics"]
+        m
+        for m in result["metrics"]
         if str(m.get("fallback_reason") or "").startswith("orchestrator_hard_timeout")
     ]
 
@@ -204,8 +217,10 @@ def _print_analysis(analysis: dict) -> None:
     print(f"  [{pc}p] effective_content_rate: {analysis['effective_content_rate']:.0%}")
     print(f"  [{pc}p] chain_template_rate: {analysis['chain_template_rate']:.0%}")
     print(f"  [{pc}p] orchestrator_timeout: {analysis['orchestrator_timeout_count']}")
-    print(f"  [{pc}p] speak latency: P50={analysis['speak_latency_p50_ms']:.0f}ms "
-          f"P95={analysis['speak_latency_p95_ms']:.0f}ms max={analysis['speak_latency_max_ms']:.0f}ms")
+    print(
+        f"  [{pc}p] speak latency: P50={analysis['speak_latency_p50_ms']:.0f}ms "
+        f"P95={analysis['speak_latency_p95_ms']:.0f}ms max={analysis['speak_latency_max_ms']:.0f}ms"
+    )
 
 
 def _write_evidence(analyses: list[dict]) -> Path:
@@ -256,8 +271,10 @@ def _write_evidence(analyses: list[dict]) -> Path:
     lines.append("| Players | P50 | P95 | Max |")
     lines.append("|---------|-----|-----|-----|")
     for a in analyses:
-        lines.append(f"| {a['player_count']}p | {a['speak_latency_p50_ms']:.0f}ms | "
-                     f"{a['speak_latency_p95_ms']:.0f}ms | {a['speak_latency_max_ms']:.0f}ms |")
+        lines.append(
+            f"| {a['player_count']}p | {a['speak_latency_p50_ms']:.0f}ms | "
+            f"{a['speak_latency_p95_ms']:.0f}ms | {a['speak_latency_max_ms']:.0f}ms |"
+        )
 
     lines.append("")
     lines.append("## Residual Risks")

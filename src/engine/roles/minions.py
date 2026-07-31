@@ -121,16 +121,15 @@ class SpyRole(BaseRole):
         """间谍每晚查看魔法书：所有玩家的角色和阵营"""
         grimoire = []
         for p in game_state.players:
-            grimoire.append({
-                "player_id": p.player_id,
-                "role_id": p.true_role_id or p.role_id,
-                "team": p.current_team.value if p.current_team else p.team.value,
-                "is_alive": p.is_alive
-            })
-        return {
-            "type": "spy_book",
-            "book": grimoire
-        }
+            grimoire.append(
+                {
+                    "player_id": p.player_id,
+                    "role_id": p.true_role_id or p.role_id,
+                    "team": p.current_team.value if p.current_team else p.team.value,
+                    "is_alive": p.is_alive,
+                }
+            )
+        return {"type": "spy_book", "book": grimoire}
 
     def get_night_info(self, game_state, actor):
         return self.build_storyteller_info(game_state, actor)
@@ -170,14 +169,14 @@ class ScarletWomanRole(BaseRole):
         """检查绯红女郎接班。若符合条件，则接管为恶魔。"""
         if pre_death_state.alive_count < 5:
             return post_death_state, []
-            
+
         for player in post_death_state.get_alive_players():
             if (player.true_role_id or player.role_id) == "scarlet_woman":
                 demon_player = pre_death_state.get_player(dead_demon_id)
                 if not demon_player:
                     continue
                 new_demon_role = demon_player.true_role_id or demon_player.role_id
-                
+
                 new_state = post_death_state.with_player_update(
                     player.player_id,
                     role_id=new_demon_role,
@@ -185,7 +184,8 @@ class ScarletWomanRole(BaseRole):
                     true_role_id=new_demon_role,
                     perceived_role_id=new_demon_role,
                     current_team=Team.EVIL,
-                    storyteller_notes=player.storyteller_notes + (f"role_transferred_to_{new_demon_role}",)
+                    storyteller_notes=player.storyteller_notes
+                    + (f"role_transferred_to_{new_demon_role}",),
                 )
                 transfer_event = GameEvent(
                     event_type="role_transfer",
@@ -195,10 +195,10 @@ class ScarletWomanRole(BaseRole):
                     actor=dead_demon_id,
                     target=player.player_id,
                     visibility=Visibility.STORYTELLER_ONLY,
-                    payload={"new_role": new_demon_role, "reason": "scarlet_woman_trigger"}
+                    payload={"new_role": new_demon_role, "reason": "scarlet_woman_trigger"},
                 )
                 return new_state.with_event(transfer_event), [transfer_event]
-                
+
         return post_death_state, []
 
     @staticmethod
@@ -245,7 +245,7 @@ class BaronRole(BaseRole):
                 description="由于你的加入，剧本中会额外包含两名外来者，而村民则相应减少",
                 night_order=0,
             ),
-            setup_influence="add_2_outsiders"
+            setup_influence="add_2_outsiders",
         )
 
     def execute_ability(self, game_state, actor, target=None, **kwargs):

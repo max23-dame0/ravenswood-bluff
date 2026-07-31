@@ -177,7 +177,9 @@ class GameDebugLogger:
             return
         meta_path = self._session_dir / "metadata.json"
         try:
-            current = json.loads(meta_path.read_text(encoding="utf-8")) if meta_path.exists() else {}
+            current = (
+                json.loads(meta_path.read_text(encoding="utf-8")) if meta_path.exists() else {}
+            )
         except Exception:
             current = {}
         existing_metadata = current.get("metadata")

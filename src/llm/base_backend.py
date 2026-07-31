@@ -14,7 +14,8 @@ from pydantic import BaseModel, Field
 
 class Message(BaseModel):
     """LLM 消息"""
-    role: str              # "system" / "user" / "assistant" / "tool"
+
+    role: str  # "system" / "user" / "assistant" / "tool"
     content: str
     name: Optional[str] = None
     tool_call_id: Optional[str] = None
@@ -23,6 +24,7 @@ class Message(BaseModel):
 
 class ToolDef(BaseModel):
     """工具定义（用于 LLM tool calling）"""
+
     name: str
     description: str
     parameters: dict = Field(default_factory=dict)
@@ -30,6 +32,7 @@ class ToolDef(BaseModel):
 
 class ToolCall(BaseModel):
     """LLM 返回的工具调用"""
+
     tool_call_id: str
     function_name: str
     arguments: dict = Field(default_factory=dict)
@@ -37,7 +40,8 @@ class ToolCall(BaseModel):
 
 class LLMResponse(BaseModel):
     """LLM 响应"""
-    content: Optional[str] = None           # 文本响应
+
+    content: Optional[str] = None  # 文本响应
     tool_calls: list[ToolCall] = Field(default_factory=list)
     model: str = ""
     usage: dict = Field(default_factory=dict)  # token 用量

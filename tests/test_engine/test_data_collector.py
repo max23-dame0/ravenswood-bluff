@@ -106,5 +106,7 @@ def test_export_ai_traces_normalizes_records_and_counts_parse_errors() -> None:
     assert snapshot_entry["raw"]["summary"]["alive_players"] == 7
     assert snapshot_entry["retrieval_summary"]["p1"]["status"] == "degraded"
     assert snapshot_entry["retrieval_summary"]["p1"]["embeddings_enabled"] is False
-    assert snapshot_entry["retrieval_summary"]["p1"]["disable_reason"] == "404 embeddings unavailable"
+    assert (
+        snapshot_entry["retrieval_summary"]["p1"]["disable_reason"] == "404 embeddings unavailable"
+    )
     assert snapshot_entry["retrieval_summary"]["p1"]["last_query"] == "vote p2"

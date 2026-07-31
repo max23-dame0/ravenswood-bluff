@@ -8,9 +8,7 @@ from src.state.game_state import GamePhase, GameState, PlayerState, Team
 
 def make_state(**kwargs) -> GameState:
     defaults = {
-        "players": (
-            PlayerState(player_id="p1", name="A", role_id="r1", team=Team.GOOD),
-        ),
+        "players": (PlayerState(player_id="p1", name="A", role_id="r1", team=Team.GOOD),),
     }
     defaults.update(kwargs)
     return GameState(**defaults)

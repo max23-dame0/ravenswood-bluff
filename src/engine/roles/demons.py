@@ -62,7 +62,9 @@ class ImpRole(BaseRole):
                 return player
         return None
 
-    def _find_minion_replacement(self, game_state: GameState, exclude_player_id: str) -> Optional[PlayerState]:
+    def _find_minion_replacement(
+        self, game_state: GameState, exclude_player_id: str
+    ) -> Optional[PlayerState]:
         """在没有绯红女郎时，选择一个存活爪牙接管。"""
         for player in game_state.get_alive_players():
             if player.player_id == exclude_player_id:
@@ -95,7 +97,7 @@ class ImpRole(BaseRole):
         protected = PlayerStatus.PROTECTED in target_player.statuses
         soldier_cls = get_role_class("soldier")
         soldier_safe = bool(soldier_cls and soldier_cls.is_immune_to_demon(target_player))
-        
+
         if target != actor.player_id and (protected or soldier_safe):
             fail_event = GameEvent(
                 event_type="night_kill",
@@ -105,9 +107,9 @@ class ImpRole(BaseRole):
                 target=target,
                 visibility=Visibility.STORYTELLER_ONLY,
                 payload={
-                    "failed": True, 
+                    "failed": True,
                     "reason": "protected" if protected else "soldier_safe",
-                    "killer_role": "imp"
+                    "killer_role": "imp",
                 },
             )
             return game_state.with_event(fail_event), [fail_event]
@@ -115,8 +117,14 @@ class ImpRole(BaseRole):
         actual_target = target
         mayor_cls = get_role_class("mayor")
         redirected_from = None
-        if mayor_cls and mayor_cls.should_redirect_night_death(game_state, target_player) and target != actor.player_id:
-            redirected_target = mayor_cls.choose_redirection_target(game_state, mayor_player_id=target_player.player_id, killer_id=actor.player_id)
+        if (
+            mayor_cls
+            and mayor_cls.should_redirect_night_death(game_state, target_player)
+            and target != actor.player_id
+        ):
+            redirected_target = mayor_cls.choose_redirection_target(
+                game_state, mayor_player_id=target_player.player_id, killer_id=actor.player_id
+            )
             if redirected_target:
                 actual_target = redirected_target
                 redirected_from = target
@@ -145,12 +153,16 @@ class ImpRole(BaseRole):
             replacement = self._find_scarlet_woman(game_state)
             replacement_reason = "scarlet_woman_trigger"
             if not replacement:
-                replacement = self._find_minion_replacement(game_state, exclude_player_id=actor.player_id)
+                replacement = self._find_minion_replacement(
+                    game_state, exclude_player_id=actor.player_id
+                )
                 replacement_reason = "imp_suicide"
 
             if replacement:
                 # [GAME-3.3] 新恶魔保留原有的公开伪装身份（perceived_role_id），不暴露为 imp
-                old_perceived = replacement.perceived_role_id or replacement.fake_role or replacement.role_id
+                old_perceived = (
+                    replacement.perceived_role_id or replacement.fake_role or replacement.role_id
+                )
                 new_state = new_state.with_player_update(
                     replacement.player_id,
                     role_id="imp",

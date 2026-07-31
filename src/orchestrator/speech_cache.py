@@ -21,6 +21,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class CachedDraft:
     """A pre-generated speech draft."""
+
     content: str
     tone: str
     reasoning: str
@@ -93,9 +94,7 @@ class SpeechPreGenCache:
 
             # Start background generation
             self.stats["pregen_count"] += 1
-            task = asyncio.create_task(
-                self._generate_draft(player_id, agent, vs, lc, event_count)
-            )
+            task = asyncio.create_task(self._generate_draft(player_id, agent, vs, lc, event_count))
             self._tasks[player_id] = task
             task.add_done_callback(lambda t, pid=player_id: self._on_task_done(pid, t))
 

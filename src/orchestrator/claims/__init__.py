@@ -54,7 +54,11 @@ class ClaimExtractor:
         from src.llm.openai_backend import OpenAIBackend
         from src.llm.base_backend import Message
 
-        backend = self._o.default_agent_backend or (getattr(self._o.storyteller_agent, "backend", None)) or OpenAIBackend()
+        backend = (
+            self._o.default_agent_backend
+            or (getattr(self._o.storyteller_agent, "backend", None))
+            or OpenAIBackend()
+        )
         content = event.payload.get("content", "")
         if not content:
             return []

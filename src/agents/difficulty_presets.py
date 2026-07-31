@@ -1,4 +1,5 @@
 """Difficulty presets for AI agent behavior."""
+
 from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
@@ -26,6 +27,7 @@ class DifficultyPreset:
         information_openness – tendency to share info publicly [0,1]
         nomination_intelligence – nomination targeting precision [0,1]
     """
+
     name: str
     description: str
     temperature: float
@@ -109,8 +111,7 @@ PRESETS: dict[str, DifficultyPreset] = {
             "结合自己的私密信息做出判断。不要轻信也不要过度怀疑。"
         ),
         speech_style_prompt=(
-            "发言自然、有条理。先说观点再补理由。"
-            "可以质疑他人但保持礼貌。不要一次性释放所有信息。"
+            "发言自然、有条理。先说观点再补理由。可以质疑他人但保持礼貌。不要一次性释放所有信息。"
         ),
         competence=0.5,
         deception=0.3,

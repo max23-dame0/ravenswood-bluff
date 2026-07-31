@@ -87,7 +87,9 @@ def _percentile(values: list[float], pct: float) -> float:
     return sorted_values[f] + (k - f) * (sorted_values[c] - sorted_values[f])
 
 
-async def _measure_case(backend: OpenAIBackend, case: PromptCase, samples: int, pause: float) -> dict[str, Any]:
+async def _measure_case(
+    backend: OpenAIBackend, case: PromptCase, samples: int, pause: float
+) -> dict[str, Any]:
     results: list[dict[str, Any]] = []
     for index in range(1, samples + 1):
         started = time.perf_counter()
@@ -118,7 +120,9 @@ async def _measure_case(backend: OpenAIBackend, case: PromptCase, samples: int, 
             }
         )
         status = "ERR" if error else "OK"
-        print(f"  {case.name} #{index}: {elapsed:.2f}s {status} tokens={results[-1]['total_tokens']}")
+        print(
+            f"  {case.name} #{index}: {elapsed:.2f}s {status} tokens={results[-1]['total_tokens']}"
+        )
         if pause > 0 and index < samples:
             await asyncio.sleep(pause)
 
@@ -135,7 +139,9 @@ async def _measure_case(backend: OpenAIBackend, case: PromptCase, samples: int, 
         "p95_seconds": round(_percentile(latencies, 95), 3) if latencies else None,
         "min_seconds": round(min(latencies), 3) if latencies else None,
         "max_seconds": round(max(latencies), 3) if latencies else None,
-        "avg_total_tokens": round(statistics.mean([r["total_tokens"] for r in results if r["total_tokens"]]), 1)
+        "avg_total_tokens": round(
+            statistics.mean([r["total_tokens"] for r in results if r["total_tokens"]]), 1
+        )
         if any(r["total_tokens"] for r in results)
         else 0,
         "error_examples": [r["error"] for r in errors[:3]],
@@ -177,7 +183,9 @@ async def main_async(args: argparse.Namespace) -> int:
     if args.json_output:
         output_path = Path(args.json_output)
         output_path.parent.mkdir(parents=True, exist_ok=True)
-        output_path.write_text(json.dumps(summaries, ensure_ascii=False, indent=2), encoding="utf-8")
+        output_path.write_text(
+            json.dumps(summaries, ensure_ascii=False, indent=2), encoding="utf-8"
+        )
         print(f"\nwrote JSON: {output_path}")
     return 0 if all(item["successes"] > 0 for item in summaries) else 1
 
@@ -192,7 +200,9 @@ def parse_args() -> argparse.Namespace:
         help="Prompt cases to run.",
     )
     parser.add_argument("--pause-seconds", type=float, default=0.5, help="Pause between samples.")
-    parser.add_argument("--json-output", default="", help="Optional path to write raw JSON results.")
+    parser.add_argument(
+        "--json-output", default="", help="Optional path to write raw JSON results."
+    )
     return parser.parse_args()
 
 

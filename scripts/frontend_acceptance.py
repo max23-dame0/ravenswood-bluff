@@ -37,7 +37,12 @@ def wait_for_state(client: TestClient, player_id: str = "h1") -> dict[str, Any]:
         time.sleep(0.1)
         last_state = client.get("/api/game/state", params={"player_id": player_id}).json()
         metrics = client.get("/api/game/metrics").json()
-        if metrics.get("nomination_prompt_count", 0) > 0 or last_state.get("phase") in {"nomination", "voting", "night", "game_over"}:
+        if metrics.get("nomination_prompt_count", 0) > 0 or last_state.get("phase") in {
+            "nomination",
+            "voting",
+            "night",
+            "game_over",
+        }:
             break
     return last_state
 

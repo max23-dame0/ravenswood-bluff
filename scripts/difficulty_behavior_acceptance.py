@@ -88,14 +88,15 @@ def check_prompt_block_differences() -> None:
         _check(f"evil/{d} does NOT contain 【正义策略】", "【正义策略】" not in block)
 
     # Verify prompts are meaningfully different across difficulties
-    _check("casual good block != master good block",
-           good_blocks["casual"] != good_blocks["master"])
-    _check("standard good block != master good block",
-           good_blocks["standard"] != good_blocks["master"])
-    _check("casual evil block != master evil block",
-           evil_blocks["casual"] != evil_blocks["master"])
-    _check("master evil block longer than standard evil block",
-           len(evil_blocks["master"]) > len(evil_blocks["standard"]))
+    _check("casual good block != master good block", good_blocks["casual"] != good_blocks["master"])
+    _check(
+        "standard good block != master good block", good_blocks["standard"] != good_blocks["master"]
+    )
+    _check("casual evil block != master evil block", evil_blocks["casual"] != evil_blocks["master"])
+    _check(
+        "master evil block longer than standard evil block",
+        len(evil_blocks["master"]) > len(evil_blocks["standard"]),
+    )
 
 
 # ------------------------------------------------------------------
@@ -130,14 +131,22 @@ def check_decision_noise_differences() -> None:
     # Noise magnitude ordering
     magnitudes = {d: _NOISE_MAGNITUDE[d] for d in difficulties}
     _check("chaos magnitude (0.18) > casual (0.12)", magnitudes["chaos"] > magnitudes["casual"])
-    _check("casual magnitude (0.12) > standard (0.05)", magnitudes["casual"] > magnitudes["standard"])
-    _check("standard magnitude (0.05) > master (0.02)", magnitudes["standard"] > magnitudes["master"])
+    _check(
+        "casual magnitude (0.12) > standard (0.05)", magnitudes["casual"] > magnitudes["standard"]
+    )
+    _check(
+        "standard magnitude (0.05) > master (0.02)", magnitudes["standard"] > magnitudes["master"]
+    )
 
     # Bold move probability ordering
     bold_probs = {d: _BOLD_MOVE_PROB[d] for d in difficulties}
     _check("chaos bold_prob (0.15) > casual (0.08)", bold_probs["chaos"] > bold_probs["casual"])
-    _check("casual bold_prob (0.08) > standard (0.03)", bold_probs["casual"] > bold_probs["standard"])
-    _check("standard bold_prob (0.03) > master (0.01)", bold_probs["standard"] > bold_probs["master"])
+    _check(
+        "casual bold_prob (0.08) > standard (0.03)", bold_probs["casual"] > bold_probs["standard"]
+    )
+    _check(
+        "standard bold_prob (0.03) > master (0.01)", bold_probs["standard"] > bold_probs["master"]
+    )
 
     # Verify noise actually varies across difficulties for same context
     context_key = "vote_day3_nominee_p5"
@@ -178,12 +187,18 @@ def check_persona_override_differences() -> None:
     _check("chaos nomination_threshold_offset < 0 (more aggressive)", chaos_offset < 0)
 
     # Assertiveness
-    _check("casual assertiveness is passive",
-           PRESETS["casual"].persona_overrides.get("assertiveness") == "passive")
-    _check("master assertiveness is high",
-           PRESETS["master"].persona_overrides.get("assertiveness") == "high")
-    _check("chaos assertiveness is high",
-           PRESETS["chaos"].persona_overrides.get("assertiveness") == "high")
+    _check(
+        "casual assertiveness is passive",
+        PRESETS["casual"].persona_overrides.get("assertiveness") == "passive",
+    )
+    _check(
+        "master assertiveness is high",
+        PRESETS["master"].persona_overrides.get("assertiveness") == "high",
+    )
+    _check(
+        "chaos assertiveness is high",
+        PRESETS["chaos"].persona_overrides.get("assertiveness") == "high",
+    )
 
 
 # ------------------------------------------------------------------
@@ -195,26 +210,40 @@ def check_multi_axis_ordering() -> None:
     print("[5] Multi-axis parameter ordering")
 
     # Master should have highest competence
-    _check("master competence (0.85) > standard (0.5)",
-           PRESETS["master"].competence > PRESETS["standard"].competence)
-    _check("standard competence (0.5) > casual (0.3)",
-           PRESETS["standard"].competence > PRESETS["casual"].competence)
+    _check(
+        "master competence (0.85) > standard (0.5)",
+        PRESETS["master"].competence > PRESETS["standard"].competence,
+    )
+    _check(
+        "standard competence (0.5) > casual (0.3)",
+        PRESETS["standard"].competence > PRESETS["casual"].competence,
+    )
 
     # Chaos should have highest volatility
-    _check("chaos volatility (0.85) > casual (0.5)",
-           PRESETS["chaos"].volatility > PRESETS["casual"].volatility)
-    _check("casual volatility (0.5) > standard (0.2)",
-           PRESETS["casual"].volatility > PRESETS["standard"].volatility)
+    _check(
+        "chaos volatility (0.85) > casual (0.5)",
+        PRESETS["chaos"].volatility > PRESETS["casual"].volatility,
+    )
+    _check(
+        "casual volatility (0.5) > standard (0.2)",
+        PRESETS["casual"].volatility > PRESETS["standard"].volatility,
+    )
 
     # Master should have highest deception
-    _check("master deception (0.7) > chaos (0.5)",
-           PRESETS["master"].deception > PRESETS["chaos"].deception)
+    _check(
+        "master deception (0.7) > chaos (0.5)",
+        PRESETS["master"].deception > PRESETS["chaos"].deception,
+    )
 
     # Casual should have highest information_openness
-    _check("casual information_openness (0.7) > standard (0.5)",
-           PRESETS["casual"].information_openness > PRESETS["standard"].information_openness)
-    _check("standard information_openness (0.5) > master (0.3)",
-           PRESETS["standard"].information_openness > PRESETS["master"].information_openness)
+    _check(
+        "casual information_openness (0.7) > standard (0.5)",
+        PRESETS["casual"].information_openness > PRESETS["standard"].information_openness,
+    )
+    _check(
+        "standard information_openness (0.5) > master (0.3)",
+        PRESETS["standard"].information_openness > PRESETS["master"].information_openness,
+    )
 
 
 # ------------------------------------------------------------------
@@ -228,8 +257,10 @@ def check_latency_budget_differences() -> None:
     for action in ("vote", "speak", "nomination_intent"):
         casual_budget = PRESETS["casual"].latency_budget[action]
         master_budget = PRESETS["master"].latency_budget[action]
-        _check(f"casual {action} budget ({casual_budget}ms) >= master ({master_budget}ms)",
-               casual_budget >= master_budget)
+        _check(
+            f"casual {action} budget ({casual_budget}ms) >= master ({master_budget}ms)",
+            casual_budget >= master_budget,
+        )
 
 
 # ------------------------------------------------------------------
@@ -241,14 +272,25 @@ def check_nomination_intelligence_differences() -> None:
     print("[7] Nomination intelligence differences")
 
     # 7a. Axis ordering
-    _check("master nomination_intelligence (0.85) > standard (0.5)",
-           PRESETS["master"].nomination_intelligence > PRESETS["standard"].nomination_intelligence)
-    _check("standard nomination_intelligence (0.5) > casual (0.2)",
-           PRESETS["standard"].nomination_intelligence > PRESETS["casual"].nomination_intelligence)
-    _check("chaos nomination_intelligence (0.4) in [0.2, 0.5]",
-           0.2 <= PRESETS["chaos"].nomination_intelligence <= 0.5)
-    _check("all nomination_intelligence in [0,1]",
-           all(0.0 <= PRESETS[k].nomination_intelligence <= 1.0 for k in ("casual", "standard", "master", "chaos")))
+    _check(
+        "master nomination_intelligence (0.85) > standard (0.5)",
+        PRESETS["master"].nomination_intelligence > PRESETS["standard"].nomination_intelligence,
+    )
+    _check(
+        "standard nomination_intelligence (0.5) > casual (0.2)",
+        PRESETS["standard"].nomination_intelligence > PRESETS["casual"].nomination_intelligence,
+    )
+    _check(
+        "chaos nomination_intelligence (0.4) in [0.2, 0.5]",
+        0.2 <= PRESETS["chaos"].nomination_intelligence <= 0.5,
+    )
+    _check(
+        "all nomination_intelligence in [0,1]",
+        all(
+            0.0 <= PRESETS[k].nomination_intelligence <= 1.0
+            for k in ("casual", "standard", "master", "chaos")
+        ),
+    )
 
     # 7b. Margin ordering: casual (low intel) needs bigger gap than master (high intel)
     from src.agents.decision.decision_engine import DecisionEngine
@@ -257,13 +299,19 @@ def check_nomination_intelligence_differences() -> None:
     for d in ("casual", "standard", "master", "chaos"):
         agent = _make_agent(Team.GOOD.value, d)
         # Need a minimal persona_profile for DecisionEngine
-        agent.persona_profile = {"archetype": None, "risk_tolerance": "均衡", "assertiveness": "中性"}
+        agent.persona_profile = {
+            "archetype": None,
+            "risk_tolerance": "均衡",
+            "assertiveness": "中性",
+        }
         agents[d] = DecisionEngine(agent)
 
     casual_margin = agents["casual"].nomination_margin()
     master_margin = agents["master"].nomination_margin()
-    _check(f"casual margin ({casual_margin:.3f}) > master margin ({master_margin:.3f})",
-           casual_margin > master_margin)
+    _check(
+        f"casual margin ({casual_margin:.3f}) > master margin ({master_margin:.3f})",
+        casual_margin > master_margin,
+    )
 
     # 7c. Evil protection scaling: master evil protects teammates more than casual evil
     # Use a mock visible_state with a target that is a confirmed evil teammate
@@ -279,7 +327,9 @@ def check_nomination_intelligence_differences() -> None:
         agent.social_graph.profiles["p_target"] = profile
 
         # Set up working memory with evil teammate info
-        agent.working_memory.remember_objective_info("evil_teammates", "TeammateTarget 是你的邪恶队友")
+        agent.working_memory.remember_objective_info(
+            "evil_teammates", "TeammateTarget 是你的邪恶队友"
+        )
 
         # Create minimal visible_state
         mock_player = MagicMock()
@@ -300,8 +350,10 @@ def check_nomination_intelligence_differences() -> None:
         else:
             master_evil_score = score
 
-    _check(f"master evil teammate score ({master_evil_score:.3f}) < casual evil teammate score ({casual_evil_score:.3f})",
-           master_evil_score < casual_evil_score)
+    _check(
+        f"master evil teammate score ({master_evil_score:.3f}) < casual evil teammate score ({casual_evil_score:.3f})",
+        master_evil_score < casual_evil_score,
+    )
 
     # 7d. High-value target identification: master evil targets info roles more
     for d in ("casual", "master"):
@@ -330,14 +382,15 @@ def check_nomination_intelligence_differences() -> None:
         else:
             master_ft_score = score
 
-    _check(f"master evil FT target score ({master_ft_score:.3f}) > casual ({casual_ft_score:.3f})",
-           master_ft_score > casual_ft_score)
+    _check(
+        f"master evil FT target score ({master_ft_score:.3f}) > casual ({casual_ft_score:.3f})",
+        master_ft_score > casual_ft_score,
+    )
 
     # 7e. Bold move probability: chaos > master
     chaos_bmp = _BOLD_MOVE_PROB["chaos"]
     master_bmp = _BOLD_MOVE_PROB["master"]
-    _check(f"chaos bold_move_prob ({chaos_bmp}) > master ({master_bmp})",
-           chaos_bmp > master_bmp)
+    _check(f"chaos bold_move_prob ({chaos_bmp}) > master ({master_bmp})", chaos_bmp > master_bmp)
 
 
 # ------------------------------------------------------------------

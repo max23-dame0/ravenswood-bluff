@@ -11,7 +11,7 @@ class DummyAgent(BaseAgent):
         super().__init__(player_id=pid, name=f"Agent_{pid}")
         self._team = team
         self.observed_events = []
-    
+
     def synchronize_role(self, state):
         self.team = self._team.value
 
@@ -20,7 +20,7 @@ class DummyAgent(BaseAgent):
 
     async def observe_event(self, event, visible_state):
         self.observed_events.append(event)
-        
+
     async def think(self, prompt, visible_state):
         pass
 
@@ -28,11 +28,11 @@ class DummyAgent(BaseAgent):
 @pytest.mark.asyncio
 async def test_information_broker_visibility():
     broker = InformationBroker()
-    
+
     a1 = DummyAgent("p1", Team.GOOD)
     a2 = DummyAgent("p2", Team.GOOD)
     a3 = DummyAgent("p3", Team.EVIL)
-    
+
     broker.register_agent(a1)
     broker.register_agent(a2)
     broker.register_agent(a3)
@@ -44,30 +44,50 @@ async def test_information_broker_visibility():
             PlayerState(player_id="p3", name="A3", role_id="r3", team=Team.EVIL),
         )
     )
-    
+
     # 1. 公开事件
-    e_pub = GameEvent(event_type="test", round_number=1, phase=GamePhase.DAY_DISCUSSION, visibility=Visibility.PUBLIC)
+    e_pub = GameEvent(
+        event_type="test",
+        round_number=1,
+        phase=GamePhase.DAY_DISCUSSION,
+        visibility=Visibility.PUBLIC,
+    )
     await broker.broadcast_event(e_pub, state)
     assert e_pub in a1.observed_events
     assert e_pub in a2.observed_events
     assert e_pub in a3.observed_events
-    
+
     # 2. 邪恶阵营事件
-    e_evil = GameEvent(event_type="test", round_number=1, phase=GamePhase.NIGHT, visibility=Visibility.TEAM_EVIL)
+    e_evil = GameEvent(
+        event_type="test", round_number=1, phase=GamePhase.NIGHT, visibility=Visibility.TEAM_EVIL
+    )
     await broker.broadcast_event(e_evil, state)
     assert e_evil not in a1.observed_events
     assert e_evil not in a2.observed_events
     assert e_evil in a3.observed_events
-    
+
     # 3. 私人事件 (发给 p2)
-    e_priv = GameEvent(event_type="test", round_number=1, phase=GamePhase.NIGHT, target="p2", visibility=Visibility.PRIVATE)
+    e_priv = GameEvent(
+        event_type="test",
+        round_number=1,
+        phase=GamePhase.NIGHT,
+        target="p2",
+        visibility=Visibility.PRIVATE,
+    )
     await broker.broadcast_event(e_priv, state)
     assert e_priv not in a1.observed_events
     assert e_priv in a2.observed_events
     assert e_priv not in a3.observed_events
-    
+
     # 4. 说书人事件
-    e_story = GameEvent(event_type="test", round_number=1, phase=GamePhase.NIGHT, actor="p1", target="p3", visibility=Visibility.STORYTELLER_ONLY)
+    e_story = GameEvent(
+        event_type="test",
+        round_number=1,
+        phase=GamePhase.NIGHT,
+        actor="p1",
+        target="p3",
+        visibility=Visibility.STORYTELLER_ONLY,
+    )
     await broker.broadcast_event(e_story, state)
     # 参与者应该知道
     assert e_story in a1.observed_events

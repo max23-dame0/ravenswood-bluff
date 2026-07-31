@@ -8,7 +8,10 @@ from pathlib import Path
 def test_long_loop_memory_acceptance_script_runs_and_reports_accumulation():
     repo_root = Path(__file__).resolve().parents[2]
     result = subprocess.run(
-        [str(repo_root / ".venv" / "Scripts" / "python.exe"), "scripts/long_loop_memory_acceptance.py"],
+        [
+            str(repo_root / ".venv" / "Scripts" / "python.exe"),
+            "scripts/long_loop_memory_acceptance.py",
+        ],
         cwd=repo_root,
         capture_output=True,
         text=True,

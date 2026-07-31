@@ -10,13 +10,21 @@ from src.agents.memory.social_graph import SocialGraph
 from src.agents.memory.working_memory import Observation, WorkingMemory
 import src.engine.roles.townsfolk  # noqa: F401
 from src.llm.base_backend import LLMBackend, LLMResponse, Message
-from src.state.game_state import ChatMessage, GameEvent, GamePhase, GameState, PlayerState, Team, Visibility
+from src.state.game_state import (
+    ChatMessage,
+    GameEvent,
+    GamePhase,
+    GameState,
+    PlayerState,
+    Team,
+    Visibility,
+)
 
 
 class DummyBackend(LLMBackend):
     async def generate(self, system_prompt: str, messages: list[Message], **kwargs) -> LLMResponse:
         return LLMResponse(content="这是一个假象的LLM回复", tool_calls=[])
-        
+
     def get_model_name(self) -> str:
         return "dummy-model"
 
@@ -72,12 +80,12 @@ async def test_agent_observe(dummy_agent, dummy_state):
         phase=GamePhase.DAY_DISCUSSION,
         round_number=1,
         actor="p2",
-        payload={"content": "大家好我是好人"}
+        payload={"content": "大家好我是好人"},
     )
-    
+
     visible_state, _ = _agent_ctx(dummy_agent, dummy_state)
     await dummy_agent.observe_event(event, visible_state)
-    
+
     assert not dummy_agent.working_memory.is_empty
     obs = dummy_agent.working_memory.observations[0]
     assert "大家好我是好人" in obs.content
@@ -184,12 +192,12 @@ def test_build_data_snapshot_summary_includes_vector_stats(dummy_agent):
                 "search_hit_count": 5,
                 "last_hit_count": 2,
                 "last_query": "vote p2",
-                "last_hits_preview": ["发言: p2 说: \"我不是恶魔。\""],
+                "last_hits_preview": ['发言: p2 说: "我不是恶魔。"'],
             }
 
     dummy_agent.vector_memory = StubVectorMemory()
     dummy_agent._last_retrieval_query = "vote p2"
-    dummy_agent._last_retrieval_items = [{"text": "发言: p2 说: \"我不是恶魔。\""}]
+    dummy_agent._last_retrieval_items = [{"text": '发言: p2 说: "我不是恶魔。"'}]
 
     summary = dummy_agent.build_data_snapshot_summary()
 
@@ -293,7 +301,9 @@ async def test_agent_private_info_is_pinned_in_anchor_memory(dummy_agent):
 
     assert any("送葬者信息" in fact for fact in dummy_agent.working_memory.anchor_facts)
     assert any("小恶魔" in fact for fact in dummy_agent.working_memory.anchor_facts)
-    assert dummy_agent.working_memory.get_private_memory_summaries("undertaker_info") == ["送葬者信息: 今天被处决的玩家身份是：小恶魔。"]
+    assert dummy_agent.working_memory.get_private_memory_summaries("undertaker_info") == [
+        "送葬者信息: 今天被处决的玩家身份是：小恶魔。"
+    ]
 
 
 @pytest.mark.asyncio
@@ -323,7 +333,9 @@ async def test_agent_records_public_role_claim_as_anchor_fact(dummy_agent):
     bob = dummy_agent.social_graph.get_profile("p2")
     assert bob is not None
     assert bob.claimed_role_id == "fortune_teller"
-    assert any("Bob 公开跳身份为 占卜师" in fact for fact in dummy_agent.working_memory.anchor_facts)
+    assert any(
+        "Bob 公开跳身份为 占卜师" in fact for fact in dummy_agent.working_memory.anchor_facts
+    )
 
 
 @pytest.mark.asyncio
@@ -528,7 +540,9 @@ async def test_confirmed_evil_teammate_private_info_reduces_suspicion_for_evil_a
     teammate_score = agent._target_signal_score("p2", visible_state)
     outsider_score = agent._target_signal_score("p3", visible_state)
     assert teammate_score < outsider_score
-    assert agent.working_memory.get_objective_memory_summaries("evil_teammates") == ["【绝密推演可用】已知邪恶同伴名单：Player 2"]
+    assert agent.working_memory.get_objective_memory_summaries("evil_teammates") == [
+        "【绝密推演可用】已知邪恶同伴名单：Player 2"
+    ]
     assert agent.working_memory.get_objective_memory_summaries("evil_bluffs")
 
 
@@ -797,7 +811,9 @@ async def test_ravenkeeper_info_is_stored_as_high_confidence_memory(dummy_agent)
         round_number=2,
         day_number=2,
         players=(
-            PlayerState(player_id="p1", name="Alice", role_id="ravenkeeper", team=Team.GOOD, is_alive=False),
+            PlayerState(
+                player_id="p1", name="Alice", role_id="ravenkeeper", team=Team.GOOD, is_alive=False
+            ),
             PlayerState(player_id="p2", name="Bob", role_id="imp", team=Team.EVIL),
         ),
     )
@@ -992,9 +1008,14 @@ async def test_ai_agent_ignores_hidden_events_and_private_chats_in_prompt():
         def __init__(self) -> None:
             self.prompts: list[str] = []
 
-        async def generate(self, system_prompt: str, messages: list[Message], **kwargs) -> LLMResponse:
+        async def generate(
+            self, system_prompt: str, messages: list[Message], **kwargs
+        ) -> LLMResponse:
             self.prompts.append(system_prompt)
-            return LLMResponse(content='{"action":"speak","content":"ok","tone":"calm","reasoning":"ok"}', tool_calls=[])
+            return LLMResponse(
+                content='{"action":"speak","content":"ok","tone":"calm","reasoning":"ok"}',
+                tool_calls=[],
+            )
 
         def get_model_name(self) -> str:
             return "capturing-model"
@@ -1082,29 +1103,31 @@ async def test_ai_agent_ignores_hidden_events_and_private_chats_in_prompt():
 async def test_deduction_engine():
     # 测试推理引擎格式化Prompt与处理响应
     class MockBackendDeduction(DummyBackend):
-        async def generate(self, system_prompt: str, messages: list[Message], **kwargs) -> LLMResponse:
+        async def generate(
+            self, system_prompt: str, messages: list[Message], **kwargs
+        ) -> LLMResponse:
             assert "washerwoman" in system_prompt
             assert "这是你的私人思考时刻" in system_prompt
             assert "day_discussion" in messages[0].content
             return LLMResponse(content="我觉得我是好人，Bob也像好人", tool_calls=[])
 
     engine = DeductionEngine(backend=MockBackendDeduction())
-    
+
     wm = WorkingMemory()
     sg = SocialGraph(my_player_id="p1")
-    
+
     me = PlayerState(player_id="p1", name="Alice", role_id="washerwoman", team=Team.GOOD)
     state = GameState(phase=GamePhase.DAY_DISCUSSION, round_number=1, players=(me,))
-    
+
     result = await engine.analyze_situation(
         game_state=state,
         me=me,
         working_memory=wm,
         episodic_summary="无历史",
         social_graph_summary=sg.get_graph_summary(),
-        persona_desc="普通村民"
+        persona_desc="普通村民",
     )
-    
+
     assert "我觉得我是好人" in result
 
 
@@ -1112,34 +1135,41 @@ async def test_deduction_engine():
 async def test_dialogue_manager():
     # 模拟LLM调用工具返回格式不兼容的问题或正常的工具调用
     class MockBackendDialogue(DummyBackend):
-        async def generate(self, system_prompt: str, messages: list[Message], **kwargs) -> LLMResponse:
+        async def generate(
+            self, system_prompt: str, messages: list[Message], **kwargs
+        ) -> LLMResponse:
             # 必须验证传递了工具结构
             assert "tools" in kwargs
             tools = kwargs["tools"]
             assert len(tools) == 1
             assert tools[0].name == "speak"
-            
+
             # 手工构造一个假的 ToolCall
             from src.llm.base_backend import ToolCall
-            dummy_tc = ToolCall(function_name="speak", tool_call_id="call_123", arguments={"content": "我同意大家的看法", "tone": "calm", "target_player": "Bob"})
-                
+
+            dummy_tc = ToolCall(
+                function_name="speak",
+                tool_call_id="call_123",
+                arguments={"content": "我同意大家的看法", "tone": "calm", "target_player": "Bob"},
+            )
+
             return LLMResponse(content="", tool_calls=[dummy_tc])
 
     manager = DialogueManager(backend=MockBackendDialogue())
     wm = WorkingMemory()
-    
+
     me = PlayerState(player_id="p1", name="Alice", role_id="washerwoman", team=Team.GOOD)
     state = GameState(phase=GamePhase.DAY_DISCUSSION, round_number=1, players=(me,))
-    
+
     res = await manager.generate_speech(
         game_state=state,
         me=me,
         working_memory=wm,
         social_graph_summary="",
         current_strategy="假装没用技能",
-        persona={"description": "普通", "speaking_style": "随便"}
+        persona={"description": "普通", "speaking_style": "随便"},
     )
-    
+
     assert res["action"] == "speak"
     assert res["content"] == "我同意大家的看法"
     assert res["target_player"] == "Bob"
@@ -1148,7 +1178,9 @@ async def test_dialogue_manager():
 @pytest.mark.asyncio
 async def test_ai_agent_fallback_nomination_returns_legal_target():
     class BrokenBackend(DummyBackend):
-        async def generate(self, system_prompt: str, messages: list[Message], **kwargs) -> LLMResponse:
+        async def generate(
+            self, system_prompt: str, messages: list[Message], **kwargs
+        ) -> LLMResponse:
             return LLMResponse(content='{"action":"nominate","target":"nobody"}', tool_calls=[])
 
     agent = AIAgent(
@@ -1166,9 +1198,24 @@ async def test_ai_agent_fallback_nomination_returns_legal_target():
         nominees_today=(),
         nominations_today=(),
         chat_history=(
-            ChatMessage(speaker="p3", content="Bob 的解释有点怪", phase=GamePhase.DAY_DISCUSSION, round_number=1),
-            ChatMessage(speaker="p1", content="Bob 这边我还是有点怀疑", phase=GamePhase.DAY_DISCUSSION, round_number=1),
-            ChatMessage(speaker="p3", content="Bob 需要再解释一下", phase=GamePhase.DAY_DISCUSSION, round_number=1),
+            ChatMessage(
+                speaker="p3",
+                content="Bob 的解释有点怪",
+                phase=GamePhase.DAY_DISCUSSION,
+                round_number=1,
+            ),
+            ChatMessage(
+                speaker="p1",
+                content="Bob 这边我还是有点怀疑",
+                phase=GamePhase.DAY_DISCUSSION,
+                round_number=1,
+            ),
+            ChatMessage(
+                speaker="p3",
+                content="Bob 需要再解释一下",
+                phase=GamePhase.DAY_DISCUSSION,
+                round_number=1,
+            ),
         ),
         event_log=(
             GameEvent(
@@ -1196,7 +1243,9 @@ async def test_ai_agent_fallback_nomination_returns_legal_target():
 @pytest.mark.asyncio
 async def test_ai_agent_normalizes_nested_multi_target_night_action():
     class NestedTargetsBackend(DummyBackend):
-        async def generate(self, system_prompt: str, messages: list[Message], **kwargs) -> LLMResponse:
+        async def generate(
+            self, system_prompt: str, messages: list[Message], **kwargs
+        ) -> LLMResponse:
             return LLMResponse(
                 content='{"action":"night_action","target":[["p2","h1"]],"reasoning":"two targets"}',
                 tool_calls=[],
@@ -1234,7 +1283,9 @@ async def test_ai_agent_normalizes_nested_multi_target_night_action():
 @pytest.mark.asyncio
 async def test_ai_agent_nomination_intent_can_proactively_nominate():
     class PassiveBackend(DummyBackend):
-        async def generate(self, system_prompt: str, messages: list[Message], **kwargs) -> LLMResponse:
+        async def generate(
+            self, system_prompt: str, messages: list[Message], **kwargs
+        ) -> LLMResponse:
             return LLMResponse(content='{"action":"none"}', tool_calls=[])
 
     agent = AIAgent(
@@ -1250,10 +1301,30 @@ async def test_ai_agent_nomination_intent_can_proactively_nominate():
         current_nominee=None,
         current_nominator=None,
         chat_history=(
-            ChatMessage(speaker="p2", content="p3 的解释有点怪，我有点怀疑 p3。", phase=GamePhase.DAY_DISCUSSION, round_number=1),
-            ChatMessage(speaker="p3", content="我还是觉得 p2 更可疑。", phase=GamePhase.DAY_DISCUSSION, round_number=1),
-            ChatMessage(speaker="p1", content="我也觉得 p3 需要被提名。", phase=GamePhase.DAY_DISCUSSION, round_number=1),
-            ChatMessage(speaker="p1", content="p3 真的很可疑，应该提名。", phase=GamePhase.DAY_DISCUSSION, round_number=1),
+            ChatMessage(
+                speaker="p2",
+                content="p3 的解释有点怪，我有点怀疑 p3。",
+                phase=GamePhase.DAY_DISCUSSION,
+                round_number=1,
+            ),
+            ChatMessage(
+                speaker="p3",
+                content="我还是觉得 p2 更可疑。",
+                phase=GamePhase.DAY_DISCUSSION,
+                round_number=1,
+            ),
+            ChatMessage(
+                speaker="p1",
+                content="我也觉得 p3 需要被提名。",
+                phase=GamePhase.DAY_DISCUSSION,
+                round_number=1,
+            ),
+            ChatMessage(
+                speaker="p1",
+                content="p3 真的很可疑，应该提名。",
+                phase=GamePhase.DAY_DISCUSSION,
+                round_number=1,
+            ),
         ),
         players=(
             PlayerState(player_id="p1", name="Alice", role_id="washerwoman", team=Team.GOOD),
@@ -1273,7 +1344,9 @@ async def test_ai_agent_nomination_intent_can_proactively_nominate():
 @pytest.mark.asyncio
 async def test_ai_agent_fallback_vote_remains_structured():
     class BrokenBackend(DummyBackend):
-        async def generate(self, system_prompt: str, messages: list[Message], **kwargs) -> LLMResponse:
+        async def generate(
+            self, system_prompt: str, messages: list[Message], **kwargs
+        ) -> LLMResponse:
             return LLMResponse(content='{"action":"speak","content":"随便"}', tool_calls=[])
 
     agent = AIAgent(
@@ -1301,7 +1374,9 @@ async def test_ai_agent_fallback_vote_remains_structured():
 @pytest.mark.asyncio
 async def test_nominate_reasoning_prefers_high_confidence_evidence_over_public_claim():
     class NominateBackend(DummyBackend):
-        async def generate(self, system_prompt: str, messages: list[Message], **kwargs) -> LLMResponse:
+        async def generate(
+            self, system_prompt: str, messages: list[Message], **kwargs
+        ) -> LLMResponse:
             return LLMResponse(
                 content='{"action":"nominate","target":"p2","reasoning":"我想推进这个提名"}',
                 tool_calls=[],
@@ -1367,8 +1442,11 @@ async def test_nominate_reasoning_prefers_high_confidence_evidence_over_public_c
 @pytest.mark.asyncio
 async def test_vote_reasoning_prefers_high_confidence_evidence_over_public_claim(monkeypatch):
     monkeypatch.setenv("AI_FAST_LOW_VALUE_ACTIONS", "0")
+
     class VoteBackend(DummyBackend):
-        async def generate(self, system_prompt: str, messages: list[Message], **kwargs) -> LLMResponse:
+        async def generate(
+            self, system_prompt: str, messages: list[Message], **kwargs
+        ) -> LLMResponse:
             return LLMResponse(
                 content='{"action":"vote","decision":true,"reasoning":"我倾向于投赞成"}',
                 tool_calls=[],
@@ -1441,7 +1519,9 @@ async def test_ai_agent_archives_phase_memory_into_episodic_memory():
         backend=DummyBackend(),
         persona=Persona(description="谨慎村民", speaking_style="平稳"),
     )
-    agent.synchronize_role(PlayerState(player_id="p1", name="Alice", role_id="washerwoman", team=Team.GOOD))
+    agent.synchronize_role(
+        PlayerState(player_id="p1", name="Alice", role_id="washerwoman", team=Team.GOOD)
+    )
     state = GameState(phase=GamePhase.DAY_DISCUSSION, round_number=2, day_number=3)
 
     agent.working_memory.add_observation(
@@ -1518,7 +1598,12 @@ async def test_high_confidence_private_info_survives_phase_archive_and_public_no
         day_number=2,
         players=state.players,
         chat_history=(
-            ChatMessage(speaker="p2", content="我跳士兵，昨天谁都别信。", phase=GamePhase.DAY_DISCUSSION, round_number=2),
+            ChatMessage(
+                speaker="p2",
+                content="我跳士兵，昨天谁都别信。",
+                phase=GamePhase.DAY_DISCUSSION,
+                round_number=2,
+            ),
         ),
     )
     visible_day_state, _ = _agent_ctx(agent, day_state)
@@ -1547,9 +1632,14 @@ async def test_speak_prompt_prioritizes_high_confidence_over_conflicting_public_
             super().__init__()
             self.prompts: list[str] = []
 
-        async def generate(self, system_prompt: str, messages: list[Message], **kwargs) -> LLMResponse:
+        async def generate(
+            self, system_prompt: str, messages: list[Message], **kwargs
+        ) -> LLMResponse:
             self.prompts.append(system_prompt)
-            return LLMResponse(content='{"action":"speak","content":"我更信夜里拿到的信息。","tone":"calm","reasoning":"优先引用高可信信息"}', tool_calls=[])
+            return LLMResponse(
+                content='{"action":"speak","content":"我更信夜里拿到的信息。","tone":"calm","reasoning":"优先引用高可信信息"}',
+                tool_calls=[],
+            )
 
     backend = CapturingBackend()
     agent = AIAgent(
@@ -1609,8 +1699,13 @@ async def test_speak_prompt_prioritizes_high_confidence_over_conflicting_public_
 @pytest.mark.asyncio
 async def test_defense_fallback_uses_high_confidence_memory_before_public_noise():
     class BrokenBackend(DummyBackend):
-        async def generate(self, system_prompt: str, messages: list[Message], **kwargs) -> LLMResponse:
-            return LLMResponse(content='{"action":"defense_speech","content":"","tone":"defensive","reasoning":"broken"}', tool_calls=[])
+        async def generate(
+            self, system_prompt: str, messages: list[Message], **kwargs
+        ) -> LLMResponse:
+            return LLMResponse(
+                content='{"action":"defense_speech","content":"","tone":"defensive","reasoning":"broken"}',
+                tool_calls=[],
+            )
 
     agent = AIAgent(
         player_id="p1",
@@ -1669,8 +1764,13 @@ async def test_defense_fallback_uses_high_confidence_memory_before_public_noise(
 @pytest.mark.asyncio
 async def test_speak_content_is_augmented_with_high_confidence_anchor_when_model_is_generic():
     class GenericBackend(DummyBackend):
-        async def generate(self, system_prompt: str, messages: list[Message], **kwargs) -> LLMResponse:
-            return LLMResponse(content='{"action":"speak","content":"我觉得现在先别急。","tone":"calm","reasoning":"generic"}', tool_calls=[])
+        async def generate(
+            self, system_prompt: str, messages: list[Message], **kwargs
+        ) -> LLMResponse:
+            return LLMResponse(
+                content='{"action":"speak","content":"我觉得现在先别急。","tone":"calm","reasoning":"generic"}',
+                tool_calls=[],
+            )
 
     agent = AIAgent(
         player_id="p1",
@@ -1845,7 +1945,9 @@ async def test_multi_day_claim_denial_and_private_info_stay_consistent_across_ar
 @pytest.mark.asyncio
 async def test_nominate_reasoning_stays_high_confidence_first_after_multi_day_archives():
     class NominateBackend(DummyBackend):
-        async def generate(self, system_prompt: str, messages: list[Message], **kwargs) -> LLMResponse:
+        async def generate(
+            self, system_prompt: str, messages: list[Message], **kwargs
+        ) -> LLMResponse:
             return LLMResponse(
                 content='{"action":"nominate","target":"p2","reasoning":"我还是想把这票推进"}',
                 tool_calls=[],
@@ -1944,8 +2046,11 @@ async def test_nominate_reasoning_stays_high_confidence_first_after_multi_day_ar
 @pytest.mark.asyncio
 async def test_vote_reasoning_stays_high_confidence_first_after_multi_day_archives(monkeypatch):
     monkeypatch.setenv("AI_FAST_LOW_VALUE_ACTIONS", "0")
+
     class VoteBackend(DummyBackend):
-        async def generate(self, system_prompt: str, messages: list[Message], **kwargs) -> LLMResponse:
+        async def generate(
+            self, system_prompt: str, messages: list[Message], **kwargs
+        ) -> LLMResponse:
             return LLMResponse(
                 content='{"action":"vote","decision":true,"reasoning":"我还是倾向赞成"}',
                 tool_calls=[],
@@ -2240,7 +2345,9 @@ async def test_poisoner_prefers_claimed_info_role_as_night_target():
         visible_state,
     )
 
-    decision = agent._fallback_decision(visible_state, legal_context, "night_action", reason="test_poisoner")
+    decision = agent._fallback_decision(
+        visible_state, legal_context, "night_action", reason="test_poisoner"
+    )
     assert decision["action"] == "night_action"
     assert decision["target"] == "p2"
 
@@ -2296,6 +2403,8 @@ async def test_poisoner_avoids_confirmed_evil_teammate_even_if_they_claim_info_r
         visible_state,
     )
 
-    decision = agent._fallback_decision(visible_state, legal_context, "night_action", reason="test_poisoner_teammate")
+    decision = agent._fallback_decision(
+        visible_state, legal_context, "night_action", reason="test_poisoner_teammate"
+    )
     assert decision["action"] == "night_action"
     assert decision["target"] == "p3"

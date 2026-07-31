@@ -52,9 +52,24 @@ def _build_signal_state() -> GameState:
         PlayerState(player_id="p3", name="Cathy", role_id="chef", team=Team.GOOD),
     )
     chat_history = (
-        ChatMessage(speaker="p3", content="我觉得 Bob 的解释有点怪", phase=GamePhase.DAY_DISCUSSION, round_number=1),
-        ChatMessage(speaker="p1", content="Bob 这边我还是有点怀疑", phase=GamePhase.DAY_DISCUSSION, round_number=1),
-        ChatMessage(speaker="p3", content="Bob 需要再解释一下", phase=GamePhase.DAY_DISCUSSION, round_number=1),
+        ChatMessage(
+            speaker="p3",
+            content="我觉得 Bob 的解释有点怪",
+            phase=GamePhase.DAY_DISCUSSION,
+            round_number=1,
+        ),
+        ChatMessage(
+            speaker="p1",
+            content="Bob 这边我还是有点怀疑",
+            phase=GamePhase.DAY_DISCUSSION,
+            round_number=1,
+        ),
+        ChatMessage(
+            speaker="p3",
+            content="Bob 需要再解释一下",
+            phase=GamePhase.DAY_DISCUSSION,
+            round_number=1,
+        ),
     )
     event_log = (
         GameEvent(
@@ -82,7 +97,9 @@ def _build_signal_state() -> GameState:
 
 @pytest.mark.asyncio
 async def test_ai_persona_prompt_includes_stable_role_hint_and_action_guidance():
-    backend = CapturingBackend('{"action":"speak","content":"我先听听大家怎么说","tone":"calm","reasoning":"ok"}')
+    backend = CapturingBackend(
+        '{"action":"speak","content":"我先听听大家怎么说","tone":"calm","reasoning":"ok"}'
+    )
     agent = AIAgent(
         player_id="p1",
         name="Alice",
@@ -141,7 +158,9 @@ async def test_ai_persona_profile_differs_by_player_id():
 @pytest.mark.asyncio
 async def test_ai_persona_nomination_skips_when_signal_is_weak():
     class BrokenBackend(CapturingBackend):
-        async def generate(self, system_prompt: str, messages: list[Message], **kwargs) -> LLMResponse:
+        async def generate(
+            self, system_prompt: str, messages: list[Message], **kwargs
+        ) -> LLMResponse:
             self.calls.append(system_prompt)
             return LLMResponse(content="not-json", tool_calls=[])
 
@@ -170,7 +189,9 @@ async def test_ai_persona_nomination_skips_when_signal_is_weak():
 @pytest.mark.asyncio
 async def test_ai_persona_nomination_fires_when_signal_is_strong():
     class BrokenBackend(CapturingBackend):
-        async def generate(self, system_prompt: str, messages: list[Message], **kwargs) -> LLMResponse:
+        async def generate(
+            self, system_prompt: str, messages: list[Message], **kwargs
+        ) -> LLMResponse:
             self.calls.append(system_prompt)
             return LLMResponse(content="not-json", tool_calls=[])
 
@@ -201,7 +222,9 @@ async def test_ai_persona_nomination_fires_when_signal_is_strong():
 @pytest.mark.asyncio
 async def test_ai_persona_vote_respects_suspicion_threshold():
     class BrokenBackend(CapturingBackend):
-        async def generate(self, system_prompt: str, messages: list[Message], **kwargs) -> LLMResponse:
+        async def generate(
+            self, system_prompt: str, messages: list[Message], **kwargs
+        ) -> LLMResponse:
             self.calls.append(system_prompt)
             return LLMResponse(content="not-json", tool_calls=[])
 
@@ -225,7 +248,9 @@ async def test_ai_persona_vote_respects_suspicion_threshold():
         day_number=1,
         current_nominee="p2",
         chat_history=(
-            ChatMessage(speaker="p1", content="Bob 现在看起来不太对", phase=GamePhase.VOTING, round_number=3),
+            ChatMessage(
+                speaker="p1", content="Bob 现在看起来不太对", phase=GamePhase.VOTING, round_number=3
+            ),
         ),
     )
     agent.synchronize_role(state.get_player("p1"))
@@ -253,7 +278,9 @@ async def test_ai_public_speech_paraphrases_private_info_instead_of_leaking_raw_
         persona=Persona(description="谨慎的信息位", speaking_style="平稳"),
     )
     state = _build_state()
-    agent.synchronize_role(PlayerState(player_id="p1", name="Alice", role_id="fortune_teller", team=Team.GOOD))
+    agent.synchronize_role(
+        PlayerState(player_id="p1", name="Alice", role_id="fortune_teller", team=Team.GOOD)
+    )
     agent.working_memory.remember_private_info("fortune_teller_info", raw_private)
 
     visible_state, legal_context = _agent_ctx(agent, state)
@@ -281,9 +308,13 @@ async def test_ai_public_speech_never_leaks_evil_teammate_objective_memory():
         persona=Persona(description="低调潜伏", speaking_style="自然"),
     )
     state = _build_state()
-    agent.synchronize_role(PlayerState(player_id="p1", name="Alice", role_id="scarlet_woman", team=Team.EVIL))
+    agent.synchronize_role(
+        PlayerState(player_id="p1", name="Alice", role_id="scarlet_woman", team=Team.EVIL)
+    )
     agent.working_memory.remember_objective_info("evil_teammates", raw_secret)
-    agent.working_memory.remember_objective_info("evil_bluffs", "可用伪装身份 bluff：士兵、圣女、镇长")
+    agent.working_memory.remember_objective_info(
+        "evil_bluffs", "可用伪装身份 bluff：士兵、圣女、镇长"
+    )
 
     visible_state, legal_context = _agent_ctx(agent, state)
     decision = await agent.act(visible_state, "speak", legal_context=legal_context)

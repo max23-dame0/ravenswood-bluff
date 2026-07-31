@@ -39,7 +39,9 @@ class InvalidJSONBackend(LLMBackend):
 
 def _game_players(game_index: int) -> tuple[PlayerState, PlayerState, PlayerState]:
     return (
-        PlayerState(player_id="p1", name=f"Alice-{game_index}", role_id="washerwoman", team=Team.GOOD),
+        PlayerState(
+            player_id="p1", name=f"Alice-{game_index}", role_id="washerwoman", team=Team.GOOD
+        ),
         PlayerState(player_id="p2", name=f"Bob-{game_index}", role_id="chef", team=Team.GOOD),
         PlayerState(player_id="p3", name=f"Cathy-{game_index}", role_id="imp", team=Team.EVIL),
     )
@@ -233,7 +235,9 @@ def _vote_state(game_index: int, pressure: str) -> GameState:
 
 def _ambiguous_nomination_state(game_index: int) -> GameState:
     players = (
-        PlayerState(player_id="p1", name=f"Alice-{game_index}", role_id="washerwoman", team=Team.GOOD),
+        PlayerState(
+            player_id="p1", name=f"Alice-{game_index}", role_id="washerwoman", team=Team.GOOD
+        ),
         PlayerState(player_id="p2", name=f"Bob-{game_index}", role_id="chef", team=Team.GOOD),
         PlayerState(player_id="p3", name=f"Cathy-{game_index}", role_id="imp", team=Team.EVIL),
         PlayerState(player_id="p4", name=f"David-{game_index}", role_id="monk", team=Team.GOOD),
@@ -279,7 +283,9 @@ def _ambiguous_nomination_state(game_index: int) -> GameState:
     )
 
 
-async def _evaluate_single_game(game_index: int, archetype: str, backend: LLMBackend) -> dict[str, Any]:
+async def _evaluate_single_game(
+    game_index: int, archetype: str, backend: LLMBackend
+) -> dict[str, Any]:
     agent = AIAgent(
         player_id="p1",
         name=f"Tester-{archetype}-{game_index}",
@@ -301,7 +307,7 @@ async def _evaluate_single_game(game_index: int, archetype: str, backend: LLMBac
     for pressure in PRESSURE_LEVELS:
         nomination_state = _nomination_state(game_index, pressure)
         vote_state = _vote_state(game_index, pressure)
-        
+
         # W3-D: 让 Agent 平等观察场上事件，触发自主社交图谱更新
         for event in nomination_state.event_log:
             await agent.observe_event(event, agent._build_visible_state(nomination_state))
@@ -312,7 +318,9 @@ async def _evaluate_single_game(game_index: int, archetype: str, backend: LLMBac
         vote_visible = agent._build_visible_state(vote_state)
         vote_legal = agent._build_legal_action_context(vote_state, vote_visible)
 
-        nomination = await agent.act(nomination_visible, "nomination_intent", legal_context=nomination_legal)
+        nomination = await agent.act(
+            nomination_visible, "nomination_intent", legal_context=nomination_legal
+        )
         vote = await agent.act(vote_visible, "vote", legal_context=vote_legal)
 
         nomination_actions.append(str(nomination.get("action", "none")))
@@ -335,11 +343,15 @@ async def _evaluate_single_game(game_index: int, archetype: str, backend: LLMBac
         "nomination_actions": tuple(nomination_actions),
         "vote_actions": tuple(vote_actions),
         "round_records": round_records,
-        "final_trust_p2": agent.social_graph.get_profile("p2").trust_score if agent.social_graph.get_profile("p2") else 0.5,
+        "final_trust_p2": agent.social_graph.get_profile("p2").trust_score
+        if agent.social_graph.get_profile("p2")
+        else 0.5,
     }
 
 
-async def _evaluate_ambiguous_nomination(game_index: int, archetype: str, backend: LLMBackend) -> dict[str, Any]:
+async def _evaluate_ambiguous_nomination(
+    game_index: int, archetype: str, backend: LLMBackend
+) -> dict[str, Any]:
     state = _ambiguous_nomination_state(game_index)
     agent = AIAgent(
         player_id="p1",
@@ -352,7 +364,12 @@ async def _evaluate_ambiguous_nomination(game_index: int, archetype: str, backen
         ),
     )
     agent.synchronize_role(state.get_player("p1"))
-    for target_id, target_name in (("p2", f"Bob-{game_index}"), ("p3", f"Cathy-{game_index}"), ("p4", f"David-{game_index}"), ("p5", f"Eve-{game_index}")):
+    for target_id, target_name in (
+        ("p2", f"Bob-{game_index}"),
+        ("p3", f"Cathy-{game_index}"),
+        ("p4", f"David-{game_index}"),
+        ("p5", f"Eve-{game_index}"),
+    ):
         agent.social_graph.init_player(target_id, target_name)
     agent.social_graph.update_trust("p2", -0.7)
     agent.social_graph.update_trust("p3", -0.7)
@@ -403,14 +420,14 @@ async def evaluate_agents() -> dict[str, Any]:
             report = await _evaluate_single_game(game_index, archetype, backend)
             game_reports.append(report)
             all_round_records.extend(report["round_records"])
-            ambiguous_reports.append(await _evaluate_ambiguous_nomination(game_index, archetype, backend))
+            ambiguous_reports.append(
+                await _evaluate_ambiguous_nomination(game_index, archetype, backend)
+            )
 
     level_nomination_counts: dict[str, Counter[str]] = {
         level: Counter() for level in PRESSURE_LEVELS
     }
-    level_vote_counts: dict[str, Counter[str]] = {
-        level: Counter() for level in PRESSURE_LEVELS
-    }
+    level_vote_counts: dict[str, Counter[str]] = {level: Counter() for level in PRESSURE_LEVELS}
 
     for record in all_round_records:
         level = str(record["pressure"])
@@ -448,10 +465,15 @@ async def evaluate_agents() -> dict[str, Any]:
     nomination_trend_monotonicity_rate = nomination_trend_hits / game_trend_total
     vote_trend_monotonicity_rate = vote_trend_hits / game_trend_total
 
-    archetype_signatures: dict[str, list[tuple[tuple[int, ...], tuple[int, ...]]]] = defaultdict(list)
+    archetype_signatures: dict[str, list[tuple[tuple[int, ...], tuple[int, ...]]]] = defaultdict(
+        list
+    )
     for report in game_reports:
         archetype_signatures[str(report["archetype"])].append(
-            (_sequence_strength(report["nomination_actions"]), _sequence_strength(report["vote_actions"]))
+            (
+                _sequence_strength(report["nomination_actions"]),
+                _sequence_strength(report["vote_actions"]),
+            )
         )
 
     archetype_representatives: list[tuple[tuple[int, ...], tuple[int, ...]]] = []
@@ -464,11 +486,15 @@ async def evaluate_agents() -> dict[str, Any]:
         archetype_representatives.append(most_common_signature)
         stability_ratios.append(most_common_count / len(signatures))
 
-    social_trust_changes = [report["final_trust_p2"] for report in game_reports if report["final_trust_p2"] != 0.5]
+    social_trust_changes = [
+        report["final_trust_p2"] for report in game_reports if report["final_trust_p2"] != 0.5
+    ]
     social_trust_responsiveness_score = len(social_trust_changes) / (len(game_reports) or 1)
-    
+
     persona_diversity_score = len(set(archetype_representatives)) / len(ARCHETYPES)
-    multi_game_stability_score = sum(stability_ratios) / len(stability_ratios) if stability_ratios else 0.0
+    multi_game_stability_score = (
+        sum(stability_ratios) / len(stability_ratios) if stability_ratios else 0.0
+    )
 
     ambiguous_target_counts: Counter[str] = Counter(
         str(report["decision_target"])
@@ -484,11 +510,15 @@ async def evaluate_agents() -> dict[str, Any]:
         and report["decision_target"] == report["front_target"]
     )
     front_position_nomination_bias_rate = front_position_hits / ambiguous_nomination_total
-    ambiguous_nomination_diversity_score = len(ambiguous_target_counts) / 2 if ambiguous_target_counts else 0.0
+    ambiguous_nomination_diversity_score = (
+        len(ambiguous_target_counts) / 2 if ambiguous_target_counts else 0.0
+    )
 
     archetype_vote_profiles: dict[str, dict[str, float]] = {}
     for archetype in ARCHETYPES:
-        archetype_records = [record for record in all_round_records if record["archetype"] == archetype]
+        archetype_records = [
+            record for record in all_round_records if record["archetype"] == archetype
+        ]
         total = len(archetype_records) or 1
         weak_records = [record for record in archetype_records if record["pressure"] == "weak"]
         medium_strong_records = [
@@ -500,11 +530,13 @@ async def evaluate_agents() -> dict[str, Any]:
                 3,
             ),
             "weak_no_rate": round(
-                sum(1 for record in weak_records if not record["vote_decision"]) / (len(weak_records) or 1),
+                sum(1 for record in weak_records if not record["vote_decision"])
+                / (len(weak_records) or 1),
                 3,
             ),
             "medium_strong_yes_rate": round(
-                sum(1 for record in medium_strong_records if record["vote_decision"]) / (len(medium_strong_records) or 1),
+                sum(1 for record in medium_strong_records if record["vote_decision"])
+                / (len(medium_strong_records) or 1),
                 3,
             ),
         }
@@ -520,7 +552,8 @@ async def evaluate_agents() -> dict[str, Any]:
         "records_total": total_nomination_rounds,
         "games": game_reports,
         "ai_none_nomination_rate": round(
-            sum(1 for item in all_round_records if item["nomination_action"] == "none") / total_nomination_rounds,
+            sum(1 for item in all_round_records if item["nomination_action"] == "none")
+            / total_nomination_rounds,
             3,
         ),
         "ai_strong_nomination_rate": round(strong_nomination_rate, 3),
@@ -543,9 +576,7 @@ async def evaluate_agents() -> dict[str, Any]:
             "nomination": {
                 level: dict(counter) for level, counter in level_nomination_counts.items()
             },
-            "vote": {
-                level: dict(counter) for level, counter in level_vote_counts.items()
-            },
+            "vote": {level: dict(counter) for level, counter in level_vote_counts.items()},
         },
         "ambiguous_nomination": {
             "target_counts": dict(ambiguous_target_counts),
@@ -563,19 +594,27 @@ def _validate(metrics: dict[str, Any]) -> None:
     if metrics["ai_none_nomination_rate"] < 0.30:
         raise SystemExit(f"ai_none_nomination_rate too low: {metrics['ai_none_nomination_rate']}")
     if metrics["ai_strong_nomination_rate"] < 0.45:
-        raise SystemExit(f"ai_strong_nomination_rate too low: {metrics['ai_strong_nomination_rate']}")
+        raise SystemExit(
+            f"ai_strong_nomination_rate too low: {metrics['ai_strong_nomination_rate']}"
+        )
     if metrics["nomination_trend_monotonicity_rate"] < 0.6:
         raise SystemExit(
             f"nomination_trend_monotonicity_rate too low: {metrics['nomination_trend_monotonicity_rate']}"
         )
     if metrics["vote_trend_monotonicity_rate"] < 0.6:
-        raise SystemExit(f"vote_trend_monotonicity_rate too low: {metrics['vote_trend_monotonicity_rate']}")
+        raise SystemExit(
+            f"vote_trend_monotonicity_rate too low: {metrics['vote_trend_monotonicity_rate']}"
+        )
     if metrics["persona_diversity_score"] < 0.4:
         raise SystemExit(f"persona_diversity_score too low: {metrics['persona_diversity_score']}")
     if metrics["multi_game_stability_score"] < 0.4:
-        raise SystemExit(f"multi_game_stability_score too low: {metrics['multi_game_stability_score']}")
+        raise SystemExit(
+            f"multi_game_stability_score too low: {metrics['multi_game_stability_score']}"
+        )
     if metrics["social_trust_responsiveness_score"] < 0.5:
-        raise SystemExit(f"social_trust_responsiveness_score too low: {metrics['social_trust_responsiveness_score']}")
+        raise SystemExit(
+            f"social_trust_responsiveness_score too low: {metrics['social_trust_responsiveness_score']}"
+        )
     if metrics["front_position_nomination_bias_rate"] > 0.8:
         raise SystemExit(
             f"front_position_nomination_bias_rate too high: {metrics['front_position_nomination_bias_rate']}"
@@ -585,9 +624,13 @@ def _validate(metrics: dict[str, Any]) -> None:
             f"ambiguous_nomination_diversity_score too low: {metrics['ambiguous_nomination_diversity_score']}"
         )
     if metrics["aggressive_vote_push_rate"] < 0.65:
-        raise SystemExit(f"aggressive_vote_push_rate too low: {metrics['aggressive_vote_push_rate']}")
+        raise SystemExit(
+            f"aggressive_vote_push_rate too low: {metrics['aggressive_vote_push_rate']}"
+        )
     if metrics["silent_vote_restraint_rate"] < 0.8:
-        raise SystemExit(f"silent_vote_restraint_rate too low: {metrics['silent_vote_restraint_rate']}")
+        raise SystemExit(
+            f"silent_vote_restraint_rate too low: {metrics['silent_vote_restraint_rate']}"
+        )
     if metrics["cooperative_follow_rate"] < 0.75:
         raise SystemExit(f"cooperative_follow_rate too low: {metrics['cooperative_follow_rate']}")
 

@@ -178,19 +178,25 @@ async def test_export_endpoint_returns_history_traces_and_judgement_summary(monk
         return original_init(self, db_uri)
 
     monkeypatch.setattr(game_record_module.GameRecordStore, "__init__", patched_init)
-    monkeypatch.setattr(data_collector_module.GameDataCollector, "export_ai_traces", classmethod(lambda cls, game_id, base_dir="data/sessions": {
-        "version": "a3-data-export-v1",
-        "game_id": game_id,
-        "entries": [{"record_type": "thought_trace", "game_id": game_id}],
-        "files": [],
-        "stats": {
-            "file_count": 0,
-            "entry_count": 1,
-            "thought_trace_count": 1,
-            "snapshot_count": 0,
-            "parse_error_count": 0,
-        },
-    }))
+    monkeypatch.setattr(
+        data_collector_module.GameDataCollector,
+        "export_ai_traces",
+        classmethod(
+            lambda cls, game_id, base_dir="data/sessions": {
+                "version": "a3-data-export-v1",
+                "game_id": game_id,
+                "entries": [{"record_type": "thought_trace", "game_id": game_id}],
+                "files": [],
+                "stats": {
+                    "file_count": 0,
+                    "entry_count": 1,
+                    "thought_trace_count": 1,
+                    "snapshot_count": 0,
+                    "parse_error_count": 0,
+                },
+            }
+        ),
+    )
 
     server_module = importlib.reload(server_module)
 
@@ -240,7 +246,12 @@ async def test_export_endpoint_returns_history_traces_and_judgement_summary(monk
             "player_count": 2,
         },
         "judgement_summary": [
-            {"category": "night_info", "decision": "deliver", "reason": "sample", "summary": "player_id=p1"}
+            {
+                "category": "night_info",
+                "decision": "deliver",
+                "reason": "sample",
+                "summary": "player_id=p1",
+            }
         ],
     }
 

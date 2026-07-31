@@ -37,7 +37,9 @@ class DecisionEngine:
         if not target_id or target_id == agent.player_id:
             return 0.0
 
-        target = next((player for player in visible_state.players if player.player_id == target_id), None)
+        target = next(
+            (player for player in visible_state.players if player.player_id == target_id), None
+        )
         if not target:
             return 0.0
 
@@ -99,7 +101,11 @@ class DecisionEngine:
             if target.name not in summary:
                 continue
             mentioned_roles = agent._extract_role_ids_from_text(summary)
-            mentioned_teams = {agent._role_team_hint(role_id) for role_id in mentioned_roles if agent._role_team_hint(role_id)}
+            mentioned_teams = {
+                agent._role_team_hint(role_id)
+                for role_id in mentioned_roles
+                if agent._role_team_hint(role_id)
+            }
 
             if "可能是" in summary and "恶魔" in summary:
                 score += 0.14 * intel
@@ -111,7 +117,9 @@ class DecisionEngine:
                 # Hard evidence from storyteller — not scaled by intel
                 if any(agent._role_team_hint(role_id) == Team.EVIL for role_id in mentioned_roles):
                     score += 0.18
-                elif all(agent._role_team_hint(role_id) == Team.GOOD for role_id in mentioned_roles):
+                elif all(
+                    agent._role_team_hint(role_id) == Team.GOOD for role_id in mentioned_roles
+                ):
                     score -= 0.10
 
             if claimed_role_id and mentioned_roles:
@@ -144,7 +152,16 @@ class DecisionEngine:
         # Evil: prioritize targeting high-value info roles
         if agent.team == Team.EVIL.value and profile:
             target_claimed_role = agent._profile_claimed_role_id(profile)
-            _info_roles = {"fortune_teller", "empath", "investigator", "chef", "undertaker", "monk", "washerwoman", "librarian"}
+            _info_roles = {
+                "fortune_teller",
+                "empath",
+                "investigator",
+                "chef",
+                "undertaker",
+                "monk",
+                "washerwoman",
+                "librarian",
+            }
             if target_claimed_role in _info_roles:
                 score += 0.10 * intel
 
@@ -181,9 +198,15 @@ class DecisionEngine:
             threshold += 0.02
 
         threshold -= min(0.08, max(0, visible_state.day_number - 1) * 0.02)
-        threshold += agent._persona_modifier("risk_tolerance", {"保守": 0.08, "均衡": 0.02, "激进": -0.05})
-        threshold += agent._persona_modifier("social_style", {"从众": 0.03, "独立": 0.0, "带节奏": -0.04})
-        threshold += agent._persona_modifier("assertiveness", {"温和": 0.04, "中性": 0.0, "强势": -0.04})
+        threshold += agent._persona_modifier(
+            "risk_tolerance", {"保守": 0.08, "均衡": 0.02, "激进": -0.05}
+        )
+        threshold += agent._persona_modifier(
+            "social_style", {"从众": 0.03, "独立": 0.0, "带节奏": -0.04}
+        )
+        threshold += agent._persona_modifier(
+            "assertiveness", {"温和": 0.04, "中性": 0.0, "强势": -0.04}
+        )
         if agent.team == "evil":
             intel = agent.difficulty_preset.nomination_intelligence
             threshold -= 0.02 + 0.03 * intel
@@ -201,8 +224,12 @@ class DecisionEngine:
             min(
                 0.10,
                 base
-                + agent._persona_modifier("risk_tolerance", {"保守": 0.03, "均衡": 0.01, "激进": -0.01})
-                + agent._persona_modifier("assertiveness", {"温和": 0.02, "中性": 0.0, "强势": -0.02}),
+                + agent._persona_modifier(
+                    "risk_tolerance", {"保守": 0.03, "均衡": 0.01, "激进": -0.01}
+                )
+                + agent._persona_modifier(
+                    "assertiveness", {"温和": 0.02, "中性": 0.0, "强势": -0.02}
+                ),
             ),
         )
 
@@ -233,9 +260,15 @@ class DecisionEngine:
                 threshold += 0.05
 
         threshold -= min(0.05, max(0, visible_state.day_number - 1) * 0.015)
-        threshold += agent._persona_modifier("risk_tolerance", {"保守": 0.04, "均衡": 0.01, "激进": -0.04})
-        threshold += agent._persona_modifier("social_style", {"从众": 0.02, "独立": 0.0, "带节奏": -0.03})
-        threshold += agent._persona_modifier("assertiveness", {"温和": 0.03, "中性": 0.0, "强势": -0.03})
+        threshold += agent._persona_modifier(
+            "risk_tolerance", {"保守": 0.04, "均衡": 0.01, "激进": -0.04}
+        )
+        threshold += agent._persona_modifier(
+            "social_style", {"从众": 0.02, "独立": 0.0, "带节奏": -0.03}
+        )
+        threshold += agent._persona_modifier(
+            "assertiveness", {"温和": 0.03, "中性": 0.0, "强势": -0.03}
+        )
         if agent.team == "evil":
             threshold -= 0.01
         # Decision noise layer
@@ -243,7 +276,12 @@ class DecisionEngine:
         threshold += agent.decision_noise.threshold_noise(noise_key)
         return max(0.20, min(0.95, threshold))
 
-    def select_nomination_target(self, visible_state: AgentVisibleState, legal_context: AgentActionLegalContext, intent_mode: bool = False) -> tuple[str, float, float] | None:
+    def select_nomination_target(
+        self,
+        visible_state: AgentVisibleState,
+        legal_context: AgentActionLegalContext,
+        intent_mode: bool = False,
+    ) -> tuple[str, float, float] | None:
         agent = self._agent
         legal_targets = list(legal_context.legal_nomination_targets)
         if not legal_targets:
@@ -253,7 +291,7 @@ class DecisionEngine:
 
         # Timing intelligence: high-intel agents wait for more info before nominating
         patience = int(intel * 3)  # casual=0, standard=1, master=2, chaos=1
-        nominees_so_far = len(getattr(visible_state, 'nominees_today', ()) or ())
+        nominees_so_far = len(getattr(visible_state, "nominees_today", ()) or ())
         if nominees_so_far < patience and not intent_mode:
             # Quick scan: only bypass patience if there's a strong signal
             quick_scores = [self.target_signal_score(tid, visible_state) for tid in legal_targets]
@@ -280,8 +318,8 @@ class DecisionEngine:
             margin = self.nomination_margin()
 
         # Bold move: occasionally bypass threshold (chaos/casual more likely)
-        day = getattr(visible_state, 'day_number', 1)
-        round_n = getattr(visible_state, 'round_number', 1)
+        day = getattr(visible_state, "day_number", 1)
+        round_n = getattr(visible_state, "round_number", 1)
         bold = agent.decision_noise.should_bold_move(f"nom_bold_day{day}_round{round_n}")
         if bold.triggered:
             threshold = max(0.25, threshold - 0.15)
@@ -307,11 +345,7 @@ class DecisionEngine:
         ]
         best_score = max(score for score, _ in scored_targets)
         band = sorted(
-            [
-                target_id
-                for score, target_id in scored_targets
-                if (best_score - score) <= tolerance
-            ]
+            [target_id for score, target_id in scored_targets if (best_score - score) <= tolerance]
         )
         return band, best_score
 
@@ -325,14 +359,20 @@ class DecisionEngine:
     ) -> tuple[str | None, float]:
         agent = self._agent
         candidate_band, best_score = self.nomination_candidate_band(
-            legal_targets, visible_state, tolerance=tolerance,
+            legal_targets,
+            visible_state,
+            tolerance=tolerance,
         )
         if not candidate_band:
             return None, 0.0
         if len(candidate_band) == 1:
             return candidate_band[0], best_score
         target = self.stable_choice(
-            candidate_band, visible_state.round_number, visible_state.day_number, action_type, salt,
+            candidate_band,
+            visible_state.round_number,
+            visible_state.day_number,
+            action_type,
+            salt,
         )
         return target, best_score
 
@@ -344,7 +384,10 @@ class DecisionEngine:
         agent = self._agent
         required_targets = max(1, int(getattr(legal_context, "required_targets", 1) or 1))
         legal_targets = list(legal_context.legal_night_targets)
-        if getattr(legal_context, "can_target_self", False) and agent.player_id not in legal_targets:
+        if (
+            getattr(legal_context, "can_target_self", False)
+            and agent.player_id not in legal_targets
+        ):
             legal_targets.append(agent.player_id)
 
         ordered_targets: list[str] = []
@@ -394,7 +437,9 @@ class DecisionEngine:
                 teammate_ids.add(player.player_id)
         return teammate_ids
 
-    def poisoner_priority_for_target(self, target_id: str, visible_state: AgentVisibleState) -> float:
+    def poisoner_priority_for_target(
+        self, target_id: str, visible_state: AgentVisibleState
+    ) -> float:
         agent = self._agent
         teammate_ids = self.known_evil_teammate_ids(visible_state)
         if target_id in teammate_ids:
@@ -435,9 +480,14 @@ class DecisionEngine:
         score += max(0.0, min(0.15, self.target_signal_score(target_id, visible_state) * 0.2))
         return score
 
-    def _rank_poisoner_targets(self, ordered_targets: list[str], visible_state: AgentVisibleState) -> list[str]:
+    def _rank_poisoner_targets(
+        self, ordered_targets: list[str], visible_state: AgentVisibleState
+    ) -> list[str]:
         ranked = sorted(
-            ((self.poisoner_priority_for_target(target_id, visible_state), target_id) for target_id in ordered_targets),
+            (
+                (self.poisoner_priority_for_target(target_id, visible_state), target_id)
+                for target_id in ordered_targets
+            ),
             key=lambda item: (-item[0], item[1]),
         )
         viable = [target_id for score, target_id in ranked if score >= 0]
@@ -467,7 +517,12 @@ class DecisionEngine:
         visit(raw_target)
         return flattened
 
-    def select_vote_decision(self, visible_state: AgentVisibleState, legal_context: AgentActionLegalContext, model_vote: bool | None = None) -> tuple[bool, float, float]:
+    def select_vote_decision(
+        self,
+        visible_state: AgentVisibleState,
+        legal_context: AgentActionLegalContext,
+        model_vote: bool | None = None,
+    ) -> tuple[bool, float, float]:
         agent = self._agent
         nominee_id = visible_state.current_nominee
         threshold = agent._vote_threshold(visible_state)
@@ -514,14 +569,18 @@ class DecisionEngine:
     ) -> bool:
         agent = self._agent
         me = visible_state.self_view
-        perceived_role = (me.perceived_role_id if me else None) or agent.perceived_role_id or agent.role_id
+        perceived_role = (
+            (me.perceived_role_id if me else None) or agent.perceived_role_id or agent.role_id
+        )
         if perceived_role != "slayer":
             return False
         if not legal_context.can_slayer_shot:
             return False
         return action_type in {"speak", "nomination_intent"}
 
-    def select_slayer_shot_target(self, visible_state: AgentVisibleState) -> tuple[str, float] | None:
+    def select_slayer_shot_target(
+        self, visible_state: AgentVisibleState
+    ) -> tuple[str, float] | None:
         agent = self._agent
         candidates = [
             player.player_id
@@ -532,7 +591,10 @@ class DecisionEngine:
             return None
 
         scored = sorted(
-            ((self.target_signal_score(player_id, visible_state), player_id) for player_id in candidates),
+            (
+                (self.target_signal_score(player_id, visible_state), player_id)
+                for player_id in candidates
+            ),
             key=lambda item: (-item[0], item[1]),
         )
         best_score, best_target = scored[0]
@@ -556,12 +618,16 @@ class DecisionEngine:
     #  EVIDENCE & REASONING
     # ==================================================================
 
-    def reasoning_evidence_candidates(self, target_id: str | None, visible_state: AgentVisibleState) -> list[str]:
+    def reasoning_evidence_candidates(
+        self, target_id: str | None, visible_state: AgentVisibleState
+    ) -> list[str]:
         agent = self._agent
         if not target_id:
             return []
 
-        target = next((player for player in visible_state.players if player.player_id == target_id), None)
+        target = next(
+            (player for player in visible_state.players if player.player_id == target_id), None
+        )
         if not target:
             return []
 
@@ -589,7 +655,9 @@ class DecisionEngine:
                 candidates.append(f"高可信信息：{summary}")
                 mentioned_roles = agent._extract_role_ids_from_text(summary)
                 if claimed_role_id and mentioned_roles and claimed_role_id not in mentioned_roles:
-                    candidates.append(f"高可信信息：{target_name} 的公开自报 {claimed_role_id} 与这条线索冲突")
+                    candidates.append(
+                        f"高可信信息：{target_name} 的公开自报 {claimed_role_id} 与这条线索冲突"
+                    )
 
         if claim_signals["conflicts"] or (claim_signals["self_claim"] and claim_signals["denial"]):
             candidates.append(f"公开信息：{target_name} 的身份说法前后不一致")
@@ -618,7 +686,9 @@ class DecisionEngine:
 
         return candidates
 
-    def best_reasoning_evidence(self, target_id: str | None, visible_state: AgentVisibleState) -> str:
+    def best_reasoning_evidence(
+        self, target_id: str | None, visible_state: AgentVisibleState
+    ) -> str:
         candidates = self.reasoning_evidence_candidates(target_id, visible_state)
         return candidates[0] if candidates else ""
 
@@ -641,7 +711,10 @@ class DecisionEngine:
             for extra in evidence_candidates[1:3]:
                 if not extra.startswith("公开信息："):
                     parts.append(f"补充={extra}")
-                elif action_type in {"nominate", "nomination_intent", "vote"} and "前后不一致" in extra:
+                elif (
+                    action_type in {"nominate", "nomination_intent", "vote"}
+                    and "前后不一致" in extra
+                ):
                     parts.append(f"补充={extra}")
         if suspicion is not None and threshold is not None:
             label = "怀疑度"
@@ -683,10 +756,17 @@ class DecisionEngine:
     #  LOCAL LOW-VALUE DECISION
     # ==================================================================
 
-    def local_low_value_decision(self, visible_state: AgentVisibleState, legal_context: AgentActionLegalContext, action_type: str) -> dict[str, Any]:
+    def local_low_value_decision(
+        self,
+        visible_state: AgentVisibleState,
+        legal_context: AgentActionLegalContext,
+        action_type: str,
+    ) -> dict[str, Any]:
         agent = self._agent
         if action_type == "vote":
-            decision, suspicion, threshold = agent._select_vote_decision(visible_state, legal_context)
+            decision, suspicion, threshold = agent._select_vote_decision(
+                visible_state, legal_context
+            )
             if os.getenv("AI_FORCE_PROGRESS_ACTIONS", "0") == "1":
                 decision = True
             return {
@@ -700,7 +780,10 @@ class DecisionEngine:
 
         selected = agent._select_nomination_target(visible_state, legal_context, intent_mode=True)
         if not selected:
-            if os.getenv("AI_FORCE_PROGRESS_ACTIONS", "0") == "1" and legal_context.legal_nomination_targets:
+            if (
+                os.getenv("AI_FORCE_PROGRESS_ACTIONS", "0") == "1"
+                and legal_context.legal_nomination_targets
+            ):
                 target_id = legal_context.legal_nomination_targets[0]
                 return {
                     "action": "nominate",
@@ -717,22 +800,37 @@ class DecisionEngine:
             "action": "nominate",
             "target": target_id,
             "reasoning": (
-                f"本地启发式提名：目标={target_id} 怀疑度={suspicion:.2f} "
-                f"阈值={threshold:.2f}。"
+                f"本地启发式提名：目标={target_id} 怀疑度={suspicion:.2f} 阈值={threshold:.2f}。"
             ),
         }
 
-    def normalize_decision(self, visible_state: AgentVisibleState, legal_context: AgentActionLegalContext, action_type: str, decision: dict[str, Any]) -> dict[str, Any]:
+    def normalize_decision(
+        self,
+        visible_state: AgentVisibleState,
+        legal_context: AgentActionLegalContext,
+        action_type: str,
+        decision: dict[str, Any],
+    ) -> dict[str, Any]:
         agent = self._agent
         if not isinstance(decision, dict):
-            return agent._fallback_decision(visible_state, legal_context, action_type, reason="non_dict_response")
+            return agent._fallback_decision(
+                visible_state, legal_context, action_type, reason="non_dict_response"
+            )
 
         reasoning = str(decision.get("reasoning", ""))
         tone = str(decision.get("tone", "calm"))
 
-        if action_type in {"speak", "nomination_intent"} and decision.get("action") == "slayer_shot" and legal_context.can_slayer_shot:
+        if (
+            action_type in {"speak", "nomination_intent"}
+            and decision.get("action") == "slayer_shot"
+            and legal_context.can_slayer_shot
+        ):
             target = decision.get("target")
-            candidate_ids = {player.player_id for player in visible_state.players if player.is_alive and player.player_id != agent.player_id}
+            candidate_ids = {
+                player.player_id
+                for player in visible_state.players
+                if player.is_alive and player.player_id != agent.player_id
+            }
             if isinstance(target, str) and target in candidate_ids:
                 suspicion = agent._target_signal_score(target, visible_state)
                 return {
@@ -770,15 +868,18 @@ class DecisionEngine:
                     ),
                 }
 
-            return agent._fallback_decision(visible_state, legal_context, action_type, reason="invalid_nomination_target")
-
+            return agent._fallback_decision(
+                visible_state, legal_context, action_type, reason="invalid_nomination_target"
+            )
 
         if action_type == "vote":
             final_vote = decision.get("decision")
             if isinstance(final_vote, bool):
                 suspicion, threshold = (0.0, agent._vote_threshold(visible_state))
                 if visible_state.current_nominee:
-                    suspicion = agent._target_signal_score(visible_state.current_nominee, visible_state)
+                    suspicion = agent._target_signal_score(
+                        visible_state.current_nominee, visible_state
+                    )
                 return {
                     "action": "vote",
                     "decision": final_vote,
@@ -791,13 +892,19 @@ class DecisionEngine:
                         threshold=threshold,
                     ),
                 }
-            return agent._fallback_decision(visible_state, legal_context, action_type, reason="invalid_vote_decision")
+            return agent._fallback_decision(
+                visible_state, legal_context, action_type, reason="invalid_vote_decision"
+            )
 
         if action_type == "defense_speech":
             content = str(decision.get("content", "")).strip()
             if not content:
-                return agent._fallback_decision(visible_state, legal_context, action_type, reason="empty_defense_speech")
-            content = agent._stabilize_speech_content_with_memory(content, visible_state, action_type)
+                return agent._fallback_decision(
+                    visible_state, legal_context, action_type, reason="empty_defense_speech"
+                )
+            content = agent._stabilize_speech_content_with_memory(
+                content, visible_state, action_type
+            )
             content = agent._sanitize_public_speech_content(content, visible_state)
             return {"action": "speak", "content": content, "tone": tone, "reasoning": reasoning}
 
@@ -814,14 +921,25 @@ class DecisionEngine:
             required_targets = max(0, int(getattr(legal_context, "required_targets", 1) or 0))
             if not targets:
                 if required_targets > 0:
-                    return agent._fallback_decision(visible_state, legal_context, action_type, reason="missing_night_target")
+                    return agent._fallback_decision(
+                        visible_state, legal_context, action_type, reason="missing_night_target"
+                    )
                 # 某些角色可能没有目标
-                return {"action": action_type, "target": None, "targets": [], "reasoning": reasoning}
+                return {
+                    "action": action_type,
+                    "target": None,
+                    "targets": [],
+                    "reasoning": reasoning,
+                }
 
             if required_targets > 0 and len(targets) != required_targets:
-                return agent._fallback_decision(visible_state, legal_context, action_type, reason="invalid_night_target_count")
+                return agent._fallback_decision(
+                    visible_state, legal_context, action_type, reason="invalid_night_target_count"
+                )
             if len(set(targets)) != len(targets):
-                return agent._fallback_decision(visible_state, legal_context, action_type, reason="duplicate_night_targets")
+                return agent._fallback_decision(
+                    visible_state, legal_context, action_type, reason="duplicate_night_targets"
+                )
 
             # 校验所有目标是否合法
             all_valid = all(t in legal_targets for t in targets)
@@ -834,24 +952,36 @@ class DecisionEngine:
                     payload["targets"] = targets
                 return payload
 
-            return agent._fallback_decision(visible_state, legal_context, action_type, reason="illegal_night_target")
+            return agent._fallback_decision(
+                visible_state, legal_context, action_type, reason="illegal_night_target"
+            )
 
         if decision.get("action") == "skip_discussion":
             return {"action": "skip_discussion", "reasoning": reasoning or "我选择暂时结束发言。"}
 
         content = str(decision.get("content", "")).strip()
         if not content:
-            return agent._fallback_decision(visible_state, legal_context, action_type, reason="empty_speech")
+            return agent._fallback_decision(
+                visible_state, legal_context, action_type, reason="empty_speech"
+            )
         content = agent._stabilize_speech_content_with_memory(content, visible_state, action_type)
         content = agent._sanitize_public_speech_content(content, visible_state)
         return {"action": "speak", "content": content, "tone": tone, "reasoning": reasoning}
 
-    def fallback_decision(self, visible_state: AgentVisibleState, legal_context: AgentActionLegalContext, action_type: str, reason: str) -> dict[str, Any]:
+    def fallback_decision(
+        self,
+        visible_state: AgentVisibleState,
+        legal_context: AgentActionLegalContext,
+        action_type: str,
+        reason: str,
+    ) -> dict[str, Any]:
         agent = self._agent
         agent._pending_fallback_reason = reason
         fallback = agent._persona_fallback_speech(action_type, reason, visible_state, legal_context)
         if action_type in {"nominate", "nomination_intent"}:
-            selection = agent._select_nomination_target(visible_state, legal_context, intent_mode=(action_type == "nomination_intent"))
+            selection = agent._select_nomination_target(
+                visible_state, legal_context, intent_mode=(action_type == "nomination_intent")
+            )
             if selection:
                 target, score, threshold = selection
                 return {
@@ -909,7 +1039,8 @@ class DecisionEngine:
                             visible_state.day_number,
                             action_type,
                             "fallback_force",
-                        ) == "yes"
+                        )
+                        == "yes"
                     ):
                         return {
                             "action": "nominate",
@@ -923,14 +1054,20 @@ class DecisionEngine:
                                 threshold=agent._nomination_threshold(visible_state),
                             ),
                         }
-            return {"action": "none", "target": None, "reasoning": fallback.get("reasoning", f"决定放弃此轮行动。({reason})")}
+            return {
+                "action": "none",
+                "target": None,
+                "reasoning": fallback.get("reasoning", f"决定放弃此轮行动。({reason})"),
+            }
         if action_type == "vote":
-            vote, suspicion, threshold = agent._select_vote_decision(visible_state, legal_context, None)
+            vote, suspicion, threshold = agent._select_vote_decision(
+                visible_state, legal_context, None
+            )
             return {
                 "action": "vote",
                 "decision": vote,
                 "reasoning": agent._augment_reasoning_with_evidence(
-                    fallback.get('reasoning', f'兜底投票决策。({reason})'),
+                    fallback.get("reasoning", f"兜底投票决策。({reason})"),
                     action_type=action_type,
                     target_id=visible_state.current_nominee,
                     visible_state=visible_state,
@@ -966,7 +1103,13 @@ class DecisionEngine:
             }
         return fallback
 
-    def persona_fallback_speech(self, action_type: str, reason: str, visible_state: AgentVisibleState, legal_context: AgentActionLegalContext) -> dict[str, Any]:
+    def persona_fallback_speech(
+        self,
+        action_type: str,
+        reason: str,
+        visible_state: AgentVisibleState,
+        legal_context: AgentActionLegalContext,
+    ) -> dict[str, Any]:
         agent = self._agent
         profile = agent.persona_profile or {}
         role_name = profile.get("role_name", agent.name)
@@ -1002,11 +1145,24 @@ class DecisionEngine:
                 "reasoning": f"兜底投票，保持角色风格 {role_name}。({reason})",
             }
         if action_type in {"nominate", "nomination_intent"}:
-            wants_to_pass = agent._stable_choice(["yes", "yes", "no"], visible_state.round_number, visible_state.day_number, action_type, "pass_bias") == "yes"
+            wants_to_pass = (
+                agent._stable_choice(
+                    ["yes", "yes", "no"],
+                    visible_state.round_number,
+                    visible_state.day_number,
+                    action_type,
+                    "pass_bias",
+                )
+                == "yes"
+            )
             legal_targets = list(legal_context.legal_nomination_targets)
 
             if not legal_targets or wants_to_pass:
-                return {"action": "none", "target": None, "reasoning": f"兜底选择放弃提名。({reason})"}
+                return {
+                    "action": "none",
+                    "target": None,
+                    "reasoning": f"兜底选择放弃提名。({reason})",
+                }
 
             target, _ = agent._choose_nomination_target_from_band(
                 legal_targets,
@@ -1022,7 +1178,17 @@ class DecisionEngine:
             }
         if action_type in {"night_action", "death_trigger"}:
             legal_targets = list(legal_context.legal_night_targets)
-            target = agent._stable_choice(legal_targets, visible_state.round_number, visible_state.day_number, action_type, "night") if legal_targets else None
+            target = (
+                agent._stable_choice(
+                    legal_targets,
+                    visible_state.round_number,
+                    visible_state.day_number,
+                    action_type,
+                    "night",
+                )
+                if legal_targets
+                else None
+            )
             return {
                 "action": action_type,
                 "target": target,
@@ -1031,7 +1197,9 @@ class DecisionEngine:
         if evil_coordination:
             content = evil_coordination
         elif stable_line:
-            content = f"我先说我更信哪条线：{stable_line}。公开场上的说法我会参考，但不会放在这之上。"
+            content = (
+                f"我先说我更信哪条线：{stable_line}。公开场上的说法我会参考，但不会放在这之上。"
+            )
         else:
             content = agent._stable_choice(
                 [
@@ -1051,7 +1219,14 @@ class DecisionEngine:
             "reasoning": f"兜底发言，保持角色风格 {role_name}。({reason})",
         }
 
-    def stable_choice(self, options: list[str], round_number: int, day_number: int, action_type: str, salt: str = "") -> str:
+    def stable_choice(
+        self,
+        options: list[str],
+        round_number: int,
+        day_number: int,
+        action_type: str,
+        salt: str = "",
+    ) -> str:
         agent = self._agent
         if not options:
             return ""
@@ -1066,7 +1241,9 @@ class DecisionEngine:
         index = int(digest[:8], 16) % len(options)
         return options[index]
 
-    def track_own_claims_from_decision(self, decision: dict[str, Any], visible_state: AgentVisibleState) -> None:
+    def track_own_claims_from_decision(
+        self, decision: dict[str, Any], visible_state: AgentVisibleState
+    ) -> None:
         """Track evil agent's own public claims for narrative consistency."""
         agent = self._agent
         extracted = decision.get("extracted_claims") or []
@@ -1077,7 +1254,8 @@ class DecisionEngine:
                 role_id = claim.get("role_id", "")
                 if role_id:
                     agent.deception_tracker.record_self_claim(
-                        role_id, visible_state.day_number,
+                        role_id,
+                        visible_state.day_number,
                         context=f"D{visible_state.day_number}R{visible_state.round_number}",
                     )
         content = str(decision.get("content", ""))

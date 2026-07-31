@@ -18,9 +18,10 @@ from src.state.game_state import ChatMessage, GameEvent, GamePhase
 class Observation(BaseModel):
     """
     单个观察片段
-    
+
     这是Agent感知到的世界切片。可能是游戏事件、别人的发言、或者系统的提示。
     """
+
     observation_id: str
     content: str
     source_event: Optional[GameEvent] = None
@@ -39,6 +40,7 @@ class MemoryTier(StrEnum):
 @dataclass
 class MemoryFact:
     """带可信度等级的长期保留事实。"""
+
     category: str
     summary: str
     tier: MemoryTier
@@ -50,7 +52,7 @@ class MemoryFact:
 class WorkingMemory:
     """
     工作记忆管理器
-    
+
     维护Agent在**当前游戏阶段**能回想起来的最直接上下文。
     一般在阶段转换（例如白天进入夜晚）时，会被总结并归档到短期记忆/长期记忆中，然后清空。
     """
@@ -61,7 +63,7 @@ class WorkingMemory:
         fact_limit: int = 20,
         internal_thought_limit: int = 5,
         impression_limit: int = 5,
-        storage_limit: int = 40
+        storage_limit: int = 40,
     ) -> None:
         self.observation_limit = observation_limit
         self.fact_limit = fact_limit
@@ -101,7 +103,7 @@ class WorkingMemory:
         if fact in self.anchor_facts:
             self.anchor_facts.remove(fact)
         self.anchor_facts.append(fact)
-        self.anchor_facts = self.anchor_facts[-self.fact_limit:]
+        self.anchor_facts = self.anchor_facts[-self.fact_limit :]
         self.remember_public_info("public_fact", fact)
 
     def _remember_memory_fact(
@@ -127,11 +129,12 @@ class WorkingMemory:
         )
         storage = self._storage_for_tier(tier)
         storage[:] = [
-            existing for existing in storage
+            existing
+            for existing in storage
             if not (existing.category == item.category and existing.summary == item.summary)
         ]
         storage.append(item)
-        del storage[:-self.storage_limit]
+        del storage[: -self.storage_limit]
 
     def _storage_for_tier(self, tier: MemoryTier) -> list[MemoryFact]:
         tier_value = tier.value if isinstance(tier, MemoryTier) else str(tier)
@@ -249,7 +252,7 @@ class WorkingMemory:
         """
         self.observations = [summary_observation]
         # 思考一般不建议完全清空，保留最近的限制条数
-        self.internal_thoughts = self.internal_thoughts[-self.internal_thought_limit:]
+        self.internal_thoughts = self.internal_thoughts[-self.internal_thought_limit :]
 
     def get_recent_context(self, limit: int | None = None) -> str:
         """
@@ -260,26 +263,26 @@ class WorkingMemory:
 
         if self.objective_memory:
             context_parts.append("【客观已确认信息】")
-            for item in self.objective_memory[-self.fact_limit:]:
+            for item in self.objective_memory[-self.fact_limit :]:
                 context_parts.append(f"- {item.summary}")
             context_parts.append("")
 
         if self.high_confidence_memory:
             context_parts.append("【你确认掌握的高可信私密信息】")
-            for item in self.high_confidence_memory[-self.fact_limit:]:
+            for item in self.high_confidence_memory[-self.fact_limit :]:
                 context_parts.append(f"- {item.summary}")
             context_parts.append("")
 
         if self.public_fact_memory:
             context_parts.append("【公开场上的普通信息】")
-            for item in self.public_fact_memory[-self.fact_limit:]:
+            for item in self.public_fact_memory[-self.fact_limit :]:
                 context_parts.append(f"- {item.summary}")
             context_parts.append("")
-        
+
         if self.impressions:
             context_parts.append("【此前你对场面的总体印象与画像】")
             # 只显示最近的印象
-            for imp in self.impressions[-self.impression_limit:]:
+            for imp in self.impressions[-self.impression_limit :]:
                 context_parts.append(f"- {imp}")
             context_parts.append("")
 
@@ -291,12 +294,12 @@ class WorkingMemory:
                 context_parts.append(f"- {obs.content}")
 
         # 5. 提取最近的思考
-        recent_thts = self.internal_thoughts[-self.internal_thought_limit:]
+        recent_thts = self.internal_thoughts[-self.internal_thought_limit :]
         if recent_thts:
             context_parts.append("\n【你刚才的内部推理】")
             for tht in recent_thts:
                 context_parts.append(f"- {tht}")
-                
+
         return "\n".join(context_parts)
 
     def clear(self) -> None:

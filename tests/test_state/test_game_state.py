@@ -25,6 +25,7 @@ from src.state.game_state import (
 # PlayerState Tests
 # ============================================================
 
+
 class TestPlayerState:
     def test_create_player(self):
         player = PlayerState(
@@ -42,34 +43,42 @@ class TestPlayerState:
 
     def test_player_immutability(self):
         player = PlayerState(
-            player_id="p1", name="张三",
-            role_id="washerwoman", team=Team.GOOD,
+            player_id="p1",
+            name="张三",
+            role_id="washerwoman",
+            team=Team.GOOD,
         )
         with pytest.raises(Exception):
             player.is_alive = False  # type: ignore
 
     def test_with_update(self):
         player = PlayerState(
-            player_id="p1", name="张三",
-            role_id="washerwoman", team=Team.GOOD,
+            player_id="p1",
+            name="张三",
+            role_id="washerwoman",
+            team=Team.GOOD,
         )
         dead_player = player.with_update(is_alive=False)
-        assert player.is_alive is True    # 原对象不变
+        assert player.is_alive is True  # 原对象不变
         assert dead_player.is_alive is False
-        assert dead_player.name == "张三"   # 其他字段保留
+        assert dead_player.name == "张三"  # 其他字段保留
 
     def test_is_poisoned(self):
         player = PlayerState(
-            player_id="p1", name="张三",
-            role_id="washerwoman", team=Team.GOOD,
+            player_id="p1",
+            name="张三",
+            role_id="washerwoman",
+            team=Team.GOOD,
             statuses=(PlayerStatus.ALIVE, PlayerStatus.POISONED),
         )
         assert player.is_poisoned is True
 
     def test_dead_vote(self):
         player = PlayerState(
-            player_id="p1", name="张三",
-            role_id="washerwoman", team=Team.GOOD,
+            player_id="p1",
+            name="张三",
+            role_id="washerwoman",
+            team=Team.GOOD,
             is_alive=False,
             has_used_dead_vote=False,
         )
@@ -82,6 +91,7 @@ class TestPlayerState:
 # ============================================================
 # GameState Tests
 # ============================================================
+
 
 class TestGameState:
     def _make_players(self) -> tuple[PlayerState, ...]:
@@ -121,15 +131,15 @@ class TestGameState:
     def test_with_update(self):
         state = GameState(players=self._make_players())
         new_state = state.with_update(phase=GamePhase.FIRST_NIGHT, round_number=1)
-        assert state.phase == GamePhase.SETUP       # 原对象不变
+        assert state.phase == GamePhase.SETUP  # 原对象不变
         assert new_state.phase == GamePhase.FIRST_NIGHT
         assert new_state.round_number == 1
-        assert new_state.player_count == 3           # 玩家保留
+        assert new_state.player_count == 3  # 玩家保留
 
     def test_with_player_update(self):
         state = GameState(players=self._make_players())
         new_state = state.with_player_update("p1", is_alive=False)
-        assert state.get_player("p1").is_alive is True    # 原对象不变
+        assert state.get_player("p1").is_alive is True  # 原对象不变
         assert new_state.get_player("p1").is_alive is False
 
     def test_with_event(self):
@@ -142,7 +152,7 @@ class TestGameState:
             target="p1",
         )
         new_state = state.with_event(event)
-        assert len(state.event_log) == 0       # 原对象不变
+        assert len(state.event_log) == 0  # 原对象不变
         assert len(new_state.event_log) == 1
         assert new_state.event_log[0].event_type == "player_death"
 
@@ -175,6 +185,7 @@ class TestGameState:
 # GameEvent Tests
 # ============================================================
 
+
 class TestGameEvent:
     def test_create_event(self):
         event = GameEvent(
@@ -204,6 +215,7 @@ class TestGameEvent:
 # RoleDefinition Tests
 # ============================================================
 
+
 class TestRoleDefinition:
     def test_create_role(self):
         role = RoleDefinition(
@@ -226,6 +238,7 @@ class TestRoleDefinition:
 # ============================================================
 # GameConfig Tests
 # ============================================================
+
 
 class TestGameConfig:
     def test_create_config(self):

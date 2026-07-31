@@ -18,7 +18,12 @@ VALID_TRANSITIONS: dict[GamePhase, list[GamePhase]] = {
     GamePhase.SETUP: [GamePhase.SETUP, GamePhase.FIRST_NIGHT, GamePhase.GAME_OVER],
     GamePhase.FIRST_NIGHT: [GamePhase.DAY_DISCUSSION],
     GamePhase.DAY_DISCUSSION: [GamePhase.NOMINATION, GamePhase.GAME_OVER],
-    GamePhase.NOMINATION: [GamePhase.VOTING, GamePhase.EXECUTION, GamePhase.NIGHT, GamePhase.GAME_OVER],
+    GamePhase.NOMINATION: [
+        GamePhase.VOTING,
+        GamePhase.EXECUTION,
+        GamePhase.NIGHT,
+        GamePhase.GAME_OVER,
+    ],
     GamePhase.VOTING: [GamePhase.NOMINATION, GamePhase.EXECUTION, GamePhase.GAME_OVER],
     GamePhase.EXECUTION: [GamePhase.NIGHT, GamePhase.GAME_OVER],
     GamePhase.NIGHT: [GamePhase.DAY_DISCUSSION, GamePhase.GAME_OVER],
@@ -70,7 +75,7 @@ class PhaseManager:
                 target = GamePhase(target)
             except ValueError:
                 return False
-        
+
         # 确保当前阶段也是 Enum
         current = self._current_phase
         if isinstance(current, str):
@@ -81,7 +86,7 @@ class PhaseManager:
         # print(f"DEBUG: Checking {current} -> {target}. Valid: {valid_targets}")
         # for v in valid_targets:
         #     if v == target: print(f"DEBUG: Found match! {v} == {target}")
-        
+
         return target in valid_targets
 
     def get_valid_transitions(self) -> list[GamePhase]:

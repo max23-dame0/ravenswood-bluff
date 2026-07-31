@@ -88,7 +88,7 @@ class EventObserver:
             content=content,
             source_event=event,
             phase=visible_state.phase,
-            round_number=visible_state.round_number
+            round_number=visible_state.round_number,
         )
         agent.working_memory.add_observation(obs)
 
@@ -128,7 +128,9 @@ class EventObserver:
         if event.event_type == "private_info_delivered" and event.target == agent.player_id:
             payload = event.payload or {}
             info_type = payload.get("type", "night_info")
-            title = payload.get("title") or get_role_name(agent.perceived_role_id or agent.role_id or "unknown")
+            title = payload.get("title") or get_role_name(
+                agent.perceived_role_id or agent.role_id or "unknown"
+            )
             lines = payload.get("lines", [])
             detail = " ".join(str(line) for line in lines[:3]) if isinstance(lines, list) else ""
             remembered = f"{title}: {detail}".strip(": ")
@@ -146,7 +148,9 @@ class EventObserver:
                     pid = entry.get("player_id", "")
                     role_id = entry.get("role_id", "unknown")
                     team = entry.get("team", "unknown")
-                    player_name = agent._player_name_from_visible_state(pid, visible_state) if pid else "未知"
+                    player_name = (
+                        agent._player_name_from_visible_state(pid, visible_state) if pid else "未知"
+                    )
                     role_name = get_role_name(role_id)
                     agent.working_memory.remember_objective_info(
                         "spy_book",
@@ -158,7 +162,7 @@ class EventObserver:
 
             teammates = payload.get("teammates", [])
             if teammates:
-                teammates_str = ', '.join(teammates)
+                teammates_str = ", ".join(teammates)
                 agent.working_memory.remember_objective_info(
                     "evil_teammates",
                     f"【绝密推演可用】已知邪恶同伴名单：{teammates_str}",
@@ -167,16 +171,25 @@ class EventObserver:
                     source="evil_team_info",
                 )
                 for teammate_name in teammates:
-                    teammate = next((player for player in visible_state.players if player.name == teammate_name), None)
+                    teammate = next(
+                        (
+                            player
+                            for player in visible_state.players
+                            if player.name == teammate_name
+                        ),
+                        None,
+                    )
                     if teammate:
                         agent.social_graph.init_player(teammate.player_id, teammate.name)
-                        agent.social_graph.add_note(teammate.player_id, "已由邪恶私密信息确认是己方队友")
+                        agent.social_graph.add_note(
+                            teammate.player_id, "已由邪恶私密信息确认是己方队友"
+                        )
                         agent.social_graph.update_trust(teammate.player_id, 1.0)
 
             bluffs = payload.get("bluffs", [])
             if bluffs:
                 bluff_names = [get_role_name(role_id) for role_id in bluffs]
-                bluffs_str = ', '.join(bluff_names)
+                bluffs_str = ", ".join(bluff_names)
                 agent.working_memory.remember_objective_info(
                     "evil_bluffs",
                     f"【伪装策略】适合邪恶阵营穿的衣服（bluff）：{bluffs_str}",
@@ -187,7 +200,11 @@ class EventObserver:
             return
 
         # Extract claim assignments from evil coordination messages
-        if event.event_type == "player_speaks" and event.payload.get("is_private") and agent.team == "evil":
+        if (
+            event.event_type == "player_speaks"
+            and event.payload.get("is_private")
+            and agent.team == "evil"
+        ):
             content = event.payload.get("content", "")
             speaker = event.actor
             if speaker != agent.player_id and content:
@@ -236,7 +253,9 @@ class EventObserver:
                 if not hasattr(agent, "_kill_failure_history"):
                     agent._kill_failure_history: dict[str, int] = {}
                 target_id = event.target or "unknown"
-                agent._kill_failure_history[target_id] = agent._kill_failure_history.get(target_id, 0) + 1
+                agent._kill_failure_history[target_id] = (
+                    agent._kill_failure_history.get(target_id, 0) + 1
+                )
                 count = agent._kill_failure_history[target_id]
                 agent.working_memory.remember_objective_info(
                     "failed_kill_target",
@@ -291,7 +310,10 @@ class EventObserver:
                 profile = agent.social_graph.get_profile(event.target)
                 if profile and not profile.is_frozen:
                     # 如果此人有跳身份且没有明显的改口冲突，则冻结
-                    if profile.current_self_claim and agent.social_graph.claim_conflict_count(event.target) == 0:
+                    if (
+                        profile.current_self_claim
+                        and agent.social_graph.claim_conflict_count(event.target) == 0
+                    ):
                         summary_text = f"死者，跳身份为 {get_role_name(profile.current_self_claim)}，生前表现稳定。"
                         agent.social_graph.freeze_player(event.target, summary_text)
             return
@@ -329,11 +351,20 @@ class EventObserver:
                     source="role_transfer_bluffs",
                 )
 
-            logger.info("[%s] 角色转移完成: 新角色=%s, 伪装=%s, bluffs=%s",
-                       agent.name, new_role, old_perceived, bluffs)
+            logger.info(
+                "[%s] 角色转移完成: 新角色=%s, 伪装=%s, bluffs=%s",
+                agent.name,
+                new_role,
+                old_perceived,
+                bluffs,
+            )
             return
 
-        if event.event_type in {"player_speaks", "defense_started"} and event.actor and event.actor != agent.player_id:
+        if (
+            event.event_type in {"player_speaks", "defense_started"}
+            and event.actor
+            and event.actor != agent.player_id
+        ):
             actor_name = agent._player_name_from_visible_state(event.actor, visible_state)
             extracted = event.payload.get("extracted_claims")
             if extracted is not None:
@@ -342,11 +373,14 @@ class EventObserver:
                         role_id=c.get("role_id"),
                         claim_type=c.get("claim_type"),
                         subject_player_ids=tuple(c.get("subject_player_ids", [])),
-                        source_text=event.payload.get("content", "")
-                    ) for c in extracted
+                        source_text=event.payload.get("content", ""),
+                    )
+                    for c in extracted
                 ]
             else:
-                statements = self.extract_role_statements(event.payload.get("content", ""), event.actor, visible_state)
+                statements = self.extract_role_statements(
+                    event.payload.get("content", ""), event.actor, visible_state
+                )
             for statement in statements:
                 if event.event_type == "defense_started" and statement.claim_type == "self_claim":
                     continue  # defense speeches deny, not claim — filter false positives
@@ -362,14 +396,24 @@ class EventObserver:
                         speaker_id=event.actor,
                         speaker_name=actor_name,
                     )
-                    agent.social_graph.add_note(event.actor, f"公开跳身份为 {get_role_name(statement.role_id)}")
+                    agent.social_graph.add_note(
+                        event.actor, f"公开跳身份为 {get_role_name(statement.role_id)}"
+                    )
 
                     # [Task D] 如果此人之前被冻结，现在改口了，必须解冻
                     profile = agent.social_graph.get_profile(event.actor)
-                    if profile and profile.is_frozen and profile.current_self_claim != statement.role_id:
-                        agent.social_graph.thaw_player(event.actor, f"改口跳身份: {statement.role_id}")
+                    if (
+                        profile
+                        and profile.is_frozen
+                        and profile.current_self_claim != statement.role_id
+                    ):
+                        agent.social_graph.thaw_player(
+                            event.actor, f"改口跳身份: {statement.role_id}"
+                        )
 
-                    agent.working_memory.remember_fact(f"{actor_name} 公开跳身份为 {get_role_name(statement.role_id)}")
+                    agent.working_memory.remember_fact(
+                        f"{actor_name} 公开跳身份为 {get_role_name(statement.role_id)}"
+                    )
                     agent.working_memory.remember_public_info(
                         "role_claim",
                         f"{actor_name} 公开跳身份为 {get_role_name(statement.role_id)}",
@@ -389,12 +433,16 @@ class EventObserver:
                         speaker_id=event.actor,
                         speaker_name=actor_name,
                     )
-                    agent.social_graph.add_note(event.actor, f"否认自己是 {get_role_name(statement.role_id)}")
+                    agent.social_graph.add_note(
+                        event.actor, f"否认自己是 {get_role_name(statement.role_id)}"
+                    )
                 elif statement.claim_type in {"question", "accusation", "relay"}:
                     # Init speaker profile so claims_about_others can be stored
                     agent.social_graph.init_player(event.actor, actor_name)
                     for subject_id in statement.subject_player_ids:
-                        subject_name = agent._player_name_from_visible_state(subject_id, visible_state)
+                        subject_name = agent._player_name_from_visible_state(
+                            subject_id, visible_state
+                        )
                         agent.social_graph.init_player(subject_id, subject_name)
 
                         # Add to claims_about_others
@@ -417,7 +465,9 @@ class EventObserver:
                         verb = "质疑像" if statement.claim_type == "question" else "怀疑是"
                         if statement.claim_type == "relay":
                             verb = "[转述-非自报] 转述称其跳了"
-                        agent.social_graph.add_note(subject_id, f"{actor_name} {verb} {get_role_name(statement.role_id)}")
+                        agent.social_graph.add_note(
+                            subject_id, f"{actor_name} {verb} {get_role_name(statement.role_id)}"
+                        )
 
         # 公开发言存入公开信息层（无论是否包含角色声明）
         if event.event_type == "player_speaks" and event.actor and event.actor != agent.player_id:
@@ -436,12 +486,16 @@ class EventObserver:
     # Private info memory storage
     # ------------------------------------------------------------------
 
-    def store_private_info_memory(self, info_type: str, summary: str, visible_state: AgentVisibleState) -> None:
+    def store_private_info_memory(
+        self, info_type: str, summary: str, visible_state: AgentVisibleState
+    ) -> None:
         agent = self._agent
         summary = (summary or "").strip()
         if summary and summary not in agent.working_memory.anchor_facts:
             agent.working_memory.anchor_facts.append(summary)
-            agent.working_memory.anchor_facts = agent.working_memory.anchor_facts[-agent.working_memory.fact_limit:]
+            agent.working_memory.anchor_facts = agent.working_memory.anchor_facts[
+                -agent.working_memory.fact_limit :
+            ]
 
         objective_info_types = {"evil_team_info", "spy_book"}
         high_confidence_info_types = {
@@ -485,7 +539,9 @@ class EventObserver:
     # ------------------------------------------------------------------
 
     @staticmethod
-    def _extract_team_claims_from_coordination(content: str, agent: Any, visible_state: AgentVisibleState) -> None:
+    def _extract_team_claims_from_coordination(
+        content: str, agent: Any, visible_state: AgentVisibleState
+    ) -> None:
         """Extract role claim assignments from evil channel coordination messages.
 
         Looks for patterns like '我跳XX', '我跳【XX】', '{name}跳YY'.
@@ -495,7 +551,7 @@ class EventObserver:
 
         # Pattern: <subject>跳<role> — subject can be a name or 我
         # Handles: "我跳洗衣妇", "我跳【洗衣妇】", "A跳共情者"
-        matches = re.findall(r'([一-鿿\w]+?)跳[【\[]?([一-鿿]+)[】\]，。、\s]?', content)
+        matches = re.findall(r"([一-鿿\w]+?)跳[【\[]?([一-鿿]+)[】\]，。、\s]?", content)
         for claimant, role_name in matches:
             if claimant in ("我", "我方", "本人"):
                 # Resolve "我" to the speaker's name
@@ -521,17 +577,27 @@ class EventObserver:
         agent = self._agent
         role_seen = payload.get("role_seen")
         role_name = get_role_name(role_seen) if role_seen else None
-        players: list[str] = list(payload.get("players", [])) if isinstance(payload.get("players", []), list) else []
+        players: list[str] = (
+            list(payload.get("players", [])) if isinstance(payload.get("players", []), list) else []
+        )
 
         def player_name(pid: str) -> str:
             return agent._player_name_from_visible_state(pid, visible_state)
 
-        if info_type in {"washerwoman_info", "librarian_info", "investigator_info"} and players and role_seen:
+        if (
+            info_type in {"washerwoman_info", "librarian_info", "investigator_info"}
+            and players
+            and role_seen
+        ):
             for pid in players:
                 if info_type == "investigator_info":
-                    summary = f"【绝密线索】根据你收到的情报，{player_name(pid)} 可能是 {role_name}。"
+                    summary = (
+                        f"【绝密线索】根据你收到的情报，{player_name(pid)} 可能是 {role_name}。"
+                    )
                 else:
-                    summary = f"【内部直觉】根据目前掌握的信息，{player_name(pid)} 可能是 {role_name}。"
+                    summary = (
+                        f"【内部直觉】根据目前掌握的信息，{player_name(pid)} 可能是 {role_name}。"
+                    )
                 agent.working_memory.remember_private_info(
                     "role_candidate_hint",
                     summary,
@@ -540,7 +606,11 @@ class EventObserver:
                     source=info_type,
                 )
 
-        if info_type == "fortune_teller_info" and players and payload.get("has_demon", payload.get("result")):
+        if (
+            info_type == "fortune_teller_info"
+            and players
+            and payload.get("has_demon", payload.get("result"))
+        ):
             for pid in players:
                 agent.working_memory.remember_private_info(
                     "demon_candidate",
@@ -569,8 +639,16 @@ class EventObserver:
     def format_event_to_text(self, event: GameEvent, visible_state: AgentVisibleState) -> str:
         """将事件对象渲染为自然语言描述"""
         agent = self._agent
-        actor = agent._player_name_from_visible_state(event.actor, visible_state) if event.actor else "系统"
-        target = agent._player_name_from_visible_state(event.target, visible_state) if event.target else "某个目标"
+        actor = (
+            agent._player_name_from_visible_state(event.actor, visible_state)
+            if event.actor
+            else "系统"
+        )
+        target = (
+            agent._player_name_from_visible_state(event.target, visible_state)
+            if event.target
+            else "某个目标"
+        )
 
         if event.event_type == "player_speaks":
             msg = event.payload.get("content", "")
@@ -582,7 +660,9 @@ class EventObserver:
             return f"✋ {actor} 对处决 {target} 投了 {decision}票。"
         elif event.event_type == "voting_resolved":
             passed = event.payload.get("passed", False)
-            return f"⚖️ 对 {target} 的投票结果出炉: 票数{'足够' if passed else '不足'}将其送上处决台。"
+            return (
+                f"⚖️ 对 {target} 的投票结果出炉: 票数{'足够' if passed else '不足'}将其送上处决台。"
+            )
         elif event.event_type in {"player_death", "execution_resolved"}:
             return f"\U0001f480 {target} 已经死亡。"
         elif event.event_type == "private_info_delivered":
@@ -639,16 +719,23 @@ class EventObserver:
             # Check for relay first (e.g. "X says he is Y")
             relay_found = False
             for player in visible_state.players:
-                if player.player_id == speaker_id: continue
-                if player.name not in text: continue
+                if player.player_id == speaker_id:
+                    continue
+                if player.name not in text:
+                    continue
                 relay_patterns = (
                     rf"{re.escape(player.name)}[^。？！\n]*说[^。？！\n]*(?:跳|是).{{0,4}}{re.escape(zh_name)}",
-                    rf"{re.escape(player.name)}[^。？！\n]*自报[^。？！\n]*{re.escape(zh_name)}"
+                    rf"{re.escape(player.name)}[^。？！\n]*自报[^。？！\n]*{re.escape(zh_name)}",
                 )
                 if any(re.search(p, text) for p in relay_patterns):
-                    statements.append(ParsedRoleStatement(
-                        role_id=role_id, claim_type="relay", subject_player_ids=(player.player_id,), source_text=text
-                    ))
+                    statements.append(
+                        ParsedRoleStatement(
+                            role_id=role_id,
+                            claim_type="relay",
+                            subject_player_ids=(player.player_id,),
+                            source_text=text,
+                        )
+                    )
                     relay_found = True
                     break
             if relay_found:
@@ -677,17 +764,22 @@ class EventObserver:
             match_obj = re.search(cn_self_claim, text)
             if match_obj:
                 # Sentence-level context: text since last sentence delimiter
-                preceding = text[:match_obj.start()]
+                preceding = text[: match_obj.start()]
                 last_delim = max(
-                    preceding.rfind('。'), preceding.rfind('？'),
-                    preceding.rfind('！'), preceding.rfind('\n'), 0,
+                    preceding.rfind("。"),
+                    preceding.rfind("？"),
+                    preceding.rfind("！"),
+                    preceding.rfind("\n"),
+                    0,
                 )
                 sentence_ctx = text[last_delim:]
                 # Skip if hypothetical marker in same sentence
-                if re.search(r'(?:如果|要是|假设|就算|哪怕)', sentence_ctx):
+                if re.search(r"(?:如果|要是|假设|就算|哪怕)", sentence_ctx):
                     pass  # fall through to accusation/question checks
                 # Skip if attribution/relay marker in same sentence (requires a subject)
-                elif re.search(r'(?:你说|他说|据称|有人(?:说|认为|觉得)|大家(?:说|讨论)|P\d+说)', sentence_ctx):
+                elif re.search(
+                    r"(?:你说|他说|据称|有人(?:说|认为|觉得)|大家(?:说|讨论)|P\d+说)", sentence_ctx
+                ):
                     pass  # fall through
                 else:
                     statements.append(
@@ -722,7 +814,10 @@ class EventObserver:
                 if player.name not in text:
                     continue
                 # accusation/question checks
-                if re.search(rf"{re.escape(player.name)}[^。？！\n]*(?:是不是|是).{{0,4}}{re.escape(zh_name)}", text):
+                if re.search(
+                    rf"{re.escape(player.name)}[^。？！\n]*(?:是不是|是).{{0,4}}{re.escape(zh_name)}",
+                    text,
+                ):
                     statements.append(
                         ParsedRoleStatement(
                             role_id=role_id,
@@ -732,7 +827,10 @@ class EventObserver:
                         )
                     )
                     break
-                if re.search(rf"{re.escape(player.name)}[^。？！\n]*(?:像|可能是|就是).{{0,4}}{re.escape(zh_name)}", text):
+                if re.search(
+                    rf"{re.escape(player.name)}[^。？！\n]*(?:像|可能是|就是).{{0,4}}{re.escape(zh_name)}",
+                    text,
+                ):
                     statements.append(
                         ParsedRoleStatement(
                             role_id=role_id,

@@ -78,7 +78,9 @@ async def test_get_embeddings_returns_vectors_when_supported() -> None:
 
 
 @pytest.mark.asyncio
-async def test_get_embeddings_uses_dedicated_embedding_client_config(monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_get_embeddings_uses_dedicated_embedding_client_config(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     monkeypatch.setenv("EMBEDDING_API_KEY", "embed-key")
     monkeypatch.setenv("EMBEDDING_BASE_URL", "https://api.siliconflow.cn/v1")
     monkeypatch.setenv("EMBEDDING_MODEL", "Pro/BAAI/bge-m3")

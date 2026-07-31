@@ -26,7 +26,12 @@ def wait_for_nomination_prompt(client: TestClient, player_id: str = "h1") -> dic
         time.sleep(0.1)
         state = client.get("/api/game/state", params={"player_id": player_id}).json()
         metrics = client.get("/api/game/metrics").json()
-        if metrics.get("nomination_prompt_count", 0) > 0 or state.get("phase") in {"nomination", "voting", "night", "game_over"}:
+        if metrics.get("nomination_prompt_count", 0) > 0 or state.get("phase") in {
+            "nomination",
+            "voting",
+            "night",
+            "game_over",
+        }:
             break
     return state
 

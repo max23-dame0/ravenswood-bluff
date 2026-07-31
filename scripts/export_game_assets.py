@@ -27,7 +27,9 @@ async def _run(game_id: str, db_path: str, sessions_dir: str) -> dict:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Export game history + AI traces + storyteller judgements")
+    parser = argparse.ArgumentParser(
+        description="Export game history + AI traces + storyteller judgements"
+    )
     parser.add_argument("game_id", help="Target game_id")
     parser.add_argument("--db-path", default="data/games.db", help="Game record database path")
     parser.add_argument("--sessions-dir", default="data/sessions", help="AI trace directory")

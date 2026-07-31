@@ -48,22 +48,29 @@ class SpeechSanitizer:
             "绝对客观事实",
             "高可信度线索",
         )
-        leaks_raw_summary = any(summary and summary in text for summary in self._hidden_memory_summaries_for_public_filter())
+        leaks_raw_summary = any(
+            summary and summary in text
+            for summary in self._hidden_memory_summaries_for_public_filter()
+        )
         leaks_marker = any(marker in text for marker in unsafe_markers)
         if not leaks_raw_summary and not leaks_marker:
             return text
 
         if safe_anchor:
-            return random.choice([
-                f"{safe_anchor} 我现在先按这个方向聊，不把所有细节一次性摊开。",
-                f"{safe_anchor} 具体的我先不全说，但这个方向我觉得值得跟。",
-                f"{safe_anchor} 其他的等我再想想，先说这条。",
-            ])
-        return random.choice([
-            "我现在有一些内部判断，但公开场上先看发言逻辑和投票轨迹，不急着把话说死。",
-            "我有自己的想法，但不急着全摊开，先看看大家怎么说。",
-            "有些事我心里有数，不过现在不是说的时候。",
-        ])
+            return random.choice(
+                [
+                    f"{safe_anchor} 我现在先按这个方向聊，不把所有细节一次性摊开。",
+                    f"{safe_anchor} 具体的我先不全说，但这个方向我觉得值得跟。",
+                    f"{safe_anchor} 其他的等我再想想，先说这条。",
+                ]
+            )
+        return random.choice(
+            [
+                "我现在有一些内部判断，但公开场上先看发言逻辑和投票轨迹，不急着把话说死。",
+                "我有自己的想法，但不急着全摊开，先看看大家怎么说。",
+                "有些事我心里有数，不过现在不是说的时候。",
+            ]
+        )
 
     def stabilize_speech_content_with_memory(
         self,
@@ -86,17 +93,21 @@ class SpeechSanitizer:
             return text
 
         if action_type == "defense_speech":
-            prefix = random.choice([
-                "我先把我最确认的一条线说清楚：",
-                "有件事我比较确定：",
-                "我能说的是：",
-            ])
+            prefix = random.choice(
+                [
+                    "我先把我最确认的一条线说清楚：",
+                    "有件事我比较确定：",
+                    "我能说的是：",
+                ]
+            )
         else:
-            prefix = random.choice([
-                "我先说我更信的一条线：",
-                "有条线索我觉得值得说：",
-                "我比较在意的一点是：",
-            ])
+            prefix = random.choice(
+                [
+                    "我先说我更信的一条线：",
+                    "有条线索我觉得值得说：",
+                    "我比较在意的一点是：",
+                ]
+            )
         return f"{prefix}{stable_line}。{text}"
 
     # ------------------------------------------------------------------
@@ -219,23 +230,31 @@ class SpeechSanitizer:
                 names.append(player.name)
         return names
 
-    def _private_info_public_paraphrase(self, summary: str, visible_state: AgentVisibleState) -> str:
+    def _private_info_public_paraphrase(
+        self, summary: str, visible_state: AgentVisibleState
+    ) -> str:
         names = self._mentioned_visible_names(summary, visible_state)
         if len(names) >= 2:
-            pair = '、'.join(names[:2])
-            return random.choice([
-                f"我手里有一条信息让我更关注 {pair} 这组关系，但细节我先不完全摊开。",
-                f"我觉得 {pair} 之间有些值得琢磨的地方，具体我先不说。",
-                f"有条线索把 {pair} 串在一起了，我还在消化。",
-            ])
+            pair = "、".join(names[:2])
+            return random.choice(
+                [
+                    f"我手里有一条信息让我更关注 {pair} 这组关系，但细节我先不完全摊开。",
+                    f"我觉得 {pair} 之间有些值得琢磨的地方，具体我先不说。",
+                    f"有条线索把 {pair} 串在一起了，我还在消化。",
+                ]
+            )
         if len(names) == 1:
-            return random.choice([
-                f"我手里有一条信息让我暂时更关注 {names[0]}，但我不想把底牌一次性说死。",
-                f"有件事让我对 {names[0]} 的看法变了，但我先不说是什么。",
-                f"{names[0]} 身上有条线索我一直没想通。",
-            ])
-        return random.choice([
-            "我手里有一条信息会影响我的判断，但现在先看公开发言能不能对上。",
-            "我有条私密线索，目前还不适合公开。",
-            "有件事我一直在想，但说出来可能反而帮到不该帮的人。",
-        ])
+            return random.choice(
+                [
+                    f"我手里有一条信息让我暂时更关注 {names[0]}，但我不想把底牌一次性说死。",
+                    f"有件事让我对 {names[0]} 的看法变了，但我先不说是什么。",
+                    f"{names[0]} 身上有条线索我一直没想通。",
+                ]
+            )
+        return random.choice(
+            [
+                "我手里有一条信息会影响我的判断，但现在先看公开发言能不能对上。",
+                "我有条私密线索，目前还不适合公开。",
+                "有件事我一直在想，但说出来可能反而帮到不该帮的人。",
+            ]
+        )

@@ -35,10 +35,12 @@ _ROLE_REGISTRY: dict[str, type["BaseRole"]] = {}
 
 def register_role(role_id: str):
     """角色注册装饰器"""
+
     def decorator(cls: type[BaseRole]):
         _ROLE_REGISTRY[role_id] = cls
         cls._role_id = role_id
         return cls
+
     return decorator
 
 
@@ -105,20 +107,24 @@ class BaseRole(ABC):
         # 固定信息角色不进入通用 night_action 请求链。
         if definition.ability.action_type == AbilityType.INFO_GATHER and self.is_fixed_info_role():
             return False
-        
+
         trigger = definition.ability.trigger
-        
+
         if phase == GamePhase.FIRST_NIGHT:
             return trigger in (AbilityTrigger.FIRST_NIGHT, AbilityTrigger.EACH_NIGHT)
-        
+
         if phase == GamePhase.NIGHT:
             # 除首夜(Round 1, Day 0)外的夜晚 (通常是 Round 2, Day 1 及以后)
             # 或者是针对 EACH_NIGHT_EXCEPT_FIRST 触发器
             if game_state.round_number > 1:
-                return trigger in (AbilityTrigger.EACH_NIGHT, AbilityTrigger.EACH_NIGHT_EXCEPT_FIRST, AbilityTrigger.ON_DEATH)
+                return trigger in (
+                    AbilityTrigger.EACH_NIGHT,
+                    AbilityTrigger.EACH_NIGHT_EXCEPT_FIRST,
+                    AbilityTrigger.ON_DEATH,
+                )
             # 首个夜晚(Round 1)已经用 FIRST_NIGHT 覆盖了，NIGHT 里的 EACH_NIGHT 也应在后续生效
             return trigger in (AbilityTrigger.EACH_NIGHT, AbilityTrigger.ON_DEATH)
-            
+
         return False
 
     @classmethod

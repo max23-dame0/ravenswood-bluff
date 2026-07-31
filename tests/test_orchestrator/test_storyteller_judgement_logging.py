@@ -24,7 +24,17 @@ from src.engine.roles.townsfolk import (
     WasherwomanRole,
 )
 from src.orchestrator.game_loop import GameOrchestrator
-from src.state.game_state import GameConfig, GameEvent, GamePhase, GameState, PlayerState, PlayerStatus, RoleType, Team, Visibility
+from src.state.game_state import (
+    GameConfig,
+    GameEvent,
+    GamePhase,
+    GameState,
+    PlayerState,
+    PlayerStatus,
+    RoleType,
+    Team,
+    Visibility,
+)
 
 
 class ScriptedAgent(BaseAgent):
@@ -160,7 +170,13 @@ def _state_for_fortune_teller(*, suppressed: bool = False) -> GameState:
         round_number=2,
         seat_order=("p1", "p2", "p3", "p4"),
         players=(
-            PlayerState(player_id="p1", name="FT", role_id="fortune_teller", team=Team.GOOD, statuses=statuses),
+            PlayerState(
+                player_id="p1",
+                name="FT",
+                role_id="fortune_teller",
+                team=Team.GOOD,
+                statuses=statuses,
+            ),
             PlayerState(player_id="p2", name="Imp", role_id="imp", team=Team.EVIL),
             PlayerState(player_id="p3", name="Town", role_id="washerwoman", team=Team.GOOD),
             PlayerState(player_id="p4", name="Chef", role_id="chef", team=Team.GOOD),
@@ -186,7 +202,9 @@ def _state_for_undertaker() -> GameState:
         seat_order=("p1", "p2", "p3", "p4"),
         players=(
             PlayerState(player_id="p1", name="Under", role_id="undertaker", team=Team.GOOD),
-            PlayerState(player_id="p2", name="Victim", role_id="empath", team=Team.GOOD, is_alive=False),
+            PlayerState(
+                player_id="p2", name="Victim", role_id="empath", team=Team.GOOD, is_alive=False
+            ),
             PlayerState(player_id="p3", name="Imp", role_id="imp", team=Team.EVIL),
             PlayerState(player_id="p4", name="Spy", role_id="spy", team=Team.EVIL),
         ),
@@ -342,7 +360,9 @@ async def test_nomination_and_voting_emit_storyteller_judgements(monkeypatch):
 
     summary = storyteller.summarize_recent_judgements(10)
     assert any(item["category"] == "voting_resolution" for item in summary)
-    assert any("yes_votes=" in item["summary"] or "votes_cast=" in item["summary"] for item in summary)
+    assert any(
+        "yes_votes=" in item["summary"] or "votes_cast=" in item["summary"] for item in summary
+    )
     assert orch.state.payload.get("nomination_state", {}).get("stage") == "executed"
     _close_workspace_handlers(workspace)
 
@@ -618,7 +638,9 @@ async def test_storyteller_distorts_fortune_teller_when_suppressed(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_storyteller_records_legacy_fallback_path_when_storyteller_info_uses_old_contract(monkeypatch):
+async def test_storyteller_records_legacy_fallback_path_when_storyteller_info_uses_old_contract(
+    monkeypatch,
+):
     workspace = Path.cwd() / "_storyteller_judgement_workspace"
     workspace.mkdir(exist_ok=True)
     monkeypatch.chdir(workspace)
@@ -627,7 +649,12 @@ async def test_storyteller_records_legacy_fallback_path_when_storyteller_info_us
 
     state = _state_for_fortune_teller(suppressed=False)
 
-    monkeypatch.setattr(FortuneTellerRole, "build_storyteller_info", lambda self, *_args, **_kwargs: None, raising=False)
+    monkeypatch.setattr(
+        FortuneTellerRole,
+        "build_storyteller_info",
+        lambda self, *_args, **_kwargs: None,
+        raising=False,
+    )
     monkeypatch.setattr(
         FortuneTellerRole,
         "get_night_info",
@@ -712,18 +739,21 @@ async def test_storyteller_records_red_herring_selection_and_hit(monkeypatch):
     assert selection["bucket"] == "setup.red_herring"
     assert selection["target"] == "rh"
 
-    state = state.with_event(GameEvent(
-        event_type="night_action_resolved",
-        phase=GamePhase.FIRST_NIGHT,
-        round_number=1,
-        actor="ft",
-        target="rh",
-        visibility=Visibility.STORYTELLER_ONLY,
-        payload={"role_id": "fortune_teller", "targets": ["rh", "ft"]},
-    ))
+    state = state.with_event(
+        GameEvent(
+            event_type="night_action_resolved",
+            phase=GamePhase.FIRST_NIGHT,
+            round_number=1,
+            actor="ft",
+            target="rh",
+            visibility=Visibility.STORYTELLER_ONLY,
+            payload={"role_id": "fortune_teller", "targets": ["rh", "ft"]},
+        )
+    )
     info = await agent.decide_night_info(state, "ft", "fortune_teller")
     red_herring_hit = [
-        entry for entry in agent.get_recent_judgements(5)
+        entry
+        for entry in agent.get_recent_judgements(5)
         if entry["category"] == "red_herring" and entry["decision"] == "hit"
     ][-1]
 
@@ -753,7 +783,9 @@ async def test_storyteller_records_misregistration_active_and_inactive(monkeypat
     )
 
     state = await agent.decide_misregistration(state)
-    recent = [entry for entry in agent.get_recent_judgements(10) if entry["category"] == "misregistration"]
+    recent = [
+        entry for entry in agent.get_recent_judgements(10) if entry["category"] == "misregistration"
+    ]
     recluse = next(entry for entry in recent if entry["role_id"] == "recluse")
     spy = next(entry for entry in recent if entry["role_id"] == "spy")
 
@@ -790,12 +822,20 @@ async def test_mayor_redirect_records_storyteller_judgement():
     )
     orch = GameOrchestrator(state)
     orch.storyteller_agent = storyteller
-    orch.register_agent(ScriptedAgent("imp", "Imp", {"night_action": [{"action": "night_action", "target": "mayor"}]}))
+    orch.register_agent(
+        ScriptedAgent(
+            "imp", "Imp", {"night_action": [{"action": "night_action", "target": "mayor"}]}
+        )
+    )
     orch.register_agent(ScriptedAgent("mayor", "Mayor", {}))
     orch.register_agent(ScriptedAgent("town", "Town", {}))
 
     await orch._execute_night_actions(GamePhase.NIGHT)
-    redirects = [entry for entry in storyteller.get_recent_judgements(20) if entry["category"] == "mayor_redirect"]
+    redirects = [
+        entry
+        for entry in storyteller.get_recent_judgements(20)
+        if entry["category"] == "mayor_redirect"
+    ]
 
     assert redirects
     assert redirects[-1]["decision"] == "redirect"

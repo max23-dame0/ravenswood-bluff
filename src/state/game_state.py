@@ -19,57 +19,65 @@ from pydantic import BaseModel, Field
 # 枚举类型定义
 # ============================================================
 
+
 class Team(str, Enum):
     """阵营"""
+
     GOOD = "good"
     EVIL = "evil"
 
 
 class RoleType(str, Enum):
     """角色类型"""
-    TOWNSFOLK = "townsfolk"    # 村民
-    OUTSIDER = "outsider"     # 外来者
-    MINION = "minion"         # 爪牙
-    DEMON = "demon"           # 恶魔
+
+    TOWNSFOLK = "townsfolk"  # 村民
+    OUTSIDER = "outsider"  # 外来者
+    MINION = "minion"  # 爪牙
+    DEMON = "demon"  # 恶魔
 
 
 class GamePhase(str, Enum):
     """游戏阶段"""
-    SETUP = "setup"                     # 游戏准备
-    FIRST_NIGHT = "first_night"         # 第一夜
-    DAY_DISCUSSION = "day_discussion"   # 白天讨论
-    NOMINATION = "nomination"           # 提名阶段
-    VOTING = "voting"                   # 投票阶段
-    EXECUTION = "execution"             # 处决结算
-    NIGHT = "night"                     # 夜晚阶段
-    GAME_OVER = "game_over"             # 游戏结束
+
+    SETUP = "setup"  # 游戏准备
+    FIRST_NIGHT = "first_night"  # 第一夜
+    DAY_DISCUSSION = "day_discussion"  # 白天讨论
+    NOMINATION = "nomination"  # 提名阶段
+    VOTING = "voting"  # 投票阶段
+    EXECUTION = "execution"  # 处决结算
+    NIGHT = "night"  # 夜晚阶段
+    GAME_OVER = "game_over"  # 游戏结束
 
 
 class Visibility(str, Enum):
     """信息可见性级别"""
-    PUBLIC = "public"                   # 所有人可见
-    TEAM_EVIL = "team_evil"             # 邪恶阵营可见
-    TEAM_GOOD = "team_good"             # 正义阵营可见
-    PRIVATE = "private"                 # 仅个人可见
+
+    PUBLIC = "public"  # 所有人可见
+    TEAM_EVIL = "team_evil"  # 邪恶阵营可见
+    TEAM_GOOD = "team_good"  # 正义阵营可见
+    PRIVATE = "private"  # 仅个人可见
     STORYTELLER_ONLY = "storyteller_only"  # 仅说书人可见
 
 
 class PlayerStatus(str, Enum):
     """玩家特殊状态标记"""
+
     ALIVE = "alive"
     DEAD = "dead"
-    POISONED = "poisoned"       # 中毒
-    DRUNK = "drunk"             # 醉酒
-    PROTECTED = "protected"     # 被保护
-    NO_ABILITY = "no_ability"   # 能力失效
+    POISONED = "poisoned"  # 中毒
+    DRUNK = "drunk"  # 醉酒
+    PROTECTED = "protected"  # 被保护
+    NO_ABILITY = "no_ability"  # 能力失效
 
 
 # ============================================================
 # 角色定义
 # ============================================================
 
+
 class AbilityTrigger(str, Enum):
     """技能触发时机"""
+
     FIRST_NIGHT = "first_night"
     EACH_NIGHT = "each_night"
     EACH_NIGHT_EXCEPT_FIRST = "each_night_except_first"
@@ -81,16 +89,18 @@ class AbilityTrigger(str, Enum):
 
 class AbilityType(str, Enum):
     """技能类型"""
-    INFO_GATHER = "info_gather"       # 信息收集
-    PROTECTION = "protection"         # 保护
-    KILL = "kill"                     # 击杀
-    MANIPULATION = "manipulation"     # 操控
-    DETECTION = "detection"           # 侦测
-    PASSIVE_EFFECT = "passive_effect" # 被动效果
+
+    INFO_GATHER = "info_gather"  # 信息收集
+    PROTECTION = "protection"  # 保护
+    KILL = "kill"  # 击杀
+    MANIPULATION = "manipulation"  # 操控
+    DETECTION = "detection"  # 侦测
+    PASSIVE_EFFECT = "passive_effect"  # 被动效果
 
 
 class DifficultyLevel(str, Enum):
     """AI difficulty presets."""
+
     CASUAL = "casual"
     STANDARD = "standard"
     MASTER = "master"
@@ -99,15 +109,17 @@ class DifficultyLevel(str, Enum):
 
 class Ability(BaseModel):
     """角色技能定义"""
+
     trigger: AbilityTrigger
     action_type: AbilityType
     description: str
     description_en: str = ""
-    night_order: int = 50   # 夜晚行动优先级（越小越先执行）
+    night_order: int = 50  # 夜晚行动优先级（越小越先执行）
 
 
 class RoleDefinition(BaseModel):
     """角色定义"""
+
     role_id: str
     name: str
     name_en: str
@@ -115,30 +127,32 @@ class RoleDefinition(BaseModel):
     role_type: RoleType
     ability: Ability
     drunk_behavior: str = "no_effect"  # 中毒/醉酒时的行为
-    setup_influence: str = ""          # 对游戏设置的影响
+    setup_influence: str = ""  # 对游戏设置的影响
 
 
 # ============================================================
 # 玩家状态
 # ============================================================
 
+
 class PlayerState(BaseModel):
     """玩家状态"""
+
     model_config = {"frozen": True}
 
     player_id: str
     name: str
-    role_id: str                                # 角色ID
-    team: Team                                  # 阵营
-    true_role_id: Optional[str] = None          # 真实身份
-    perceived_role_id: Optional[str] = None     # 玩家自认身份
+    role_id: str  # 角色ID
+    team: Team  # 阵营
+    true_role_id: Optional[str] = None  # 真实身份
+    perceived_role_id: Optional[str] = None  # 玩家自认身份
     public_claim_role_id: Optional[str] = None  # 公开宣称身份
-    current_team: Optional[Team] = None         # 当前阵营（可被转化）
+    current_team: Optional[Team] = None  # 当前阵营（可被转化）
     is_alive: bool = True
-    fake_role: Optional[str] = None             # 虚假身份（用于酒鬼等显示给玩家的假身份）
+    fake_role: Optional[str] = None  # 虚假身份（用于酒鬼等显示给玩家的假身份）
     statuses: tuple[PlayerStatus, ...] = (PlayerStatus.ALIVE,)
-    has_used_dead_vote: bool = False             # 死后是否已使用最后一票
-    ghost_votes_remaining: int = 1              # 剩余亡魂投票数
+    has_used_dead_vote: bool = False  # 死后是否已使用最后一票
+    ghost_votes_remaining: int = 1  # 剩余亡魂投票数
     storyteller_notes: tuple[str, ...] = ()
     ongoing_effects: tuple[str, ...] = ()
 
@@ -171,7 +185,7 @@ class PlayerState(BaseModel):
     def is_drunk(self) -> bool:
         """是否处于醉酒状态"""
         return PlayerStatus.DRUNK in self.statuses
-    
+
     @property
     def ability_suppressed(self) -> bool:
         """能力是否被抑制 (中毒或醉酒均导致抑制)"""
@@ -189,8 +203,10 @@ class PlayerState(BaseModel):
 # 游戏事件
 # ============================================================
 
+
 class GameEvent(BaseModel):
     """游戏事件"""
+
     model_config = {"frozen": True}
 
     event_id: str = Field(default_factory=lambda: str(uuid.uuid4())[:8])
@@ -200,8 +216,8 @@ class GameEvent(BaseModel):
     day_number: int = 1
     round_number: int
     trace_id: str = ""
-    actor: Optional[str] = None       # 事件发起者的 player_id
-    target: Optional[str] = None      # 事件目标的 player_id
+    actor: Optional[str] = None  # 事件发起者的 player_id
+    target: Optional[str] = None  # 事件目标的 player_id
     payload: dict = Field(default_factory=dict)
     visibility: Visibility = Visibility.PUBLIC
 
@@ -210,19 +226,21 @@ class GameEvent(BaseModel):
 # 聊天消息
 # ============================================================
 
+
 class ChatMessage(BaseModel):
     """对话消息"""
+
     model_config = {"frozen": True}
 
     message_id: str = Field(default_factory=lambda: str(uuid.uuid4())[:8])
-    speaker: str               # player_id 或 "system" / "storyteller"
+    speaker: str  # player_id 或 "system" / "storyteller"
     content: str
     timestamp: datetime = Field(default_factory=datetime.now)
     phase: GamePhase
     round_number: int
-    tone: str = "neutral"      # calm / passionate / accusatory / defensive
+    tone: str = "neutral"  # calm / passionate / accusatory / defensive
     target_player: Optional[str] = None  # 主要针对的玩家
-    recipient_ids: Optional[tuple[str, ...]] = None # 私聊对象 (空则全公开)
+    recipient_ids: Optional[tuple[str, ...]] = None  # 私聊对象 (空则全公开)
 
 
 class PrivatePlayerView(BaseModel):
@@ -291,6 +309,7 @@ class ExecutionCandidate(BaseModel):
 # 游戏全局状态
 # ============================================================
 
+
 class GameState(BaseModel):
     """
     游戏全局状态 — 不可变快照
@@ -298,6 +317,7 @@ class GameState(BaseModel):
     每次状态变更都生成新的 GameState 实例，
     旧实例保留在历史记录中，支持回放和调试。
     """
+
     model_config = {"frozen": True}
 
     # 基础信息
@@ -308,18 +328,18 @@ class GameState(BaseModel):
 
     # 玩家信息
     players: tuple[PlayerState, ...] = ()
-    seat_order: tuple[str, ...] = ()            # 座位顺序 player_ids
+    seat_order: tuple[str, ...] = ()  # 座位顺序 player_ids
 
     # 事件历史
     event_log: tuple[GameEvent, ...] = ()
     chat_history: tuple[ChatMessage, ...] = ()
 
     # 提名相关
-    current_nominee: Optional[str] = None       # 当前被提名者
-    current_nominator: Optional[str] = None     # 当前提名者
-    votes_today: dict = Field(default_factory=dict)   # 今天的投票记录
-    nominations_today: tuple[str, ...] = ()     # 今天已提名过的玩家
-    nominees_today: tuple[str, ...] = ()        # 今天已被提名过的玩家
+    current_nominee: Optional[str] = None  # 当前被提名者
+    current_nominator: Optional[str] = None  # 当前提名者
+    votes_today: dict = Field(default_factory=dict)  # 今天的投票记录
+    nominations_today: tuple[str, ...] = ()  # 今天已提名过的玩家
+    nominees_today: tuple[str, ...] = ()  # 今天已被提名过的玩家
     execution_candidates: tuple[ExecutionCandidate, ...] = ()
 
     # 游戏结果
@@ -328,7 +348,7 @@ class GameState(BaseModel):
     # 配置与魔典 (Phase 8/9 扩展)
     config: Optional[GameConfig] = None
     grimoire: Optional[GrimoireInfo] = None
-    bluffs: tuple[str, ...] = ()             # 给恶魔的伪装角色 (3个)
+    bluffs: tuple[str, ...] = ()  # 给恶魔的伪装角色 (3个)
     payload: dict = Field(default_factory=dict)  # 存储特定角色的中间数据 (如预言家的红鲱鱼)
 
     def get_player(self, player_id: str) -> Optional[PlayerState]:
@@ -390,16 +410,19 @@ class GameState(BaseModel):
 # 游戏配置
 # ============================================================
 
+
 class ScriptConfig(BaseModel):
     """剧本配置"""
+
     script_id: str
     name: str
     name_en: str = ""
-    roles: list[str]           # 剧本包含的角色ID列表
+    roles: list[str]  # 剧本包含的角色ID列表
 
 
 class GameConfig(BaseModel):
     """游戏配置"""
+
     player_count: int
     script: Optional[ScriptConfig] = None
     script_id: str = "trouble_brewing"
@@ -407,16 +430,18 @@ class GameConfig(BaseModel):
     human_mode: str = "none"  # player | storyteller | none
     storyteller_client_id: Optional[str] = None
     human_player_ids: list[str] = Field(default_factory=list)  # 人类玩家ID
-    is_human_participant: bool = True     # 人类是否参与游戏 (True: 玩家, False: 旁观)
-    storyteller_mode: str = "auto"   # "auto" 自动说书人 / "human" 人类说书人
-    storyteller_delegated: bool = False # 是否交由 AI 托管 (仅在 human 模式下有效)
+    is_human_participant: bool = True  # 人类是否参与游戏 (True: 玩家, False: 旁观)
+    storyteller_mode: str = "auto"  # "auto" 自动说书人 / "human" 人类说书人
+    storyteller_delegated: bool = False  # 是否交由 AI 托管 (仅在 human 模式下有效)
     llm_model: str = "gpt-4o-mini"
     backend_mode: str = "auto"
     audit_mode: bool = False
-    discussion_rounds: int = 3       # 每天讨论轮数
-    ai_discussion_message_limit: Optional[int] = None  # 有真人玩家时，每轮最多允许多少条 AI 白天发言
+    discussion_rounds: int = 3  # 每天讨论轮数
+    ai_discussion_message_limit: Optional[int] = (
+        None  # 有真人玩家时，每轮最多允许多少条 AI 白天发言
+    )
     max_nomination_rounds: Optional[int] = None
-    turn_timeout: int = 300          # 人类玩家行动超时（秒）
+    turn_timeout: int = 300  # 人类玩家行动超时（秒）
     difficulty: DifficultyLevel = DifficultyLevel.STANDARD
 
 
@@ -424,8 +449,10 @@ class GameConfig(BaseModel):
 # 魔典信息 (说书人视角)
 # ============================================================
 
+
 class PlayerGrimoireInfo(BaseModel):
     """魔典中的玩家明细"""
+
     player_id: str
     name: str
     role_id: str
@@ -444,6 +471,7 @@ class PlayerGrimoireInfo(BaseModel):
 
 class GrimoireInfo(BaseModel):
     """魔典：全局真实状态汇总"""
+
     players: tuple[PlayerGrimoireInfo, ...] = ()
     night_actions: tuple[dict, ...] = ()  # 昨晚行动记录 (扩展预留)
     reminders: tuple[str, ...] = ()

@@ -31,13 +31,15 @@ class VectorMemory:
     基于向量检索的长期记忆模块。
     """
 
-    def __init__(self, backend: LLMBackend, dimension: int = 1536, max_capacity: int = 1000) -> None:
+    def __init__(
+        self, backend: LLMBackend, dimension: int = 1536, max_capacity: int = 1000
+    ) -> None:
         self.backend = backend
         self.dimension = dimension
         self.max_capacity = max_capacity
         self._last_query = ""
         self._last_hits_preview: list[str] = []
-        
+
         # 初始化 Faiss 索引 (L2 距离)
         if faiss and np is not None:
             self.index = faiss.IndexFlatL2(dimension)
@@ -46,7 +48,7 @@ class VectorMemory:
             self.index = None
             self._local_disable_reason = "missing_numpy_or_faiss"
             logger.warning("numpy/faiss-cpu is not installed, VectorMemory will be disabled.")
-            
+
         # 存储原始数据和元数据
         self.metadata: list[dict[str, Any]] = []
         self._vectors: list[Any] = []  # 保留原始向量用于索引重建
@@ -68,7 +70,9 @@ class VectorMemory:
 
         embeddings_disabled = bool(getattr(self.backend, "_embeddings_disabled", False))
         if embeddings_disabled:
-            reason = getattr(self.backend, "_embeddings_disable_reason", None) or "embeddings_disabled"
+            reason = (
+                getattr(self.backend, "_embeddings_disable_reason", None) or "embeddings_disabled"
+            )
             return "degraded", reason, False
 
         return "enabled", None, True
@@ -77,21 +81,18 @@ class VectorMemory:
         """将一段文本向量化并存入索引"""
         if not self.index:
             return
-            
+
         try:
             embeddings = await self.backend.get_embeddings([text])
             if not embeddings:
                 return
-                
-            vector = np.array(embeddings).astype('float32')
+
+            vector = np.array(embeddings).astype("float32")
             self.index.add(vector)
             self._vectors.append(vector)
-            
+
             # 记录元数据
-            self.metadata.append({
-                "text": text,
-                **metadata
-            })
+            self.metadata.append({"text": text, **metadata})
             self._stats["indexed_items"] = len(self.metadata)
             self._stats["text_ingests"] += 1
 
@@ -112,27 +113,33 @@ class VectorMemory:
         """记录一个游戏事件"""
         content = f"事件: {event.event_type} | 参与者: {event.actor} | 目标: {event.target} | 详情: {event.payload}"
         self._stats["event_ingests"] += 1
-        await self.add_text(content, {
-            "type": "event",
-            "event_type": event.event_type,
-            "round": event.round_number,
-            "phase": str(event.phase)
-        })
+        await self.add_text(
+            content,
+            {
+                "type": "event",
+                "event_type": event.event_type,
+                "round": event.round_number,
+                "phase": str(event.phase),
+            },
+        )
 
     async def add_message(self, msg: ChatMessage) -> None:
         """记录一条聊天消息"""
         speaker = msg.speaker or "unknown"
-        content = f"发言: {speaker} 说: \"{msg.content}\""
+        content = f'发言: {speaker} 说: "{msg.content}"'
         self._stats["message_ingests"] += 1
-        await self.add_text(content, {
-            "type": "message",
-            "speaker": speaker,
-            "phase": str(msg.phase),
-            "round": msg.round_number,
-            "target_player": msg.target_player,
-            "recipient_ids": list(msg.recipient_ids) if msg.recipient_ids else [],
-            "tone": msg.tone,
-        })
+        await self.add_text(
+            content,
+            {
+                "type": "message",
+                "speaker": speaker,
+                "phase": str(msg.phase),
+                "round": msg.round_number,
+                "target_player": msg.target_player,
+                "recipient_ids": list(msg.recipient_ids) if msg.recipient_ids else [],
+                "tone": msg.tone,
+            },
+        )
 
     async def search(self, query: str, top_k: int = 5) -> list[dict[str, Any]]:
         """执行语义搜索"""
@@ -142,17 +149,17 @@ class VectorMemory:
             self._stats["last_hit_count"] = 0
             self._last_hits_preview = []
             return []
-            
+
         try:
             query_embeddings = await self.backend.get_embeddings([query])
             if not query_embeddings:
                 self._stats["last_hit_count"] = 0
                 self._last_hits_preview = []
                 return []
-                
-            query_vector = np.array(query_embeddings).astype('float32')
+
+            query_vector = np.array(query_embeddings).astype("float32")
             distances, indices = self.index.search(query_vector, top_k)
-            
+
             results = []
             for i, idx in enumerate(indices[0]):
                 if idx != -1 and idx < len(self.metadata):

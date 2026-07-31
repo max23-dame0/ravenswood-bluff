@@ -13,6 +13,7 @@ class Episode:
     """
     一个情景单元，例如"第一天的白天讨论"的摘要
     """
+
     def __init__(
         self,
         phase: GamePhase,
@@ -30,7 +31,7 @@ class Episode:
 class EpisodicMemory:
     """
     情节记忆管理器
-    
+
     在工作记忆因阶段转变而被清空之前，Agent会将工作记忆中的内容总结为一个情景单元(Episode)
     存入此处，以便需要时回顾过去发生了什么。
     """
@@ -57,11 +58,11 @@ class EpisodicMemory:
                 title = f">> 第{ep.day_number}天 白天"
             else:
                 title = f">> 第{ep.round_number}天 夜晚"
-                
+
             text_blocks.append(title)
             text_blocks.append(ep.summary)
             if ep.key_events:
                 for event in ep.key_events:
                     text_blocks.append(f"  * {event}")
-        
+
         return "\n".join(text_blocks)

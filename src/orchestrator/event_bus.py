@@ -56,9 +56,7 @@ class EventBus:
 
     def unsubscribe(self, event_type: str, handler: EventHandler) -> None:
         """取消订阅"""
-        self._handlers[event_type] = [
-            (p, h) for p, h in self._handlers[event_type] if h != handler
-        ]
+        self._handlers[event_type] = [(p, h) for p, h in self._handlers[event_type] if h != handler]
 
     async def publish(self, event: GameEvent) -> None:
         """
@@ -88,8 +86,7 @@ class EventBus:
                 await handler(event)
             except Exception as e:
                 logger.error(
-                    f"Event handler error: {handler.__name__} "
-                    f"for event {event.event_type}: {e}"
+                    f"Event handler error: {handler.__name__} for event {event.event_type}: {e}"
                 )
 
     async def publish_and_gather(self, event: GameEvent) -> list[Any]:

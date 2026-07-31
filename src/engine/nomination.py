@@ -5,7 +5,14 @@ from __future__ import annotations
 import logging
 
 from src.engine.rule_engine import RuleEngine
-from src.state.game_state import ExecutionCandidate, GameEvent, GamePhase, GameState, Visibility, RoleType
+from src.state.game_state import (
+    ExecutionCandidate,
+    GameEvent,
+    GamePhase,
+    GameState,
+    Visibility,
+    RoleType,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -26,6 +33,7 @@ class NominationManager:
 
         # 圣女 (Virgin) 逻辑
         from src.engine.roles.base_role import get_role_class
+
         nominee_player = game_state.get_player(nominee_id)
         if nominee_player and nominee_player.is_alive and not nominee_player.ability_suppressed:
             role_id = nominee_player.true_role_id or nominee_player.role_id
@@ -37,7 +45,11 @@ class NominationManager:
                     # 如果提名者是村民角色 (Townsfolk) 且由于圣女是该玩家当日被第一名提名，圣女技能触发
                     # 简化逻辑：如果是该圣女第一次被提名且有效
                     is_first_nomination = nominee_id not in game_state.nominees_today
-                    if nominator_cls and nominator_cls.get_definition().role_type == RoleType.TOWNSFOLK and is_first_nomination:
+                    if (
+                        nominator_cls
+                        and nominator_cls.get_definition().role_type == RoleType.TOWNSFOLK
+                        and is_first_nomination
+                    ):
                         # 触发裁决逻辑：提名者由于该次特殊规则被处决
                         # 我们生成一个特殊的事件，并标记当日不再接受新提名（处决已发生）
                         exec_event = GameEvent(
@@ -47,7 +59,7 @@ class NominationManager:
                             actor=nominee_id,
                             target=nominator_id,
                             visibility=Visibility.PUBLIC,
-                            payload={"reason": "virgin_ability"}
+                            payload={"reason": "virgin_ability"},
                         )
                         # 处决提名者
                         final_state = game_state.with_player_update(nominator_id, is_alive=False)
@@ -57,7 +69,7 @@ class NominationManager:
                             round_number=game_state.round_number,
                             target=nominator_id,
                             payload={"reason": "virgin_execution"},
-                            visibility=Visibility.PUBLIC
+                            visibility=Visibility.PUBLIC,
                         )
                         # 结束当日提名 (处决已发生)
                         last_exec_event = GameEvent(
@@ -65,15 +77,20 @@ class NominationManager:
                             phase=GamePhase.EXECUTION,
                             round_number=game_state.round_number,
                             payload={"executed": nominator_id, "reason": "virgin_trigger"},
-                            visibility=Visibility.PUBLIC
+                            visibility=Visibility.PUBLIC,
                         )
                         # 更新状态使其跳过后续投票环节，直接进入结算或夜晚
-                        final_state = final_state.with_update(
-                            phase=GamePhase.DAY_DISCUSSION, # 回退或标记完成
-                            nominations_today=game_state.nominations_today + (nominator_id,),
-                            nominees_today=game_state.nominees_today + (nominee_id,),
-                        ).with_event(exec_event).with_event(death_event).with_event(last_exec_event)
-                        
+                        final_state = (
+                            final_state.with_update(
+                                phase=GamePhase.DAY_DISCUSSION,  # 回退或标记完成
+                                nominations_today=game_state.nominations_today + (nominator_id,),
+                                nominees_today=game_state.nominees_today + (nominee_id,),
+                            )
+                            .with_event(exec_event)
+                            .with_event(death_event)
+                            .with_event(last_exec_event)
+                        )
+
                         return final_state, [exec_event, death_event, last_exec_event]
 
         new_state = game_state.with_update(
@@ -130,9 +147,10 @@ class NominationManager:
             return game_state, []
 
         valid_votes = dict(game_state.votes_today)
-        
+
         # 强制校验管家规则：如果他的主人没有投票，由于规则他不能投票，此处我们强制将其弃票
         from src.engine.roles.base_role import get_role_class
+
         butler_cls = get_role_class("butler")
         if butler_cls:
             for voter_id in list(valid_votes.keys()):
@@ -146,7 +164,7 @@ class NominationManager:
                         if not valid_votes.get(target_id):
                             # 主人没投票，管家被迫弃票
                             valid_votes[voter_id] = False
-                            
+
         # 更新game_state中的votes_today，这也能确保后续扣除幽灵票时，管家不被错误扣除
         game_state = game_state.with_update(votes_today=valid_votes)
 
@@ -234,15 +252,17 @@ class NominationManager:
             was_demon = False
             if nominee.true_role_id or nominee.role_id:
                 from src.engine.roles.base_role import get_role_class
+
                 role_cls = get_role_class(nominee.true_role_id or nominee.role_id)
                 if role_cls and role_cls.get_definition().role_type == RoleType.DEMON:
                     was_demon = True
-                    
+
             pre_death_state = new_state
-            
+
             new_state = new_state.with_player_update(candidate.nominee_id, is_alive=False)
             if nominee.true_role_id == "saint":
                 from src.state.game_state import Team
+
                 new_state = new_state.with_update(winning_team=Team.EVIL)
                 payload["saint_triggered"] = True
 
@@ -257,9 +277,10 @@ class NominationManager:
             )
             new_state = new_state.with_event(death_event)
             events.append(death_event)
-            
+
             if was_demon:
                 from src.engine.roles.minions import ScarletWomanRole
+
                 new_state, sw_events = ScarletWomanRole.check_and_transfer(
                     pre_death_state, new_state, candidate.nominee_id, trace_id
                 )

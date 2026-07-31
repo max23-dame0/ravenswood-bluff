@@ -15,7 +15,7 @@ class ScriptedAgent(BaseAgent):
         super().__init__(pid, name)
         self.actions = actions  # type -> index 取动作
         self.counters = {}
-        
+
     async def act(self, visible_state, action_type, legal_context=None, **kwargs):
         c = self.counters.get(action_type, 0)
         lst = self.actions.get(action_type, [])
@@ -80,7 +80,9 @@ class TrackingAgent(BaseAgent):
 
 
 class EvilCoordinationAgent(ScriptedAgent):
-    async def build_evil_night_coordination_message(self, action, visible_state, legal_context=None):
+    async def build_evil_night_coordination_message(
+        self, action, visible_state, legal_context=None
+    ):
         if action.get("action") == "night_action" and action.get("target"):
             return f"我今晚准备刀 {action['target']}，白天顺着这条线继续施压。"
         return ""
@@ -118,10 +120,10 @@ async def test_game_orchestrator_initialization():
     )
     orch = GameOrchestrator(initial_state)
     assert orch.state.phase == GamePhase.SETUP
-    
+
     agent1 = ScriptedAgent("a1", "Alice", {})
     orch.register_agent(agent1)
-    
+
     assert agent1.role_id == "imp"
     assert agent1.team == Team.EVIL.value
     assert "a1" in orch.broker.agents
@@ -137,28 +139,34 @@ async def test_game_loop_auto_execute_until_end():
         )
     )
     orch = GameOrchestrator(initial_state)
-    
+
     # 注册 Agent
     # 恶魔每晚刀人
-    a1 = ScriptedAgent("a1", "A", {
-        "night_action": [{"action": "night_action", "target": "a2"}], # 第一晚无刀，但是没关系我们会跳过
-        "speak": [{"action": "speak", "content": "hello"}],
-    })
-    
+    a1 = ScriptedAgent(
+        "a1",
+        "A",
+        {
+            "night_action": [
+                {"action": "night_action", "target": "a2"}
+            ],  # 第一晚无刀，但是没关系我们会跳过
+            "speak": [{"action": "speak", "content": "hello"}],
+        },
+    )
+
     a2 = ScriptedAgent("a2", "B", {})
-    
+
     orch.register_agent(a1)
     orch.register_agent(a2)
-    
+
     # 因为 2人存活 有一个是恶魔，测试胜负判定是否在一开始就触发
     winner = await orch.run_game_loop()
-    
+
     # The VictoryChecker triggers EVIL win on <=2 players
     assert winner == Team.EVIL
-    
+
     # 测试有日志
     assert len(orch.event_log.events) > 0
-    
+
     # 测试快照已经落盘 (内存中)
     assert orch.snapshot_manager.count > 0
 
@@ -179,7 +187,8 @@ async def test_first_night_evil_private_info_contains_team_and_bluffs():
     await orch._run_first_night()
 
     evil_events = [
-        event for event in orch.event_log.events
+        event
+        for event in orch.event_log.events
         if event.event_type == "private_info_delivered" and event.target == "a1"
     ]
     assert evil_events, "expected evil private info to be delivered"
@@ -190,7 +199,8 @@ async def test_first_night_evil_private_info_contains_team_and_bluffs():
     assert payload["bluffs"] == ["chef", "empath", "monk"]
 
     spy_events = [
-        event for event in orch.event_log.events
+        event
+        for event in orch.event_log.events
         if event.event_type == "private_info_delivered" and event.target == "a2"
     ]
     assert spy_events, "expected spy to receive evil first-night reveal"
@@ -213,11 +223,14 @@ async def test_first_night_empath_receives_private_info():
     await orch._run_first_night()
 
     empath_events = [
-        event for event in orch.event_log.events
+        event
+        for event in orch.event_log.events
         if event.event_type == "private_info_delivered" and event.target == "e1"
     ]
     assert empath_events, "expected empath private info on first night"
-    empath_payloads = [event.payload for event in empath_events if event.payload.get("type") == "empath_info"]
+    empath_payloads = [
+        event.payload for event in empath_events if event.payload.get("type") == "empath_info"
+    ]
     assert empath_payloads, "expected empath-specific info payload"
     assert empath_payloads[0]["title"] == "共情者信息"
     assert empath_payloads[0]["lines"]
@@ -246,7 +259,9 @@ async def test_spy_receives_spy_book_on_first_and_later_nights():
         for event in orch.event_log.events
         if event.event_type == "private_info_delivered" and event.target == "s1"
     ]
-    spy_payloads = [event.payload for event in spy_events if event.payload.get("type") == "spy_book"]
+    spy_payloads = [
+        event.payload for event in spy_events if event.payload.get("type") == "spy_book"
+    ]
     assert len(spy_payloads) >= 2
 
 
@@ -276,34 +291,64 @@ async def test_data_collector_records_snapshots_for_key_flow_checkpoints():
     orch.record_store = DummyRecordStore()
     orch.winner = Team.GOOD
 
-    orch.register_agent(ScriptedAgent("p1", "Alice", {
-        "speak": [{"action": "skip_discussion"}],
-        "nomination_intent": [{"action": "nominate", "target": "p3"}],
-        "vote": [{"action": "vote", "decision": True}],
-    }))
-    orch.register_agent(ScriptedAgent("p2", "Bob", {
-        "speak": [{"action": "speak", "content": "noted"}],
-        "nomination_intent": [{"action": "not_nominating", "target": "not_nominating"}],
-        "defense_speech": [{"action": "speak", "content": "I am good"}],
-        "vote": [{"action": "vote", "decision": True}],
-    }))
-    orch.register_agent(ScriptedAgent("p3", "Imp", {
-        "speak": [{"action": "speak", "content": "hello"}],
-        "nomination_intent": [{"action": "not_nominating", "target": "not_nominating"}],
-        "vote": [{"action": "vote", "decision": False}],
-    }))
+    orch.register_agent(
+        ScriptedAgent(
+            "p1",
+            "Alice",
+            {
+                "speak": [{"action": "skip_discussion"}],
+                "nomination_intent": [{"action": "nominate", "target": "p3"}],
+                "vote": [{"action": "vote", "decision": True}],
+            },
+        )
+    )
+    orch.register_agent(
+        ScriptedAgent(
+            "p2",
+            "Bob",
+            {
+                "speak": [{"action": "speak", "content": "noted"}],
+                "nomination_intent": [{"action": "not_nominating", "target": "not_nominating"}],
+                "defense_speech": [{"action": "speak", "content": "I am good"}],
+                "vote": [{"action": "vote", "decision": True}],
+            },
+        )
+    )
+    orch.register_agent(
+        ScriptedAgent(
+            "p3",
+            "Imp",
+            {
+                "speak": [{"action": "speak", "content": "hello"}],
+                "nomination_intent": [{"action": "not_nominating", "target": "not_nominating"}],
+                "vote": [{"action": "vote", "decision": False}],
+            },
+        )
+    )
 
     orch.data_collector.start_game(orch.state.game_id)
     orch.phase_manager.transition_to(GamePhase.FIRST_NIGHT)
-    orch.state = orch.state.with_update(phase=GamePhase.FIRST_NIGHT, round_number=orch.phase_manager.round_number, day_number=orch.phase_manager.day_number)
+    orch.state = orch.state.with_update(
+        phase=GamePhase.FIRST_NIGHT,
+        round_number=orch.phase_manager.round_number,
+        day_number=orch.phase_manager.day_number,
+    )
     await orch._run_first_night()
 
     orch.phase_manager.transition_to(GamePhase.DAY_DISCUSSION)
-    orch.state = orch.state.with_update(phase=GamePhase.DAY_DISCUSSION, round_number=orch.phase_manager.round_number, day_number=orch.phase_manager.day_number)
+    orch.state = orch.state.with_update(
+        phase=GamePhase.DAY_DISCUSSION,
+        round_number=orch.phase_manager.round_number,
+        day_number=orch.phase_manager.day_number,
+    )
     await orch._run_day_discussion()
 
     orch.phase_manager.transition_to(GamePhase.NOMINATION)
-    orch.state = orch.state.with_update(phase=GamePhase.NOMINATION, round_number=orch.phase_manager.round_number, day_number=orch.phase_manager.day_number)
+    orch.state = orch.state.with_update(
+        phase=GamePhase.NOMINATION,
+        round_number=orch.phase_manager.round_number,
+        day_number=orch.phase_manager.day_number,
+    )
     await orch._run_nomination_phase()
 
     await orch._transition_and_run(GamePhase.GAME_OVER)
@@ -318,8 +363,16 @@ async def test_data_collector_records_snapshots_for_key_flow_checkpoints():
     first_snapshot = orch.data_collector.snapshots[0]
     assert first_snapshot["phase"] == GamePhase.FIRST_NIGHT.value
     assert "summary" in first_snapshot
-    assert {"alive_count", "dead_count", "player_count", "last_event_type"} <= set(first_snapshot["summary"].keys())
-    assert {"visible_state_summary", "working_memory_summary", "social_graph_summary", "claim_history_summary", "retrieval_summary"} <= set(first_snapshot["summary"].keys())
+    assert {"alive_count", "dead_count", "player_count", "last_event_type"} <= set(
+        first_snapshot["summary"].keys()
+    )
+    assert {
+        "visible_state_summary",
+        "working_memory_summary",
+        "social_graph_summary",
+        "claim_history_summary",
+        "retrieval_summary",
+    } <= set(first_snapshot["summary"].keys())
 
 
 @pytest.mark.asyncio
@@ -329,28 +382,31 @@ async def test_fortune_teller_nested_targets_are_flattened_in_night_action():
         round_number=1,
         day_number=1,
         players=(
-            PlayerState(player_id="f1", name="Fortune Teller", role_id="fortune_teller", team=Team.GOOD),
+            PlayerState(
+                player_id="f1", name="Fortune Teller", role_id="fortune_teller", team=Team.GOOD
+            ),
             PlayerState(player_id="p2", name="Target A", role_id="washerwoman", team=Team.GOOD),
             PlayerState(player_id="h1", name="Target B", role_id="imp", team=Team.EVIL),
         ),
         payload={"fortune_teller_red_herring": "p2"},
     )
     orch = GameOrchestrator(initial_state)
-    orch.storyteller_agent = OrderedNightStoryteller([
-        {"player_id": "f1", "role_id": "fortune_teller", "night_order": 30}
-    ])
+    orch.storyteller_agent = OrderedNightStoryteller(
+        [{"player_id": "f1", "role_id": "fortune_teller", "night_order": 30}]
+    )
 
-    agent = ScriptedAgent("f1", "Fortune Teller", {
-        "night_action": [
-            {"action": "night_action", "targets": [["p2", "h1"]], "target": "p2"}
-        ]
-    })
+    agent = ScriptedAgent(
+        "f1",
+        "Fortune Teller",
+        {"night_action": [{"action": "night_action", "targets": [["p2", "h1"]], "target": "p2"}]},
+    )
     orch.register_agent(agent)
 
     await orch._execute_night_actions(GamePhase.FIRST_NIGHT)
 
     resolved = [
-        event for event in orch.event_log.events
+        event
+        for event in orch.event_log.events
         if event.event_type == "night_action_resolved" and event.actor == "f1"
     ]
     assert resolved
@@ -364,33 +420,38 @@ async def test_first_night_fortune_teller_receives_private_info_after_action():
         round_number=1,
         day_number=1,
         players=(
-            PlayerState(player_id="f1", name="Fortune Teller", role_id="fortune_teller", team=Team.GOOD),
+            PlayerState(
+                player_id="f1", name="Fortune Teller", role_id="fortune_teller", team=Team.GOOD
+            ),
             PlayerState(player_id="p2", name="Target A", role_id="washerwoman", team=Team.GOOD),
             PlayerState(player_id="h1", name="Target B", role_id="imp", team=Team.EVIL),
         ),
         payload={"fortune_teller_red_herring": "p2"},
     )
     orch = GameOrchestrator(initial_state)
-    orch.storyteller_agent = OrderedNightStoryteller([
-        {"player_id": "f1", "role_id": "fortune_teller", "night_order": 30}
-    ])
+    orch.storyteller_agent = OrderedNightStoryteller(
+        [{"player_id": "f1", "role_id": "fortune_teller", "night_order": 30}]
+    )
 
-    agent = ScriptedAgent("f1", "Fortune Teller", {
-        "night_action": [
-            {"action": "night_action", "targets": [["p2", "h1"]], "target": "p2"}
-        ]
-    })
+    agent = ScriptedAgent(
+        "f1",
+        "Fortune Teller",
+        {"night_action": [{"action": "night_action", "targets": [["p2", "h1"]], "target": "p2"}]},
+    )
     orch.register_agent(agent)
 
     await orch._execute_night_actions(GamePhase.FIRST_NIGHT)
     await orch._distribute_night_info(GamePhase.FIRST_NIGHT)
 
     info_events = [
-        event for event in orch.event_log.events
+        event
+        for event in orch.event_log.events
         if event.event_type == "private_info_delivered" and event.target == "f1"
     ]
     assert info_events, "expected fortune teller to receive private info on first night"
-    payloads = [event.payload for event in info_events if event.payload.get("type") == "fortune_teller_info"]
+    payloads = [
+        event.payload for event in info_events if event.payload.get("type") == "fortune_teller_info"
+    ]
     assert payloads, "expected a fortune_teller_info payload"
     assert payloads[-1]["has_demon"] is True
     assert payloads[-1]["title"] == "占卜师信息"
@@ -413,7 +474,8 @@ async def test_first_night_spy_receives_grimoire_and_refreshes_state():
     await orch._run_first_night()
 
     spy_events = [
-        event for event in orch.event_log.events
+        event
+        for event in orch.event_log.events
         if event.event_type == "private_info_delivered" and event.target == "s1"
     ]
     assert spy_events, "expected spy to receive private grimoire info"
@@ -421,7 +483,8 @@ async def test_first_night_spy_receives_grimoire_and_refreshes_state():
     assert orch.state.grimoire is not None
     assert orch.state.grimoire.night_actions
     assert any(
-        action["event_type"] == "private_info_delivered" and action["payload"].get("type") == "spy_book"
+        action["event_type"] == "private_info_delivered"
+        and action["payload"].get("type") == "spy_book"
         for action in orch.state.grimoire.night_actions
     )
 
@@ -445,14 +508,16 @@ async def test_later_night_spy_receives_updated_grimoire_info():
     orch._update_grimoire()
 
     spy_events = [
-        event for event in orch.event_log.events
+        event
+        for event in orch.event_log.events
         if event.event_type == "private_info_delivered" and event.target == "s1"
     ]
     assert spy_events, "expected spy to receive nightly grimoire info"
     assert spy_events[-1].payload["type"] == "spy_book"
     assert orch.state.grimoire is not None
     assert any(
-        action["event_type"] == "private_info_delivered" and action["payload"].get("type") == "spy_book"
+        action["event_type"] == "private_info_delivered"
+        and action["payload"].get("type") == "spy_book"
         for action in orch.state.grimoire.night_actions
     )
 
@@ -473,15 +538,20 @@ async def test_fixed_info_roles_do_not_receive_night_action_request():
     orch = GameOrchestrator(initial_state)
     orch.storyteller_agent = DummyStoryteller()
     for player in initial_state.players:
-        orch.register_agent(ScriptedAgent(player.player_id, player.name, {
-            "night_action": [{"action": "night_action", "target": "w1"}],
-        }))
+        orch.register_agent(
+            ScriptedAgent(
+                player.player_id,
+                player.name,
+                {
+                    "night_action": [{"action": "night_action", "target": "w1"}],
+                },
+            )
+        )
 
     await orch._execute_night_actions(GamePhase.FIRST_NIGHT)
 
     action_requests = [
-        event for event in orch.event_log.events
-        if event.event_type == "night_action_requested"
+        event for event in orch.event_log.events if event.event_type == "night_action_requested"
     ]
     requested_actors = {event.actor for event in action_requests}
     assert "w1" not in requested_actors
@@ -503,18 +573,27 @@ async def test_evil_night_action_publishes_team_evil_coordination_chat():
         seat_order=("i", "m", "g"),
     )
     orch = GameOrchestrator(initial_state)
-    orch.storyteller_agent = OrderedNightStoryteller([
-        {"player_id": "i", "role_id": "imp", "night_order": 99},
-    ])
-    orch.register_agent(EvilCoordinationAgent("i", "Imp", {
-        "night_action": [{"action": "night_action", "target": "g"}],
-    }))
+    orch.storyteller_agent = OrderedNightStoryteller(
+        [
+            {"player_id": "i", "role_id": "imp", "night_order": 99},
+        ]
+    )
+    orch.register_agent(
+        EvilCoordinationAgent(
+            "i",
+            "Imp",
+            {
+                "night_action": [{"action": "night_action", "target": "g"}],
+            },
+        )
+    )
     orch.register_agent(ScriptedAgent("m", "Minion", {}))
 
     await orch._execute_night_actions(GamePhase.NIGHT)
 
     evil_chat_events = [
-        event for event in orch.event_log.events
+        event
+        for event in orch.event_log.events
         if event.event_type == "player_speaks" and event.visibility == Visibility.TEAM_EVIL
     ]
     assert evil_chat_events
@@ -536,7 +615,9 @@ async def test_storyteller_night_order_only_requests_targeted_roles():
         players=(
             PlayerState(player_id="w1", name="Washerwoman", role_id="washerwoman", team=Team.GOOD),
             PlayerState(player_id="e1", name="Empath", role_id="empath", team=Team.GOOD),
-            PlayerState(player_id="f1", name="Fortune Teller", role_id="fortune_teller", team=Team.GOOD),
+            PlayerState(
+                player_id="f1", name="Fortune Teller", role_id="fortune_teller", team=Team.GOOD
+            ),
             PlayerState(player_id="p1", name="Poisoner", role_id="poisoner", team=Team.EVIL),
         ),
     )
@@ -571,27 +652,44 @@ async def test_nomination_intents_choose_first_legal_by_seat_order():
     )
     orch = GameOrchestrator(initial_state)
     orch.storyteller_agent = DummyStoryteller()
-    orch.register_agent(ScriptedAgent("p1", "One", {
-        "nomination_intent": [{"action": "none"}],
-        "vote": [{"action": "vote", "decision": True}],
-        "defense_speech": [{"action": "defense_speech", "content": "No comment."}],
-    }))
-    orch.register_agent(ScriptedAgent("p2", "Two", {
-        "nomination_intent": [{"action": "nominate", "target": "p3"}],
-        "vote": [{"action": "vote", "decision": True}],
-        "defense_speech": [{"action": "defense_speech", "content": "I object."}],
-    }))
-    orch.register_agent(ScriptedAgent("p3", "Three", {
-        "nomination_intent": [{"action": "nominate", "target": "p1"}],
-        "vote": [{"action": "vote", "decision": True}],
-        "defense_speech": [{"action": "defense_speech", "content": "I am innocent."}],
-    }))
+    orch.register_agent(
+        ScriptedAgent(
+            "p1",
+            "One",
+            {
+                "nomination_intent": [{"action": "none"}],
+                "vote": [{"action": "vote", "decision": True}],
+                "defense_speech": [{"action": "defense_speech", "content": "No comment."}],
+            },
+        )
+    )
+    orch.register_agent(
+        ScriptedAgent(
+            "p2",
+            "Two",
+            {
+                "nomination_intent": [{"action": "nominate", "target": "p3"}],
+                "vote": [{"action": "vote", "decision": True}],
+                "defense_speech": [{"action": "defense_speech", "content": "I object."}],
+            },
+        )
+    )
+    orch.register_agent(
+        ScriptedAgent(
+            "p3",
+            "Three",
+            {
+                "nomination_intent": [{"action": "nominate", "target": "p1"}],
+                "vote": [{"action": "vote", "decision": True}],
+                "defense_speech": [{"action": "defense_speech", "content": "I am innocent."}],
+            },
+        )
+    )
 
     await orch._run_nomination_phase()
 
     nomination_events = [
-        event for event in orch.event_log.events
-        if event.event_type == "nomination_started"
+        event for event in orch.event_log.events if event.event_type == "nomination_started"
     ]
     assert nomination_events
     assert nomination_events[0].actor == "p2"
@@ -659,10 +757,18 @@ async def test_day_discussion_throttles_ai_messages_when_human_player_present():
     )
     orch = GameOrchestrator(initial_state)
     orch.storyteller_agent = DummyStoryteller()
-    human_agent = TrackingAgent("human", "Human", {"speak": [{"action": "speak", "content": "我先听一下。"}]})
-    ai_two = TrackingAgent("p2", "AI Two", {"speak": [{"action": "speak", "content": "AI two speaks."}]})
-    ai_three = TrackingAgent("p3", "AI Three", {"speak": [{"action": "speak", "content": "AI three speaks."}]})
-    ai_four = TrackingAgent("p4", "AI Four", {"speak": [{"action": "speak", "content": "AI four speaks."}]})
+    human_agent = TrackingAgent(
+        "human", "Human", {"speak": [{"action": "speak", "content": "我先听一下。"}]}
+    )
+    ai_two = TrackingAgent(
+        "p2", "AI Two", {"speak": [{"action": "speak", "content": "AI two speaks."}]}
+    )
+    ai_three = TrackingAgent(
+        "p3", "AI Three", {"speak": [{"action": "speak", "content": "AI three speaks."}]}
+    )
+    ai_four = TrackingAgent(
+        "p4", "AI Four", {"speak": [{"action": "speak", "content": "AI four speaks."}]}
+    )
     for agent in (human_agent, ai_two, ai_three, ai_four):
         orch.register_agent(agent)
 
@@ -723,7 +829,9 @@ async def test_ravenkeeper_death_trigger_delivers_private_info():
         phase=GamePhase.NIGHT,
         round_number=2,
         players=(
-            PlayerState(player_id="r", name="Raven", role_id="ravenkeeper", team=Team.GOOD, is_alive=False),
+            PlayerState(
+                player_id="r", name="Raven", role_id="ravenkeeper", team=Team.GOOD, is_alive=False
+            ),
             PlayerState(player_id="i", name="Imp", role_id="imp", team=Team.EVIL),
             PlayerState(player_id="g", name="Good", role_id="chef", team=Team.GOOD),
         ),
@@ -731,14 +839,21 @@ async def test_ravenkeeper_death_trigger_delivers_private_info():
     )
     orch = GameOrchestrator(initial_state)
     orch.storyteller_agent = DummyStoryteller()
-    orch.register_agent(ScriptedAgent("r", "Raven", {
-        "death_trigger": [{"action": "death_trigger", "target": "i"}],
-    }))
+    orch.register_agent(
+        ScriptedAgent(
+            "r",
+            "Raven",
+            {
+                "death_trigger": [{"action": "death_trigger", "target": "i"}],
+            },
+        )
+    )
 
     await orch._resolve_on_death_triggers({"r", "i", "g"})
 
     private_infos = [
-        event for event in orch.event_log.events
+        event
+        for event in orch.event_log.events
         if event.event_type == "private_info_delivered" and event.target == "r"
     ]
     assert private_infos, "expected ravenkeeper to receive private info after death"
@@ -771,56 +886,79 @@ async def test_nomination_phase_supports_multiple_rounds_before_night():
     )
     orch = GameOrchestrator(initial_state)
     orch.storyteller_agent = DummyStoryteller()
-    orch.register_agent(ScriptedAgent("p1", "One", {
-        "nomination_intent": [
-            {"action": "nominate", "target": "p3"},
-            {"action": "none"},
-        ],
-        "vote": [
-            {"action": "vote", "decision": True},
-            {"action": "vote", "decision": True},
-        ],
-        "defense_speech": [{"action": "defense_speech", "content": "No comment."}],
-    }))
-    orch.register_agent(ScriptedAgent("p2", "Two", {
-        "nomination_intent": [
-            {"action": "none"},
-            {"action": "nominate", "target": "p4"},
-        ],
-        "vote": [
-            {"action": "vote", "decision": False},
-            {"action": "vote", "decision": True},
-        ],
-        "defense_speech": [{"action": "defense_speech", "content": "Second round."}],
-    }))
-    orch.register_agent(ScriptedAgent("p3", "Three", {
-        "nomination_intent": [
-            {"action": "none"},
-            {"action": "none"},
-        ],
-        "vote": [
-            {"action": "vote", "decision": True},
-            {"action": "vote", "decision": False},
-        ],
-        "defense_speech": [{"action": "defense_speech", "content": "I am innocent."}],
-    }))
-    orch.register_agent(ScriptedAgent("p4", "Four", {
-        "nomination_intent": [
-            {"action": "none"},
-            {"action": "none"},
-        ],
-        "vote": [
-            {"action": "vote", "decision": False},
-            {"action": "vote", "decision": True},
-        ],
-        "defense_speech": [{"action": "defense_speech", "content": "Please spare me."}],
-    }))
+    orch.register_agent(
+        ScriptedAgent(
+            "p1",
+            "One",
+            {
+                "nomination_intent": [
+                    {"action": "nominate", "target": "p3"},
+                    {"action": "none"},
+                ],
+                "vote": [
+                    {"action": "vote", "decision": True},
+                    {"action": "vote", "decision": True},
+                ],
+                "defense_speech": [{"action": "defense_speech", "content": "No comment."}],
+            },
+        )
+    )
+    orch.register_agent(
+        ScriptedAgent(
+            "p2",
+            "Two",
+            {
+                "nomination_intent": [
+                    {"action": "none"},
+                    {"action": "nominate", "target": "p4"},
+                ],
+                "vote": [
+                    {"action": "vote", "decision": False},
+                    {"action": "vote", "decision": True},
+                ],
+                "defense_speech": [{"action": "defense_speech", "content": "Second round."}],
+            },
+        )
+    )
+    orch.register_agent(
+        ScriptedAgent(
+            "p3",
+            "Three",
+            {
+                "nomination_intent": [
+                    {"action": "none"},
+                    {"action": "none"},
+                ],
+                "vote": [
+                    {"action": "vote", "decision": True},
+                    {"action": "vote", "decision": False},
+                ],
+                "defense_speech": [{"action": "defense_speech", "content": "I am innocent."}],
+            },
+        )
+    )
+    orch.register_agent(
+        ScriptedAgent(
+            "p4",
+            "Four",
+            {
+                "nomination_intent": [
+                    {"action": "none"},
+                    {"action": "none"},
+                ],
+                "vote": [
+                    {"action": "vote", "decision": False},
+                    {"action": "vote", "decision": True},
+                ],
+                "defense_speech": [{"action": "defense_speech", "content": "Please spare me."}],
+            },
+        )
+    )
 
     await orch._run_nomination_phase()
 
     nomination_events = [
-        event for event in orch.event_log.events
-        if event.event_type == "nomination_started"
+        event for event in orch.event_log.events if event.event_type == "nomination_started"
     ]
     assert len(nomination_events) == 2
     assert nomination_events[0].actor == "p1"
@@ -829,8 +967,7 @@ async def test_nomination_phase_supports_multiple_rounds_before_night():
     assert nomination_events[1].target == "p4"
 
     execution_events = [
-        event for event in orch.event_log.events
-        if event.event_type == "execution_resolved"
+        event for event in orch.event_log.events if event.event_type == "execution_resolved"
     ]
     assert execution_events
     assert execution_events[-1].payload["executed"] == "p4"
@@ -842,7 +979,13 @@ async def test_nomination_phase_supports_multiple_rounds_before_night():
     first_voting_resolved_idx = event_types.index("voting_resolved")
     first_execution_idx = event_types.index("execution_resolved")
 
-    assert first_nomination_idx < first_defense_idx < first_vote_idx < first_voting_resolved_idx < first_execution_idx
+    assert (
+        first_nomination_idx
+        < first_defense_idx
+        < first_vote_idx
+        < first_voting_resolved_idx
+        < first_execution_idx
+    )
     assert orch.state.current_nominator is None
     assert orch.state.current_nominee is None
     assert orch.state.payload["nomination_state"]["current_nominator"] is None
@@ -896,7 +1039,9 @@ async def test_nomination_phase_rejects_dead_nominee_before_nomination_starts():
         players=(
             PlayerState(player_id="p1", name="One", role_id="washerwoman", team=Team.GOOD),
             PlayerState(player_id="p2", name="Two", role_id="empath", team=Team.GOOD),
-            PlayerState(player_id="p3", name="Three", role_id="imp", team=Team.EVIL, is_alive=False),
+            PlayerState(
+                player_id="p3", name="Three", role_id="imp", team=Team.EVIL, is_alive=False
+            ),
         ),
         seat_order=("p1", "p2", "p3"),
         config=GameConfig(
@@ -910,14 +1055,17 @@ async def test_nomination_phase_rejects_dead_nominee_before_nomination_starts():
     )
     orch = GameOrchestrator(initial_state)
     orch.storyteller_agent = DummyStoryteller()
-    orch.register_agent(ScriptedAgent("p1", "One", {"nomination_intent": [{"action": "nominate", "target": "p3"}]}))
+    orch.register_agent(
+        ScriptedAgent("p1", "One", {"nomination_intent": [{"action": "nominate", "target": "p3"}]})
+    )
     orch.register_agent(ScriptedAgent("p2", "Two", {"nomination_intent": [{"action": "none"}]}))
     orch.register_agent(ScriptedAgent("p3", "Three", {"nomination_intent": [{"action": "none"}]}))
 
     await orch._run_nomination_phase()
 
     invalid_entries = [
-        entry for entry in orch.state.payload["nomination_history"]
+        entry
+        for entry in orch.state.payload["nomination_history"]
         if entry["kind"] == "invalid_nomination"
     ]
     assert invalid_entries
@@ -951,26 +1099,50 @@ async def test_nomination_phase_records_no_execution_when_votes_do_not_pass():
     )
     orch = GameOrchestrator(initial_state)
     orch.storyteller_agent = DummyStoryteller()
-    orch.register_agent(TrackingAgent("p1", "One", {
-        "nomination_intent": [{"action": "nominate", "target": "p3"}],
-        "vote": [{"action": "vote", "decision": True}],
-        "defense_speech": [{"action": "defense_speech", "content": "No comment."}],
-    }))
-    orch.register_agent(TrackingAgent("p2", "Two", {
-        "nomination_intent": [{"action": "none"}],
-        "vote": [{"action": "vote", "decision": True}],
-        "defense_speech": [{"action": "defense_speech", "content": "I disagree."}],
-    }))
-    orch.register_agent(TrackingAgent("p3", "Three", {
-        "nomination_intent": [{"action": "none"}],
-        "vote": [{"action": "vote", "decision": False}],
-        "defense_speech": [{"action": "defense_speech", "content": "I am innocent."}],
-    }))
-    orch.register_agent(TrackingAgent("p4", "Four", {
-        "nomination_intent": [{"action": "none"}],
-        "vote": [{"action": "vote", "decision": False}],
-        "defense_speech": [{"action": "defense_speech", "content": "Please spare me."}],
-    }))
+    orch.register_agent(
+        TrackingAgent(
+            "p1",
+            "One",
+            {
+                "nomination_intent": [{"action": "nominate", "target": "p3"}],
+                "vote": [{"action": "vote", "decision": True}],
+                "defense_speech": [{"action": "defense_speech", "content": "No comment."}],
+            },
+        )
+    )
+    orch.register_agent(
+        TrackingAgent(
+            "p2",
+            "Two",
+            {
+                "nomination_intent": [{"action": "none"}],
+                "vote": [{"action": "vote", "decision": True}],
+                "defense_speech": [{"action": "defense_speech", "content": "I disagree."}],
+            },
+        )
+    )
+    orch.register_agent(
+        TrackingAgent(
+            "p3",
+            "Three",
+            {
+                "nomination_intent": [{"action": "none"}],
+                "vote": [{"action": "vote", "decision": False}],
+                "defense_speech": [{"action": "defense_speech", "content": "I am innocent."}],
+            },
+        )
+    )
+    orch.register_agent(
+        TrackingAgent(
+            "p4",
+            "Four",
+            {
+                "nomination_intent": [{"action": "none"}],
+                "vote": [{"action": "vote", "decision": False}],
+                "defense_speech": [{"action": "defense_speech", "content": "Please spare me."}],
+            },
+        )
+    )
 
     await orch._run_nomination_phase()
 
@@ -999,12 +1171,22 @@ async def test_run_defense_and_voting_tracks_vote_counts_in_nomination_state():
     )
     orch = GameOrchestrator(initial_state)
     orch.storyteller_agent = DummyStoryteller()
-    orch.register_agent(TrackingAgent("p1", "One", {"vote": [{"action": "vote", "decision": True}]}))
-    orch.register_agent(TrackingAgent("p2", "Two", {"vote": [{"action": "vote", "decision": False}]}))
-    orch.register_agent(TrackingAgent("p3", "Three", {
-        "vote": [{"action": "vote", "decision": True}],
-        "defense_speech": [{"action": "defense_speech", "content": "我无罪。"}],
-    }))
+    orch.register_agent(
+        TrackingAgent("p1", "One", {"vote": [{"action": "vote", "decision": True}]})
+    )
+    orch.register_agent(
+        TrackingAgent("p2", "Two", {"vote": [{"action": "vote", "decision": False}]})
+    )
+    orch.register_agent(
+        TrackingAgent(
+            "p3",
+            "Three",
+            {
+                "vote": [{"action": "vote", "decision": True}],
+                "defense_speech": [{"action": "defense_speech", "content": "我无罪。"}],
+            },
+        )
+    )
 
     await orch._run_defense_and_voting("p3", "trace-vote-1")
 

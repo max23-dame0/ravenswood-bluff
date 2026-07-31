@@ -57,21 +57,26 @@ class SettlementBuilder:
 
         players_reveal = []
         for p in state.players:
-            players_reveal.append({
-                "player_id": p.player_id,
-                "name": p.name,
-                "true_role_id": p.true_role_id or p.role_id,
-                "perceived_role_id": p.perceived_role_id,
-                "team": (p.current_team or p.team).value,
-                "is_alive": p.is_alive,
-                "is_human": p.player_id in human_ids,
-                "stats": player_stats.get(p.player_id, {}),
-            })
+            players_reveal.append(
+                {
+                    "player_id": p.player_id,
+                    "name": p.name,
+                    "true_role_id": p.true_role_id or p.role_id,
+                    "perceived_role_id": p.perceived_role_id,
+                    "team": (p.current_team or p.team).value,
+                    "is_alive": p.is_alive,
+                    "is_human": p.player_id in human_ids,
+                    "stats": player_stats.get(p.player_id, {}),
+                }
+            )
 
         # 关键事件时间线
         key_event_types = {
-            "nomination_started", "voting_resolved", "execution_resolved",
-            "player_death", "phase_changed",
+            "nomination_started",
+            "voting_resolved",
+            "execution_resolved",
+            "player_death",
+            "phase_changed",
         }
         timeline = []
         for event in events:
@@ -80,23 +85,29 @@ class SettlementBuilder:
             summary = self._summarize_event(event)
             if not summary:
                 continue
-            timeline.append({
-                "round": event.round_number,
-                "phase": event.phase.value,
-                "event_type": event.event_type,
-                "actor": event.actor,
-                "target": event.target,
-                "summary": summary,
-                "timestamp": event.timestamp.isoformat(),
-            })
+            timeline.append(
+                {
+                    "round": event.round_number,
+                    "phase": event.phase.value,
+                    "event_type": event.event_type,
+                    "actor": event.actor,
+                    "target": event.target,
+                    "summary": summary,
+                    "timestamp": event.timestamp.isoformat(),
+                }
+            )
 
         # 总体统计
         total_nominations = sum(1 for e in events if e.event_type == "nomination_started")
-        total_executions = sum(1 for e in events if e.event_type == "execution_resolved" and e.payload.get("executed"))
+        total_executions = sum(
+            1 for e in events if e.event_type == "execution_resolved" and e.payload.get("executed")
+        )
         total_votes = sum(1 for e in events if e.event_type == "vote_cast")
         total_deaths = sum(1 for e in events if e.event_type == "player_death")
         judgement_summary: list[dict[str, Any]] = []
-        if self._o.storyteller_agent and hasattr(self._o.storyteller_agent, "summarize_recent_judgements"):
+        if self._o.storyteller_agent and hasattr(
+            self._o.storyteller_agent, "summarize_recent_judgements"
+        ):
             try:
                 judgement_summary = list(self._o.storyteller_agent.summarize_recent_judgements(20))
             except Exception as exc:

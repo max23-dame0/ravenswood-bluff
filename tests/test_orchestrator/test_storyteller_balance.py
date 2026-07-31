@@ -13,7 +13,15 @@ from src.orchestrator.storyteller_balance import (
     build_storyteller_node_samples,
     export_storyteller_adjudication_sample,
 )
-from src.state.game_state import GameConfig, GameEvent, GamePhase, GameState, PlayerState, Team, Visibility
+from src.state.game_state import (
+    GameConfig,
+    GameEvent,
+    GamePhase,
+    GameState,
+    PlayerState,
+    Team,
+    Visibility,
+)
 
 
 def _config() -> GameConfig:
@@ -49,7 +57,10 @@ def _fortune_teller_state() -> GameState:
                 visibility=Visibility.STORYTELLER_ONLY,
             ),
         ),
-        payload={"fortune_teller_red_herring": "p4", "nomination_history": [{"kind": "no_nomination", "day_number": 1}]},
+        payload={
+            "fortune_teller_red_herring": "p4",
+            "nomination_history": [{"kind": "no_nomination", "day_number": 1}],
+        },
         config=_config(),
     )
 
@@ -118,14 +129,18 @@ async def test_storyteller_balance_sample_contains_truth_context_and_judgement()
         )
     )
 
-    sample = build_storyteller_adjudication_sample(enriched_state, storyteller_agent=agent, seed="ft-sample")
+    sample = build_storyteller_adjudication_sample(
+        enriched_state, storyteller_agent=agent, seed="ft-sample"
+    )
 
     assert sample.script_id == "trouble_brewing"
     assert sample.seed == "ft-sample"
     assert sample.chosen_adjudication is not None
     assert sample.chosen_adjudication["category"] == "night_info"
     assert sample.storyteller_context["fortune_teller_red_herring"] == "p4"
-    assert sample.players_private_delivery_history["p1"][0]["payload"]["type"] == "fortune_teller_info"
+    assert (
+        sample.players_private_delivery_history["p1"][0]["payload"]["type"] == "fortune_teller_info"
+    )
     assert sample.balance_signals.good_alive == 3
     assert sample.balance_signals.evil_alive == 1
     assert sample.balance_signals.reached_final_4 is True
@@ -150,7 +165,9 @@ def test_storyteller_balance_sample_detects_hard_lock_risk():
             PlayerState(player_id="p1", name="A", role_id="washerwoman", team=Team.GOOD),
             PlayerState(player_id="p2", name="B", role_id="chef", team=Team.GOOD),
             PlayerState(player_id="p3", name="C", role_id="imp", team=Team.EVIL),
-            PlayerState(player_id="p4", name="D", role_id="librarian", team=Team.GOOD, is_alive=False),
+            PlayerState(
+                player_id="p4", name="D", role_id="librarian", team=Team.GOOD, is_alive=False
+            ),
             PlayerState(player_id="p5", name="E", role_id="spy", team=Team.EVIL, is_alive=False),
         ),
         payload={

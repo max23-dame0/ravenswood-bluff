@@ -72,9 +72,7 @@ class AgentManager:
             if not visible_state:
                 continue
             if hasattr(agent, "reflect_if_needed"):
-                reflect_tasks.append(
-                    asyncio.create_task(agent.reflect_if_needed(visible_state))
-                )
+                reflect_tasks.append(asyncio.create_task(agent.reflect_if_needed(visible_state)))
 
         if reflect_tasks:
             results = await asyncio.gather(*reflect_tasks, return_exceptions=True)
@@ -82,7 +80,9 @@ class AgentManager:
             if reflected:
                 logger.info(
                     "[batch_reflect] phase=%s reflected=%d/%d",
-                    phase.value, reflected, len(reflect_tasks),
+                    phase.value,
+                    reflected,
+                    len(reflect_tasks),
                 )
 
     def _get_agent_visible_state(self, player_id: str) -> AgentVisibleState | None:

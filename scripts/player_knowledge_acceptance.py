@@ -14,10 +14,12 @@ if str(REPO_ROOT) not in sys.path:
 from src.orchestrator.game_loop import GameOrchestrator
 from src.state.game_state import GamePhase, Team, PlayerState, PlayerStatus
 
+
 async def main() -> None:
     print("Running Player Knowledge Isolation Acceptance Gate...")
-    
+
     from src.state.game_state import GameState
+
     orch = GameOrchestrator(initial_state=GameState())
     orch.state = orch.state.with_update(phase=GamePhase.SETUP)
     players = (
@@ -36,14 +38,11 @@ async def main() -> None:
             perceived_role_id="chef",
             team=Team.GOOD,
             current_team=Team.GOOD,
-            statuses=(PlayerStatus.ALIVE, PlayerStatus.POISONED)
+            statuses=(PlayerStatus.ALIVE, PlayerStatus.POISONED),
         ),
     )
     orch.state = orch.state.with_update(
-        players=players,
-        seat_order=("p1", "p2"),
-        player_count=2,
-        alive_count=2
+        players=players, seat_order=("p1", "p2"), player_count=2, alive_count=2
     )
 
     from src.agents.ai_agent import AIAgent, Persona

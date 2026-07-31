@@ -79,7 +79,9 @@ class ButlerRole(BaseRole):
             raise ValueError("目标不存在")
 
         new_state = self.set_binding(game_state, actor.player_id, target)
-        applies_on_day = new_state.payload[self.binding_payload_key()][actor.player_id]["applies_on_day"]
+        applies_on_day = new_state.payload[self.binding_payload_key()][actor.player_id][
+            "applies_on_day"
+        ]
         event = GameEvent(
             event_type="butler_binding",
             phase=game_state.phase,

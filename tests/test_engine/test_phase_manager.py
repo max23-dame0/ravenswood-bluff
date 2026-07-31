@@ -14,7 +14,7 @@ class TestPhaseManager:
 
     def test_valid_transitions(self):
         pm = PhaseManager()
-        
+
         # SETUP -> FIRST_NIGHT
         assert pm.can_transition_to(GamePhase.FIRST_NIGHT)
         pm.transition_to(GamePhase.FIRST_NIGHT)
@@ -27,7 +27,7 @@ class TestPhaseManager:
         pm.transition_to(GamePhase.DAY_DISCUSSION)
         assert pm.current_phase == GamePhase.DAY_DISCUSSION
         assert pm.day_number == 1
-        
+
         # DAY_DISCUSSION -> NOMINATION
         pm.transition_to(GamePhase.NOMINATION)
         assert pm.current_phase == GamePhase.NOMINATION
@@ -38,7 +38,7 @@ class TestPhaseManager:
 
         # VOTING -> EXECUTION
         pm.transition_to(GamePhase.EXECUTION)
-        
+
         # EXECUTION -> NIGHT
         pm.transition_to(GamePhase.NIGHT)
         assert pm.current_phase == GamePhase.NIGHT
@@ -53,7 +53,7 @@ class TestPhaseManager:
         pm = PhaseManager()
         pm.transition_to(GamePhase.FIRST_NIGHT)
         pm.transition_to(GamePhase.DAY_DISCUSSION)
-        
+
         pm.reset()
         assert pm.current_phase == GamePhase.SETUP
         assert pm.round_number == 0
@@ -63,7 +63,7 @@ class TestPhaseManager:
     def test_phase_history(self):
         pm = PhaseManager()
         pm.transition_to(GamePhase.FIRST_NIGHT)
-        
+
         history = pm.phase_history
         assert len(history) == 1
         assert history[0] == (GamePhase.FIRST_NIGHT, 1, 0)

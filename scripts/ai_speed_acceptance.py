@@ -39,6 +39,7 @@ class SlowBackend(LLMBackend):
 
     async def generate(self, system_prompt: str, messages: list[Message], **kwargs) -> LLMResponse:
         import asyncio
+
         await asyncio.sleep(self._delay)
         return await self._mock.generate(system_prompt, messages, **kwargs)
 
@@ -120,7 +121,7 @@ async def _run_mock_game(player_count: int) -> list[dict]:
     finally:
         if not loop_task.done():
             loop_task.cancel()
-            with (asyncio.CancelledError, Exception):
+            with asyncio.CancelledError, Exception:
                 await asyncio.sleep(0.01)
 
     # Collect metrics from all AI agents
@@ -170,7 +171,9 @@ def _analyze_metrics(all_metrics: list[dict], player_count: int) -> None:
         p95 = _percentile(latencies, 95)
         max_lat = max(latencies)
 
-        print(f"  {action_type}: n={len(latencies)}, P50={p50:.0f}ms, P95={p95:.0f}ms, max={max_lat:.0f}ms")
+        print(
+            f"  {action_type}: n={len(latencies)}, P50={p50:.0f}ms, P95={p95:.0f}ms, max={max_lat:.0f}ms"
+        )
 
         # P95 check against target
         _check(f"{player_count}p/{action_type} P95 <= {target_ms}ms", p95 <= target_ms)
@@ -219,7 +222,7 @@ async def _run_slow_backend_game(player_count: int) -> tuple[list[dict], list[st
     finally:
         if not loop_task.done():
             loop_task.cancel()
-            with (asyncio.CancelledError, Exception):
+            with asyncio.CancelledError, Exception:
                 await asyncio.sleep(0.01)
 
     # Collect metrics from agents AND from orchestrator latency records
@@ -229,7 +232,7 @@ async def _run_slow_backend_game(player_count: int) -> tuple[list[dict], list[st
             all_metrics.extend(agent.export_action_metrics())
 
     # Also include orchestrator-level latency records (captures timeout fallbacks)
-    if hasattr(orch, '_action_latencies'):
+    if hasattr(orch, "_action_latencies"):
         all_metrics.extend(orch._action_latencies)
 
     return all_metrics, event_order
@@ -256,24 +259,24 @@ async def main_async() -> None:
 
     fallback_count = sum(1 for m in metrics_slow if m.get("fallback_used"))
     timeout_fallbacks = sum(
-        1 for m in metrics_slow
+        1
+        for m in metrics_slow
         if (m.get("fallback_reason") or "").startswith("latency_budget_exceeded")
     )
     total_actions = len(metrics_slow)
 
     _check("slow backend: total actions > 0", total_actions > 0)
     _check("slow backend: fallbacks occurred (timeout)", fallback_count > 0)
-    print(f"  total actions: {total_actions}, fallbacks: {fallback_count}, timeout_fallbacks: {timeout_fallbacks}")
+    print(
+        f"  total actions: {total_actions}, fallbacks: {fallback_count}, timeout_fallbacks: {timeout_fallbacks}"
+    )
 
     # [4] Verify event ordering
     print("\n[4] Event ordering verification")
     _check("event log: events recorded", len(event_order) > 0)
 
     # Check that speak events appear in sequence (not scrambled)
-    speak_indices = [
-        i for i, e in enumerate(event_order)
-        if e.startswith("player_speaks:")
-    ]
+    speak_indices = [i for i, e in enumerate(event_order) if e.startswith("player_speaks:")]
     if speak_indices:
         is_ordered = speak_indices == sorted(speak_indices)
         _check("event log: speak events in order", is_ordered)
@@ -281,10 +284,7 @@ async def main_async() -> None:
         _check("event log: speak events in order", True)
 
     # Check nomination events come after discussion
-    nom_indices = [
-        i for i, e in enumerate(event_order)
-        if "nomination" in e
-    ]
+    nom_indices = [i for i, e in enumerate(event_order) if "nomination" in e]
     if nom_indices and speak_indices:
         last_speak = max(speak_indices)
         first_nom = min(nom_indices)

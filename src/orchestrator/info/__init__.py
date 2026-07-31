@@ -47,19 +47,32 @@ class PrivateInfoNormalizer:
                 lines.append(f"你的 3 个不在场角色：{bluff_names}")
         elif info_type == "washerwoman_info":
             title = title or f"{get_role_name(role_id)}信息"
-            candidates = ", ".join(self._o._player_label(pid) for pid in payload.get("players", [])) or "无"
-            lines = [f"{candidates} 之中，有一人是 {get_role_name(payload.get('role_seen', 'unknown'))}。"]
+            candidates = (
+                ", ".join(self._o._player_label(pid) for pid in payload.get("players", [])) or "无"
+            )
+            lines = [
+                f"{candidates} 之中，有一人是 {get_role_name(payload.get('role_seen', 'unknown'))}。"
+            ]
         elif info_type == "librarian_info":
             title = title or f"{get_role_name(role_id)}信息"
             if payload.get("has_outsider"):
-                candidates = ", ".join(self._o._player_label(pid) for pid in payload.get("players", [])) or "无"
-                lines = [f"{candidates} 之中，有一人是 {get_role_name(payload.get('role_seen', 'unknown'))}。"]
+                candidates = (
+                    ", ".join(self._o._player_label(pid) for pid in payload.get("players", []))
+                    or "无"
+                )
+                lines = [
+                    f"{candidates} 之中，有一人是 {get_role_name(payload.get('role_seen', 'unknown'))}。"
+                ]
             else:
                 lines = ["本局没有外来者。"]
         elif info_type == "investigator_info":
             title = title or f"{get_role_name(role_id)}信息"
-            candidates = ", ".join(self._o._player_label(pid) for pid in payload.get("players", [])) or "无"
-            lines = [f"{candidates} 之中，有一人是 {get_role_name(payload.get('role_seen', 'unknown'))}。"]
+            candidates = (
+                ", ".join(self._o._player_label(pid) for pid in payload.get("players", [])) or "无"
+            )
+            lines = [
+                f"{candidates} 之中，有一人是 {get_role_name(payload.get('role_seen', 'unknown'))}。"
+            ]
         elif info_type == "chef_info":
             title = title or f"{get_role_name(role_id)}信息"
             lines = [f"相邻的邪恶玩家对数：{payload.get('pairs', 0)}。"]
@@ -69,17 +82,28 @@ class PrivateInfoNormalizer:
         elif info_type == "undertaker_info":
             title = title or f"{get_role_name(role_id)}信息"
             seen_role = get_role_name(payload.get("role_seen", "unknown"))
-            seen_player = self._o._player_label(payload.get("player_id")) if payload.get("player_id") else "今天被处决的玩家"
+            seen_player = (
+                self._o._player_label(payload.get("player_id"))
+                if payload.get("player_id")
+                else "今天被处决的玩家"
+            )
             lines = [f"{seen_player} 的身份是：{seen_role}。"]
         elif info_type == "fortune_teller_info":
             title = title or f"{get_role_name(role_id)}信息"
-            pair = ", ".join(self._o._player_label(pid) for pid in payload.get("players", [])) or "这两人"
+            pair = (
+                ", ".join(self._o._player_label(pid) for pid in payload.get("players", []))
+                or "这两人"
+            )
             result = "至少有一人是恶魔" if payload.get("has_demon") else "这两人都不是恶魔"
             lines = [f"{pair}：{result}。"]
         elif info_type == "ravenkeeper_info":
             title = title or f"{get_role_name(role_id)}信息"
             seen_role = get_role_name(payload.get("role_seen", "unknown"))
-            seen_player = self._o._player_label(payload.get("player_id")) if payload.get("player_id") else "该玩家"
+            seen_player = (
+                self._o._player_label(payload.get("player_id"))
+                if payload.get("player_id")
+                else "该玩家"
+            )
             lines = [f"你得知 {seen_player} 的身份是：{seen_role}。"]
         elif info_type == "spy_book":
             title = title or "间谍魔典"
@@ -107,20 +131,24 @@ class PrivateInfoNormalizer:
         normalized["lines"] = lines
         return normalized
 
-    async def _publish_private_info(self, phase: GamePhase, target: str, trace_id: str, payload: dict) -> None:
+    async def _publish_private_info(
+        self, phase: GamePhase, target: str, trace_id: str, payload: dict
+    ) -> None:
         player = self._o.state.get_player(target)
         if not player:
             return
         normalized_payload = self._normalize_private_info_payload(player, payload)
-        await self._o._publish_event(GameEvent(
-            event_type="private_info_delivered",
-            phase=phase,
-            round_number=self._o.state.round_number,
-            trace_id=trace_id,
-            target=target,
-            visibility=Visibility.PRIVATE,
-            payload=normalized_payload,
-        ))
+        await self._o._publish_event(
+            GameEvent(
+                event_type="private_info_delivered",
+                phase=phase,
+                round_number=self._o.state.round_number,
+                trace_id=trace_id,
+                target=target,
+                visibility=Visibility.PRIVATE,
+                payload=normalized_payload,
+            )
+        )
         self._o._log_storyteller(
             "private_info_delivered",
             phase=phase.value,

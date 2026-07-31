@@ -162,7 +162,15 @@ def test_butler_rejects_vote_when_bound_player_cannot_vote() -> None:
         day_number=0,
         players=(
             make_player("b", "Butler", "butler", Team.GOOD),
-            make_player("t", "Target", "chef", Team.GOOD, is_alive=False, ghost_votes_remaining=0, has_used_dead_vote=True),
+            make_player(
+                "t",
+                "Target",
+                "chef",
+                Team.GOOD,
+                is_alive=False,
+                ghost_votes_remaining=0,
+                has_used_dead_vote=True,
+            ),
             make_player("o", "Other", "empath", Team.GOOD),
         ),
     )
@@ -253,7 +261,9 @@ def test_mayor_redirection_prefers_non_mayor_non_killer_alive_player() -> None:
         ),
     )
 
-    target = get_role_class("mayor").choose_redirection_target(state, mayor_player_id="m", killer_id="i")
+    target = get_role_class("mayor").choose_redirection_target(
+        state, mayor_player_id="m", killer_id="i"
+    )
 
     assert target == "g1"
 
@@ -292,7 +302,14 @@ def test_ravenkeeper_reads_true_role_on_death_trigger() -> None:
         phase=GamePhase.NIGHT,
         players=(
             make_player("r", "Raven", "ravenkeeper", Team.GOOD),
-            make_player("t", "Target", "butler", Team.GOOD, true_role_id="poisoner", perceived_role_id="butler"),
+            make_player(
+                "t",
+                "Target",
+                "butler",
+                Team.GOOD,
+                true_role_id="poisoner",
+                perceived_role_id="butler",
+            ),
         ),
     )
 
@@ -305,6 +322,7 @@ def test_ravenkeeper_reads_true_role_on_death_trigger() -> None:
 
 def test_scarlet_woman_triggers_on_execution_with_5_players() -> None:
     from src.engine.roles.minions import ScarletWomanRole
+
     state = GameState(
         phase=GamePhase.NIGHT,
         players=(
@@ -325,6 +343,7 @@ def test_scarlet_woman_triggers_on_execution_with_5_players() -> None:
 
 def test_scarlet_woman_fails_on_execution_with_less_than_5_players() -> None:
     from src.engine.roles.minions import ScarletWomanRole
+
     state = GameState(
         phase=GamePhase.NIGHT,
         players=(
@@ -343,6 +362,7 @@ def test_scarlet_woman_fails_on_execution_with_less_than_5_players() -> None:
 
 def test_mayor_wins_with_3_players_and_no_execution() -> None:
     from src.engine.victory_checker import VictoryChecker
+
     state = GameState(
         phase=GamePhase.NIGHT,
         round_number=1,
@@ -359,17 +379,18 @@ def test_mayor_wins_with_3_players_and_no_execution() -> None:
                 round_number=1,
                 target=None,
                 payload={"executed": None, "reason": "no_nomination"},
-                visibility=Visibility.PUBLIC
+                visibility=Visibility.PUBLIC,
             ),
-        )
+        ),
     )
-    
+
     winner = VictoryChecker.check_victory(state)
     assert winner == Team.GOOD
 
 
 def test_mayor_does_not_win_if_execution_happened_today() -> None:
     from src.engine.victory_checker import VictoryChecker
+
     state = GameState(
         phase=GamePhase.NIGHT,
         round_number=1,
@@ -386,11 +407,11 @@ def test_mayor_does_not_win_if_execution_happened_today() -> None:
                 round_number=1,
                 target="d",
                 payload={"executed": "d", "votes": 9},
-                visibility=Visibility.PUBLIC
+                visibility=Visibility.PUBLIC,
             ),
-        )
+        ),
     )
-    
+
     winner = VictoryChecker.check_victory(state)
     assert winner is None
 
@@ -425,9 +446,11 @@ def test_recluse_registers_as_evil_for_chef() -> None:
     assert info["type"] == "chef_info"
     assert info["pairs"] == 1
 
+
 def test_butler_vote_is_intercepted_if_target_does_not_vote() -> None:
     from src.engine.nomination import NominationManager
     from src.engine.roles.outsiders import ButlerRole
+
     state = GameState(
         phase=GamePhase.VOTING,
         round_number=1,
@@ -440,9 +463,9 @@ def test_butler_vote_is_intercepted_if_target_does_not_vote() -> None:
             make_player("d", "Demon", "imp", Team.EVIL),
         ),
         votes_today={"b": True, "g": False, "d": False},
-        payload={ButlerRole.binding_payload_key(): {"b": {"target_id": "g", "applies_on_day": 1}}}
+        payload={ButlerRole.binding_payload_key(): {"b": {"target_id": "g", "applies_on_day": 1}}},
     )
-    
+
     new_state, events = NominationManager.resolve_voting_round(state)
     assert new_state.execution_candidates[0].votes == 0
 
@@ -503,41 +526,53 @@ def test_slayer_kills_demon_triggers_good_victory() -> None:
     )
 
     new_state, events = role.execute_ability(state, state.get_player("s"), "d")
-    
+
     assert new_state.get_player("d").is_alive is False
     assert "slayer_used" in new_state.get_player("s").storyteller_notes
-    
+
     from src.engine.victory_checker import VictoryChecker
+
     winner = VictoryChecker.check_victory(new_state)
     assert winner == Team.GOOD
+
 
 def test_baron_setup_modifies_outsider_count() -> None:
     from src.engine.scripts import TROUBLE_BREWING, distribute_roles
     import random
-    
+
     # 模拟强制选中男爵
-    random.seed(42) # Maybe deterministic?
+    random.seed(42)  # Maybe deterministic?
     # Actually just repeatedly test or monkeypatch random.sample
-    # To test logic cleanly, let's just see what distribute_roles does. 
+    # To test logic cleanly, let's just see what distribute_roles does.
     # Normal 7 players: 5 Towns, 0 Out, 1 Minion, 1 Demon.
     normal_selected, _ = distribute_roles(TROUBLE_BREWING, 7)
-    
+
     # We can mock the Minion selection to always pick Baron
     original_sample = random.sample
+
     def mock_sample(population, k):
         if "baron" in population and k == 1:
             return ["baron"]
         return original_sample(population, k)
-        
+
     random.sample = mock_sample
     try:
         baron_selected, _ = distribute_roles(TROUBLE_BREWING, 7)
         # Should be 3 Towns, 2 Out, 1 Minion(Baron), 1 Demon
         from src.engine.roles.base_role import get_role_class
         from src.state.game_state import RoleType
-        outsiders = [r for r in baron_selected if get_role_class(r).get_definition().role_type == RoleType.OUTSIDER]
-        townsfolks = [r for r in baron_selected if get_role_class(r).get_definition().role_type == RoleType.TOWNSFOLK]
-        
+
+        outsiders = [
+            r
+            for r in baron_selected
+            if get_role_class(r).get_definition().role_type == RoleType.OUTSIDER
+        ]
+        townsfolks = [
+            r
+            for r in baron_selected
+            if get_role_class(r).get_definition().role_type == RoleType.TOWNSFOLK
+        ]
+
         assert len(outsiders) == 2
         assert len(townsfolks) == 3
         assert "baron" in baron_selected

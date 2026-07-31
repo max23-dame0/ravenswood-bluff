@@ -208,7 +208,11 @@ async def test_single_sentence_relay_still_works():
     bob = agent.social_graph.get_profile("p2")
     assert bob is not None
     assert "p4" in bob.claims_about_others
-    relay_records = [r for r in bob.claims_about_others["p4"] if r.claim_type == "relay" and r.role_id == "investigator"]
+    relay_records = [
+        r
+        for r in bob.claims_about_others["p4"]
+        if r.claim_type == "relay" and r.role_id == "investigator"
+    ]
     assert len(relay_records) > 0
 
     # David should have a note about the relay
@@ -280,7 +284,9 @@ async def test_relay_note_has_distinctive_prefix():
     assert david is not None
     # Notes should contain the relay prefix
     relay_notes = [n for n in david.notes if "转述" in n]
-    assert any("[转述-非自报]" in n for n in relay_notes), f"Expected [转述-非自报] prefix in notes: {david.notes}"
+    assert any("[转述-非自报]" in n for n in relay_notes), (
+        f"Expected [转述-非自报] prefix in notes: {david.notes}"
+    )
 
 
 @pytest.mark.asyncio
@@ -313,8 +319,14 @@ async def test_cross_sentence_accusation_does_not_false_match():
     # David should NOT be accused of being recluse
     david = agent.social_graph.get_profile("p4")
     if david is not None:
-        accusation_records = [r for r in david.claim_history if r.role_id == "recluse" and r.claim_type in {"accusation", "question"}]
-        assert len(accusation_records) == 0, f"David should not be accused of recluse: {accusation_records}"
+        accusation_records = [
+            r
+            for r in david.claim_history
+            if r.role_id == "recluse" and r.claim_type in {"accusation", "question"}
+        ]
+        assert len(accusation_records) == 0, (
+            f"David should not be accused of recluse: {accusation_records}"
+        )
 
 
 @pytest.mark.asyncio
@@ -369,8 +381,12 @@ async def test_defense_speech_discussing_baron_does_not_create_false_self_claim(
     )
     # No self_claim records for baron at all
     if david is not None:
-        self_claims = [r for r in david.claim_history if r.role_id == "baron" and r.claim_type == "self_claim"]
-        assert len(self_claims) == 0, f"Defense speech should not produce baron self_claim: {self_claims}"
+        self_claims = [
+            r for r in david.claim_history if r.role_id == "baron" and r.claim_type == "self_claim"
+        ]
+        assert len(self_claims) == 0, (
+            f"Defense speech should not produce baron self_claim: {self_claims}"
+        )
 
 
 @pytest.mark.asyncio
@@ -403,5 +419,9 @@ async def test_player_speaks_with_relay_context_does_not_create_false_self_claim
     bob = agent.social_graph.get_profile("p2")
     assert bob is not None
     # Bob should NOT have a self_claim for baron — the relay context is detected
-    baron_self_claims = [r for r in bob.claim_history if r.role_id == "baron" and r.claim_type == "self_claim"]
-    assert len(baron_self_claims) == 0, f"Relay context should not produce baron self_claim: {baron_self_claims}"
+    baron_self_claims = [
+        r for r in bob.claim_history if r.role_id == "baron" and r.claim_type == "self_claim"
+    ]
+    assert len(baron_self_claims) == 0, (
+        f"Relay context should not produce baron self_claim: {baron_self_claims}"
+    )

@@ -16,7 +16,16 @@ from src.orchestrator.storyteller_balance import (
     build_storyteller_adjudication_sample,
     export_storyteller_adjudication_sample,
 )
-from src.state.game_state import GameConfig, GameEvent, GamePhase, GameState, PlayerState, PlayerStatus, Team, Visibility
+from src.state.game_state import (
+    GameConfig,
+    GameEvent,
+    GamePhase,
+    GameState,
+    PlayerState,
+    PlayerStatus,
+    Team,
+    Visibility,
+)
 
 
 def _base_config() -> GameConfig:
@@ -88,7 +97,13 @@ def _spy_book_state() -> GameState:
         seat_order=("p1", "p2", "p3", "p4"),
         players=(
             PlayerState(player_id="p1", name="Town", role_id="washerwoman", team=Team.GOOD),
-            PlayerState(player_id="p2", name="Spy", role_id="spy", team=Team.EVIL, statuses=(PlayerStatus.ALIVE, PlayerStatus.DRUNK)),
+            PlayerState(
+                player_id="p2",
+                name="Spy",
+                role_id="spy",
+                team=Team.EVIL,
+                statuses=(PlayerStatus.ALIVE, PlayerStatus.DRUNK),
+            ),
             PlayerState(player_id="p3", name="Imp", role_id="imp", team=Team.EVIL),
             PlayerState(player_id="p4", name="Lib", role_id="librarian", team=Team.GOOD),
         ),
@@ -128,10 +143,14 @@ async def _build_samples(output_dir: Path) -> list[Path]:
             storyteller_agent=agent,
             seed=sample_name,
         )
-        sample_path = export_storyteller_adjudication_sample(sample, output_dir / f"{sample_name}.json")
+        sample_path = export_storyteller_adjudication_sample(
+            sample, output_dir / f"{sample_name}.json"
+        )
         exported.append(sample_path)
         manifest.append({"name": sample_name, "path": str(sample_path)})
-    (output_dir / "manifest.json").write_text(json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8")
+    (output_dir / "manifest.json").write_text(
+        json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8"
+    )
     return exported
 
 
@@ -139,7 +158,9 @@ def main() -> int:
     import asyncio
     import sys
 
-    output_dir = Path(sys.argv[1]) if len(sys.argv) > 1 else Path("artifacts") / "storyteller_eval_samples"
+    output_dir = (
+        Path(sys.argv[1]) if len(sys.argv) > 1 else Path("artifacts") / "storyteller_eval_samples"
+    )
     output_dir.mkdir(parents=True, exist_ok=True)
     exported = asyncio.run(_build_samples(output_dir))
     print(f"storyteller balance samples: {len(exported)} exported to {output_dir}")

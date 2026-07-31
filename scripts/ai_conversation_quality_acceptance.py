@@ -78,12 +78,14 @@ async def _run_mock_game(player_count: int, discussion_rounds: int = 2) -> dict:
     async def publish_with_capture(event):
         await original_publish(event)
         if event.event_type == "player_speaks":
-            speak_events.append({
-                "actor": event.actor,
-                "content": event.payload.get("content", ""),
-                "round": event.payload.get("round", 0),
-                "tone": event.payload.get("tone", ""),
-            })
+            speak_events.append(
+                {
+                    "actor": event.actor,
+                    "content": event.payload.get("content", ""),
+                    "round": event.payload.get("round", 0),
+                    "tone": event.payload.get("tone", ""),
+                }
+            )
         if event.event_type in ("execution_resolved", "game_settlement_ready"):
             raise _StopGame("quality measurement complete")
 
@@ -176,24 +178,33 @@ def _analyze_quality(result: dict) -> None:
     action_metrics = result["action_metrics"]
     speak_metrics = [m for m in action_metrics if m.get("action_type") == "speak"]
     orchestrator_timeouts = sum(
-        1 for m in speak_metrics
+        1
+        for m in speak_metrics
         if (m.get("fallback_reason") or "").startswith("orchestrator_hard_timeout")
     )
     timeout_rate = orchestrator_timeouts / len(speak_metrics) if speak_metrics else 0
-    _check(f"{player_count}p: orchestrator timeout rate <= 10% (got {timeout_rate:.0%})", timeout_rate <= 0.10)
+    _check(
+        f"{player_count}p: orchestrator timeout rate <= 10% (got {timeout_rate:.0%})",
+        timeout_rate <= 0.10,
+    )
     print(f"  orchestrator timeouts: {orchestrator_timeouts}/{len(speak_metrics)}")
 
     # 4. Agent-level fallback rate (should be higher than orchestrator, meaning agent handles it)
     agent_fallbacks = sum(
-        1 for m in speak_metrics
-        if m.get("fallback_used") and not (m.get("fallback_reason") or "").startswith("orchestrator_hard_timeout")
+        1
+        for m in speak_metrics
+        if m.get("fallback_used")
+        and not (m.get("fallback_reason") or "").startswith("orchestrator_hard_timeout")
     )
     print(f"  agent-level fallbacks: {agent_fallbacks}/{len(speak_metrics)}")
 
     # 5. Total fallback rate
     total_fallbacks = sum(1 for m in speak_metrics if m.get("fallback_used"))
     total_fallback_rate = total_fallbacks / len(speak_metrics) if speak_metrics else 0
-    _check(f"{player_count}p: total fallback rate <= 50% (got {total_fallback_rate:.0%})", total_fallback_rate <= 0.50)
+    _check(
+        f"{player_count}p: total fallback rate <= 50% (got {total_fallback_rate:.0%})",
+        total_fallback_rate <= 0.50,
+    )
 
 
 async def main_async() -> None:

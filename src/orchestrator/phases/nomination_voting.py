@@ -46,10 +46,16 @@ class NominationVotingHandler:
             "nomination_window_open",
             threshold=RuleEngine.votes_required(self._o.state),
         )
-        max_rounds = self._o.state.config.max_nomination_rounds if self._o.state.config and self._o.state.config.max_nomination_rounds else max(1, self._o.state.alive_count)
+        max_rounds = (
+            self._o.state.config.max_nomination_rounds
+            if self._o.state.config and self._o.state.config.max_nomination_rounds
+            else max(1, self._o.state.alive_count)
+        )
         nomination_round = 0
         had_any_nomination = False
-        self._o._log_storyteller("nomination_phase_open", max_rounds=max_rounds, alive=self._o.state.alive_count)
+        self._o._log_storyteller(
+            "nomination_phase_open", max_rounds=max_rounds, alive=self._o.state.alive_count
+        )
         self._o._record_storyteller_judgement(
             "nomination_started",
             decision="open",
@@ -79,15 +85,21 @@ class NominationVotingHandler:
                     votes_cast=0,
                     yes_votes=0,
                     round=nomination_round,
-                    last_result={"executed": None, "reason": "no_nomination"} if not had_any_nomination else self._o.state.payload.get("nomination_state", {}).get("last_result", {"executed": None}),
+                    last_result={"executed": None, "reason": "no_nomination"}
+                    if not had_any_nomination
+                    else self._o.state.payload.get("nomination_state", {}).get(
+                        "last_result", {"executed": None}
+                    ),
                 )
                 if not had_any_nomination:
-                    self._o._append_nomination_history({
-                        "kind": "no_nomination",
-                        "round": nomination_round,
-                        "reason": "no_legal_intent",
-                        "trace_id": self._o._make_trace_id("BOTC-FLOW-NOM-NONE"),
-                    })
+                    self._o._append_nomination_history(
+                        {
+                            "kind": "no_nomination",
+                            "round": nomination_round,
+                            "reason": "no_legal_intent",
+                            "trace_id": self._o._make_trace_id("BOTC-FLOW-NOM-NONE"),
+                        }
+                    )
                 self._o._log_storyteller(
                     "nomination_round_no_nomination",
                     round=nomination_round,
@@ -98,7 +110,10 @@ class NominationVotingHandler:
                     decision="none",
                     reason="no_legal_intent",
                     round=nomination_round,
-                    intents={pid: intent.get("target") if intent else None for pid, intent in intents.items()},
+                    intents={
+                        pid: intent.get("target") if intent else None
+                        for pid, intent in intents.items()
+                    },
                 )
                 break
 
@@ -116,7 +131,9 @@ class NominationVotingHandler:
             try:
                 self._o._ensure_player_alive(nominator_id, "nomination_actor")
                 self._o._ensure_player_alive(target_id, "nomination_target")
-                self._o.state, events = NominationManager.nominate(self._o.state, nominator_id, target_id, trace_id)
+                self._o.state, events = NominationManager.nominate(
+                    self._o.state, nominator_id, target_id, trace_id
+                )
                 # [FIX] 如果由于特殊技能（如圣女）导致了即时处决，处决事件会修改 phase 为非提名且非投票状态（如直接进入结算或回退讨论）
                 if self._o.state.phase not in [GamePhase.NOMINATION, GamePhase.VOTING]:
                     logger.info("提名阶段被特殊技能(如圣女)中断，或已直接进入处决结算。")
@@ -130,14 +147,16 @@ class NominationVotingHandler:
                     round=nomination_round,
                     last_result={"executed": None, "reason": "invalid_nomination"},
                 )
-                self._o._append_nomination_history({
-                    "kind": "invalid_nomination",
-                    "round": nomination_round,
-                    "nominator": nominator_id,
-                    "nominee": target_id,
-                    "reason": str(exc),
-                    "trace_id": trace_id,
-                })
+                self._o._append_nomination_history(
+                    {
+                        "kind": "invalid_nomination",
+                        "round": nomination_round,
+                        "nominator": nominator_id,
+                        "nominee": target_id,
+                        "reason": str(exc),
+                        "trace_id": trace_id,
+                    }
+                )
                 self._o._log_storyteller(
                     "nomination_invalid",
                     round=nomination_round,
@@ -155,16 +174,18 @@ class NominationVotingHandler:
                 )
                 continue
 
-            await self._o._publish_event(GameEvent(
-                event_type="nomination_attempted",
-                phase=GamePhase.NOMINATION,
-                round_number=self._o.state.round_number,
-                trace_id=trace_id,
-                actor=nominator_id,
-                target=target_id,
-                visibility=Visibility.STORYTELLER_ONLY,
-                payload={"accepted": True, "round": nomination_round},
-            ))
+            await self._o._publish_event(
+                GameEvent(
+                    event_type="nomination_attempted",
+                    phase=GamePhase.NOMINATION,
+                    round_number=self._o.state.round_number,
+                    trace_id=trace_id,
+                    actor=nominator_id,
+                    target=target_id,
+                    visibility=Visibility.STORYTELLER_ONLY,
+                    payload={"accepted": True, "round": nomination_round},
+                )
+            )
             for event in events:
                 await self._o.event_bus.publish(event)
             self._o._set_nomination_state(
@@ -187,14 +208,16 @@ class NominationVotingHandler:
                 nominee=target_id,
                 threshold=RuleEngine.votes_required(self._o.state),
             )
-            self._o._append_nomination_history({
-                "kind": "nomination_started",
-                "round": nomination_round,
-                "nominator": nominator_id,
-                "nominee": target_id,
-                "threshold": RuleEngine.votes_required(self._o.state),
-                "trace_id": trace_id,
-            })
+            self._o._append_nomination_history(
+                {
+                    "kind": "nomination_started",
+                    "round": nomination_round,
+                    "nominator": nominator_id,
+                    "nominee": target_id,
+                    "threshold": RuleEngine.votes_required(self._o.state),
+                    "trace_id": trace_id,
+                }
+            )
             self._o._record_storyteller_judgement(
                 "nomination_started",
                 decision="start",
@@ -214,13 +237,15 @@ class NominationVotingHandler:
                     round=nomination_round,
                     last_result={"executed": nominator_id, "reason": "virgin"},
                 )
-                self._o._append_nomination_history({
-                    "kind": "execution_resolved",
-                    "round": nomination_round,
-                    "executed": nominator_id,
-                    "reason": "virgin",
-                    "trace_id": trace_id,
-                })
+                self._o._append_nomination_history(
+                    {
+                        "kind": "execution_resolved",
+                        "round": nomination_round,
+                        "executed": nominator_id,
+                        "reason": "virgin",
+                        "trace_id": trace_id,
+                    }
+                )
                 self._o._log_storyteller(
                     "virgin_trigger",
                     round=nomination_round,
@@ -279,13 +304,15 @@ class NominationVotingHandler:
             last_result=final_payload,
             round=nomination_round,
         )
-        self._o._append_nomination_history({
-            "kind": "execution_resolved",
-            "round": nomination_round,
-            "executed": final_payload.get("executed"),
-            "votes": final_payload.get("votes"),
-            "trace_id": trace_id,
-        })
+        self._o._append_nomination_history(
+            {
+                "kind": "execution_resolved",
+                "round": nomination_round,
+                "executed": final_payload.get("executed"),
+                "votes": final_payload.get("votes"),
+                "trace_id": trace_id,
+            }
+        )
         self._o._sync_all_agents(trace_id)
         self._o._log_storyteller(
             "execution_finalized",
@@ -306,8 +333,12 @@ class NominationVotingHandler:
         # [A3-DATA-2] 投票与处决后快照
         self._o._record_data_snapshot("after_execution")
 
-    def _select_nomination_intent(self, intents: dict[str, dict[str, Any]]) -> tuple[str, str] | None:
-        for player_id in self._o.state.seat_order or tuple(p.player_id for p in self._o.state.players):
+    def _select_nomination_intent(
+        self, intents: dict[str, dict[str, Any]]
+    ) -> tuple[str, str] | None:
+        for player_id in self._o.state.seat_order or tuple(
+            p.player_id for p in self._o.state.players
+        ):
             intent = intents.get(player_id)
             if not intent:
                 continue
@@ -355,19 +386,29 @@ class NominationVotingHandler:
         if nomination_round >= max_rounds:
             return False
         alive_players = [player for player in self._o.state.players if player.is_alive]
-        remaining_nominators = [player for player in alive_players if player.player_id not in self._o.state.nominations_today]
-        remaining_nominees = [player for player in alive_players if player.player_id not in self._o.state.nominees_today]
+        remaining_nominators = [
+            player
+            for player in alive_players
+            if player.player_id not in self._o.state.nominations_today
+        ]
+        remaining_nominees = [
+            player
+            for player in alive_players
+            if player.player_id not in self._o.state.nominees_today
+        ]
         return bool(remaining_nominators and remaining_nominees)
 
     async def _collect_nomination_intents(self, nomination_round: int) -> dict[str, dict[str, Any]]:
-        await self._o._publish_event(GameEvent(
-            event_type="nomination_window_opened",
-            phase=GamePhase.NOMINATION,
-            round_number=self._o.state.round_number,
-            trace_id=self._o._make_trace_id("BOTC-FLOW-NOMWIN"),
-            visibility=Visibility.PUBLIC,
-            payload={"round": nomination_round},
-        ))
+        await self._o._publish_event(
+            GameEvent(
+                event_type="nomination_window_opened",
+                phase=GamePhase.NOMINATION,
+                round_number=self._o.state.round_number,
+                trace_id=self._o._make_trace_id("BOTC-FLOW-NOMWIN"),
+                visibility=Visibility.PUBLIC,
+                payload={"round": nomination_round},
+            )
+        )
         self._o._set_nomination_state(
             stage="nomination",
             current_nominator=None,
@@ -384,11 +425,16 @@ class NominationVotingHandler:
         )
         ordered_players = [
             self._o.state.get_player(pid)
-            for pid in (self._o.state.seat_order or tuple(p.player_id for p in self._o.state.players))
+            for pid in (
+                self._o.state.seat_order or tuple(p.player_id for p in self._o.state.players)
+            )
         ]
         eligible_players = [
-            player for player in ordered_players
-            if player and player.is_alive and player.player_id not in self._o.state.nominations_today
+            player
+            for player in ordered_players
+            if player
+            and player.is_alive
+            and player.player_id not in self._o.state.nominations_today
         ]
         tasks: list[tuple[str, asyncio.Task]] = []
         human_ids = set(self._o.state.config.human_player_ids if self._o.state.config else [])
@@ -404,6 +450,7 @@ class NominationVotingHandler:
 
             # 为人类玩家增加强制选择校验
             if player.player_id in human_ids:
+
                 async def human_nomination_loop(v_state, a_type, l_ctx, a_agent):
                     trying_empty = False
                     retry_count = 0
@@ -415,7 +462,9 @@ class NominationVotingHandler:
                             v_state,
                             a_type,
                             legal_context=l_ctx,
-                            reminder="请做出选择（提名玩家或选择'不提名'）。不可空选。" if trying_empty else None,
+                            reminder="请做出选择（提名玩家或选择'不提名'）。不可空选。"
+                            if trying_empty
+                            else None,
                             retry_count=retry_count,
                             last_error="必须明确选择提名对象或不提名" if trying_empty else None,
                         )
@@ -423,22 +472,41 @@ class NominationVotingHandler:
                         tgt = act_res.get("target")
                         if tgt or act_res.get("action") == "none":
                             return act_res
-                        logger.warning(f"[Nomination] 玩家 {player.player_id} 提交了空提名意图，重试 ({retry_count}/{self._o.MAX_AGENT_RETRIES})。")
+                        logger.warning(
+                            f"[Nomination] 玩家 {player.player_id} 提交了空提名意图，重试 ({retry_count}/{self._o.MAX_AGENT_RETRIES})。"
+                        )
                         trying_empty = True
 
                     # 达到最大重试次数，返回兜底跳过
-                    return {"action": "not_nominating", "target": "not_nominating", "reason": "max_retries_reached"}
+                    return {
+                        "action": "not_nominating",
+                        "target": "not_nominating",
+                        "reason": "max_retries_reached",
+                    }
 
-                tasks.append((player.player_id, asyncio.create_task(human_nomination_loop(visible_state, action_type, legal_context, agent))))
+                tasks.append(
+                    (
+                        player.player_id,
+                        asyncio.create_task(
+                            human_nomination_loop(visible_state, action_type, legal_context, agent)
+                        ),
+                    )
+                )
             else:
                 self._o._mark_progress(f"ai_action:{player.player_id}:nomination_intent")
-                async def _nomination_intent_task(pid=player.player_id, agt=agent, vs=visible_state, lc=legal_context):
+
+                async def _nomination_intent_task(
+                    pid=player.player_id, agt=agent, vs=visible_state, lc=legal_context
+                ):
                     return await self._o._timed_act(
-                        agt, vs, action_type,
+                        agt,
+                        vs,
+                        action_type,
                         legal_context=lc,
                         player_id=pid,
                         phase="nomination",
                     )
+
                 tasks.append((player.player_id, asyncio.create_task(_nomination_intent_task())))
 
         results: dict[str, dict[str, Any]] = {}
@@ -448,23 +516,28 @@ class NominationVotingHandler:
                 action = await task
             except Exception as exc:
                 self._o._record_recent_exception(f"nomination_intent:{player_id}", exc)
-                action = {"action": "none", "reasoning": f"nomination_intent_error:{type(exc).__name__}"}
+                action = {
+                    "action": "none",
+                    "reasoning": f"nomination_intent_error:{type(exc).__name__}",
+                }
 
             # 统一处理结果：如果结果依然为空（AI 异常等），给予默认值，防止卡死
             if not action.get("target"):
                 action["target"] = "not_nominating"
                 action["action"] = "not_nominating"
 
-            await self._o._publish_event(GameEvent(
-                event_type="nomination_intent_submitted",
-                phase=GamePhase.NOMINATION,
-                round_number=self._o.state.round_number,
-                trace_id=trace_id,
-                actor=player_id,
-                target=action.get("target"),
-                visibility=Visibility.STORYTELLER_ONLY,
-                payload={"action": action.get("action"), "round": nomination_round},
-            ))
+            await self._o._publish_event(
+                GameEvent(
+                    event_type="nomination_intent_submitted",
+                    phase=GamePhase.NOMINATION,
+                    round_number=self._o.state.round_number,
+                    trace_id=trace_id,
+                    actor=player_id,
+                    target=action.get("target"),
+                    visibility=Visibility.STORYTELLER_ONLY,
+                    payload={"action": action.get("action"), "round": nomination_round},
+                )
+            )
             results[player_id] = action
             self._o._log_storyteller(
                 "nomination_intent_submitted",
@@ -475,7 +548,9 @@ class NominationVotingHandler:
             )
         return results
 
-    async def _handle_virgin_trigger(self, nominator_id: str, nominee_id: str, trace_id: str) -> bool:
+    async def _handle_virgin_trigger(
+        self, nominator_id: str, nominee_id: str, trace_id: str
+    ) -> bool:
         nominee = self._o.state.get_player(nominee_id)
         nominator = self._o.state.get_player(nominator_id)
         if not nominee or not nominator:
@@ -484,19 +559,25 @@ class NominationVotingHandler:
             return False
         role_cls = get_role_class(nominator.true_role_id or nominator.role_id)
         if not role_cls or role_cls.get_definition().role_type != RoleType.TOWNSFOLK:
-            self._o.state = self._o.state.with_player_update(nominee_id, storyteller_notes=nominee.storyteller_notes + ("virgin_used",))
+            self._o.state = self._o.state.with_player_update(
+                nominee_id, storyteller_notes=nominee.storyteller_notes + ("virgin_used",)
+            )
             return False
         self._o.state = self._o.state.with_player_update(nominator_id, is_alive=False)
-        self._o.state = self._o.state.with_player_update(nominee_id, storyteller_notes=nominee.storyteller_notes + ("virgin_used",))
-        await self._o._publish_event(GameEvent(
-            event_type="execution_resolved",
-            phase=GamePhase.EXECUTION,
-            round_number=self._o.state.round_number,
-            trace_id=trace_id,
-            target=nominator_id,
-            visibility=Visibility.PUBLIC,
-            payload={"executed": nominator_id, "reason": "virgin"},
-        ))
+        self._o.state = self._o.state.with_player_update(
+            nominee_id, storyteller_notes=nominee.storyteller_notes + ("virgin_used",)
+        )
+        await self._o._publish_event(
+            GameEvent(
+                event_type="execution_resolved",
+                phase=GamePhase.EXECUTION,
+                round_number=self._o.state.round_number,
+                trace_id=trace_id,
+                target=nominator_id,
+                visibility=Visibility.PUBLIC,
+                payload={"executed": nominator_id, "reason": "virgin"},
+            )
+        )
         self._o._log_storyteller(
             "virgin_resolved",
             nominator=nominator_id,
@@ -526,11 +607,17 @@ class NominationVotingHandler:
             visible_state = self._o._get_agent_visible_state(nominee_id)
             if not visible_state:
                 visible_state = self._o.broker.get_visible_state(nominee_id, self._o.state)
-            legal_context = self._o._get_agent_legal_context(nominee_id, visible_state) if visible_state else AgentActionLegalContext()
+            legal_context = (
+                self._o._get_agent_legal_context(nominee_id, visible_state)
+                if visible_state
+                else AgentActionLegalContext()
+            )
             self._o._mark_progress(f"ai_action:{nominee_id}:defense_speech")
             if visible_state:
                 defense = await self._o._timed_act(
-                    agent, visible_state, "defense_speech",
+                    agent,
+                    visible_state,
+                    "defense_speech",
                     legal_context=legal_context,
                     player_id=nominee_id,
                     phase="defense",
@@ -553,16 +640,18 @@ class NominationVotingHandler:
                 content=defense_text,
             )
             payload = {"content": defense_text}
-            await self._o._publish_event(GameEvent(
-                event_type="defense_started",
-                phase=GamePhase.NOMINATION,
-                round_number=self._o.state.round_number,
-                trace_id=trace_id,
-                actor=nominee_id,
-                target=nominee_id,
-                visibility=Visibility.PUBLIC,
-                payload=payload,
-            ))
+            await self._o._publish_event(
+                GameEvent(
+                    event_type="defense_started",
+                    phase=GamePhase.NOMINATION,
+                    round_number=self._o.state.round_number,
+                    trace_id=trace_id,
+                    actor=nominee_id,
+                    target=nominee_id,
+                    visibility=Visibility.PUBLIC,
+                    payload=payload,
+                )
+            )
         else:
             self._o._record_storyteller_judgement(
                 "defense",
@@ -596,7 +685,9 @@ class NominationVotingHandler:
                     return voter_id, False
                 legal_context = self._o._get_agent_legal_context(voter_id, visible_state)
                 action = await self._o._timed_act(
-                    vote_agent, visible_state, "vote",
+                    vote_agent,
+                    visible_state,
+                    "vote",
                     legal_context=legal_context,
                     player_id=voter_id,
                     phase="voting",
@@ -633,16 +724,24 @@ class NominationVotingHandler:
                             visible_state,
                             "vote",
                             legal_context=legal_context,
-                            reminder="请做出明确选择（同意或不赞成）。不可直接跳过。" if trying_empty else None,
+                            reminder="请做出明确选择（同意或不赞成）。不可直接跳过。"
+                            if trying_empty
+                            else None,
                             retry_count=retry_count,
                             last_error="必须明确选择同意或不赞成" if trying_empty else None,
                         )
                         if action.get("decision") is not None:
                             break
-                        logger.warning(f"[Voting] 玩家 {voter_id} 提交了空投票意图，重试 ({retry_count}/{self._o.MAX_AGENT_RETRIES})。")
+                        logger.warning(
+                            f"[Voting] 玩家 {voter_id} 提交了空投票意图，重试 ({retry_count}/{self._o.MAX_AGENT_RETRIES})。"
+                        )
                         trying_empty = True
                     if action.get("decision") is None:
-                        action = {"action": "vote", "decision": False, "reason": "max_retries_reached"}
+                        action = {
+                            "action": "vote",
+                            "decision": False,
+                            "reason": "max_retries_reached",
+                        }
                     vote_decisions[voter_id] = bool(action.get("decision", False))
                 except Exception as e:
                     self._o._record_recent_exception(f"vote:{voter_id}", e)
@@ -663,7 +762,9 @@ class NominationVotingHandler:
                 continue
             decision = vote_decisions[voter_id]
             try:
-                self._o.state, events = NominationManager.cast_vote(self._o.state, voter_id, decision, trace_id)
+                self._o.state, events = NominationManager.cast_vote(
+                    self._o.state, voter_id, decision, trace_id
+                )
                 for event in events:
                     await self._o.event_bus.publish(event)
             except ValueError:
@@ -716,16 +817,18 @@ class NominationVotingHandler:
                 yes_votes=yes_votes,
                 defense_text=defense_text,
             )
-            self._o._append_nomination_history({
-                "kind": "voting_resolved",
-                "round": self._o.state.payload.get("nomination_state", {}).get("round"),
-                "nominee": nominee_id,
-                "passed": result_payload.get("passed"),
-                "votes": result_payload.get("votes"),
-                "needed": result_payload.get("needed"),
-                "voters": vote_details,
-                "trace_id": trace_id,
-            })
+            self._o._append_nomination_history(
+                {
+                    "kind": "voting_resolved",
+                    "round": self._o.state.payload.get("nomination_state", {}).get("round"),
+                    "nominee": nominee_id,
+                    "passed": result_payload.get("passed"),
+                    "votes": result_payload.get("votes"),
+                    "needed": result_payload.get("needed"),
+                    "voters": vote_details,
+                    "trace_id": trace_id,
+                }
+            )
             self._o._log_storyteller(
                 "voting_resolved",
                 nominee=nominee_id,

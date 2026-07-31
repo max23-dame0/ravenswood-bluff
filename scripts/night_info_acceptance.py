@@ -83,18 +83,30 @@ async def assert_evil_reveal_and_spy_refresh() -> None:
     await orch._distribute_night_info(GamePhase.NIGHT)
 
     evil_private = [
-        event for event in orch.event_log.events
+        event
+        for event in orch.event_log.events
         if event.event_type == "private_info_delivered" and event.target in {"i1", "s1"}
     ]
     assert evil_private
-    imp_payload = next(event.payload for event in evil_private if event.target == "i1" and event.payload.get("type") == "evil_reveal")
-    spy_payload = next(event.payload for event in evil_private if event.target == "s1" and event.payload.get("type") == "evil_reveal")
+    imp_payload = next(
+        event.payload
+        for event in evil_private
+        if event.target == "i1" and event.payload.get("type") == "evil_reveal"
+    )
+    spy_payload = next(
+        event.payload
+        for event in evil_private
+        if event.target == "s1" and event.payload.get("type") == "evil_reveal"
+    )
     assert imp_payload["bluffs"] == ["chef", "undertaker", "soldier"]
     assert spy_payload["bluffs"] == ["chef", "undertaker", "soldier"]
 
     spy_books = [
-        event.payload for event in orch.event_log.events
-        if event.event_type == "private_info_delivered" and event.target == "s1" and event.payload.get("type") == "spy_book"
+        event.payload
+        for event in orch.event_log.events
+        if event.event_type == "private_info_delivered"
+        and event.target == "s1"
+        and event.payload.get("type") == "spy_book"
     ]
     assert len(spy_books) >= 2
     assert all(payload["book"] for payload in spy_books)
@@ -105,7 +117,9 @@ async def assert_ravenkeeper_death_trigger_flow() -> None:
         phase=GamePhase.NIGHT,
         round_number=2,
         players=(
-            PlayerState(player_id="r", name="Raven", role_id="ravenkeeper", team=Team.GOOD, is_alive=False),
+            PlayerState(
+                player_id="r", name="Raven", role_id="ravenkeeper", team=Team.GOOD, is_alive=False
+            ),
             PlayerState(player_id="i", name="Imp", role_id="imp", team=Team.EVIL),
             PlayerState(player_id="g", name="Good", role_id="chef", team=Team.GOOD),
         ),
@@ -113,14 +127,21 @@ async def assert_ravenkeeper_death_trigger_flow() -> None:
     )
     orch = GameOrchestrator(initial_state)
     orch.storyteller_agent = DummyStoryteller()
-    orch.register_agent(ScriptedAgent("r", "Raven", {
-        "death_trigger": [{"action": "death_trigger", "target": "i"}],
-    }))
+    orch.register_agent(
+        ScriptedAgent(
+            "r",
+            "Raven",
+            {
+                "death_trigger": [{"action": "death_trigger", "target": "i"}],
+            },
+        )
+    )
 
     await orch._resolve_on_death_triggers({"r", "i", "g"})
 
     private_infos = [
-        event for event in orch.event_log.events
+        event
+        for event in orch.event_log.events
         if event.event_type == "private_info_delivered" and event.target == "r"
     ]
     assert private_infos

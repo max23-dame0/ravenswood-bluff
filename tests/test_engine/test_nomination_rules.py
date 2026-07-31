@@ -11,7 +11,14 @@ def make_test_state(phase: GamePhase = GamePhase.NOMINATION, **kwargs) -> GameSt
         PlayerState(player_id="p1", name="A", role_id="imp", team=Team.EVIL),
         PlayerState(player_id="p2", name="B", role_id="washerwoman", team=Team.GOOD),
         PlayerState(player_id="p3", name="C", role_id="empath", team=Team.GOOD, is_alive=False),
-        PlayerState(player_id="p4", name="D", role_id="poisoner", team=Team.EVIL, is_alive=False, has_used_dead_vote=True),
+        PlayerState(
+            player_id="p4",
+            name="D",
+            role_id="poisoner",
+            team=Team.EVIL,
+            is_alive=False,
+            has_used_dead_vote=True,
+        ),
     )
     defaults = {"players": players, "phase": phase}
     defaults.update(kwargs)
@@ -61,7 +68,7 @@ class TestNominationManager:
     def test_nominate_success(self):
         state = make_test_state()
         new_state, events = NominationManager.nominate(state, "p1", "p2")
-        
+
         assert new_state.phase == GamePhase.VOTING
         assert new_state.current_nominator == "p1"
         assert new_state.current_nominee == "p2"
@@ -77,23 +84,25 @@ class TestNominationManager:
     def test_cast_vote(self):
         state = make_test_state(phase=GamePhase.VOTING, current_nominee="p2")
         new_state, events = NominationManager.cast_vote(state, "p1", True)
-        
+
         assert new_state.votes_today["p1"] is True
         assert len(events) == 1
 
     def test_resolve_voting_passed(self):
         # 存活 2 人时需要 2 票严格过半；死人 p3 + 活人 p1 共同投票。
-        state = make_test_state(phase=GamePhase.VOTING, current_nominee="p2", votes_today={"p3": True, "p1": True})
+        state = make_test_state(
+            phase=GamePhase.VOTING, current_nominee="p2", votes_today={"p3": True, "p1": True}
+        )
         new_state, events = NominationManager.resolve_voting_round(state)
-        
+
         assert new_state.phase == GamePhase.NOMINATION
         assert new_state.current_nominee is None
-        
+
         ev = events[0]
         assert ev.event_type == "voting_resolved"
         assert ev.payload["passed"] is True
         assert ev.payload["votes"] == 2
-        
+
         # 验证p3的死人票被扣除
         p3_new = new_state.get_player("p3")
         assert p3_new.has_used_dead_vote is True

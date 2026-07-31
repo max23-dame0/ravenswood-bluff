@@ -113,7 +113,9 @@ def test_decorated_ws_message_includes_game_id(monkeypatch):
 
     server_module = importlib.reload(server_module)
     orchestrator = server_module.build_fresh_orchestrator("mock")
-    message = json.dumps({"type": "event_update", "event": {"event_type": "phase_changed"}}, ensure_ascii=False)
+    message = json.dumps(
+        {"type": "event_update", "event": {"event_type": "phase_changed"}}, ensure_ascii=False
+    )
 
     decorated = server_module.decorate_ws_message_with_game_id(message, orchestrator)
     payload = json.loads(decorated)
@@ -374,7 +376,9 @@ def test_build_nomination_state_infers_history_from_event_log(monkeypatch):
                 payload={"executed": "p2", "votes": 2},
             ),
         ),
-        payload={"nomination_state": {"stage": "executed", "last_result": {"executed": "p2", "votes": 2}}},
+        payload={
+            "nomination_state": {"stage": "executed", "last_result": {"executed": "p2", "votes": 2}}
+        },
     )
 
     nomination_state = server_module.build_nomination_state(orchestrator)
@@ -400,7 +404,11 @@ async def test_storyteller_log_is_written_without_api_leak(monkeypatch):
             pass
         logging.getLogger("storyteller").removeHandler(handler)
 
-    test_dir = Path(__file__).parent.parent / "test_runs" / f"_storyteller_test_workspace_{uuid.uuid4().hex[:8]}"
+    test_dir = (
+        Path(__file__).parent.parent
+        / "test_runs"
+        / f"_storyteller_test_workspace_{uuid.uuid4().hex[:8]}"
+    )
     test_dir.mkdir(exist_ok=True)
     monkeypatch.chdir(test_dir)
     log_path = Path("storyteller_run.log")

@@ -37,4 +37,10 @@ def test_ai_evaluation_script_runs_and_reports_metrics():
     assert set(payload["level_breakdown"]["nomination"]) == {"weak", "medium", "strong"}
     assert set(payload["level_breakdown"]["vote"]) == {"weak", "medium", "strong"}
     assert "target_counts" in payload["ambiguous_nomination"]
-    assert set(payload["archetype_vote_profiles"]) == {"logic", "aggressive", "cooperative", "chaos", "silent"}
+    assert set(payload["archetype_vote_profiles"]) == {
+        "logic",
+        "aggressive",
+        "cooperative",
+        "chaos",
+        "silent",
+    }

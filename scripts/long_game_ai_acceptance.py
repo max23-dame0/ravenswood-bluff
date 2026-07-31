@@ -43,7 +43,9 @@ class InvalidJSONBackend(LLMBackend):
 
 def _players(game_index: int) -> tuple[PlayerState, ...]:
     return (
-        PlayerState(player_id="p1", name=f"Alice-{game_index}", role_id="washerwoman", team=Team.GOOD),
+        PlayerState(
+            player_id="p1", name=f"Alice-{game_index}", role_id="washerwoman", team=Team.GOOD
+        ),
         PlayerState(player_id="p2", name=f"Bob-{game_index}", role_id="chef", team=Team.GOOD),
         PlayerState(player_id="p3", name=f"Cathy-{game_index}", role_id="empath", team=Team.GOOD),
         PlayerState(player_id="p4", name=f"David-{game_index}", role_id="monk", team=Team.GOOD),
@@ -119,8 +121,18 @@ def _phase_specs(game_index: int) -> list[tuple[GameState, str, str]]:
                     ("p5", f"我也觉得 Bob-{game_index} 看着不太对。"),
                 ],
                 event_entries=[
-                    ("player_speaks", "p4", None, {"content": f"Bob-{game_index} 今天前后说法有点怪。"}),
-                    ("player_speaks", "p3", None, {"content": f"Cathy-{game_index} 的信息我暂时愿意信。"}),
+                    (
+                        "player_speaks",
+                        "p4",
+                        None,
+                        {"content": f"Bob-{game_index} 今天前后说法有点怪。"},
+                    ),
+                    (
+                        "player_speaks",
+                        "p3",
+                        None,
+                        {"content": f"Cathy-{game_index} 的信息我暂时愿意信。"},
+                    ),
                 ],
             ),
             "speak",
@@ -138,8 +150,20 @@ def _phase_specs(game_index: int) -> list[tuple[GameState, str, str]]:
                     ("p3", f"如果非要提，我会先看 Bob-{game_index}。"),
                 ],
                 event_entries=[
-                    ("player_speaks", "p4", None, {"content": f"Bob-{game_index} 和 Eve-{game_index} 都有点怪，但证据还不算硬。"}),
-                    ("player_speaks", "p3", None, {"content": f"如果非要提，我会先看 Bob-{game_index}。"}),
+                    (
+                        "player_speaks",
+                        "p4",
+                        None,
+                        {
+                            "content": f"Bob-{game_index} 和 Eve-{game_index} 都有点怪，但证据还不算硬。"
+                        },
+                    ),
+                    (
+                        "player_speaks",
+                        "p3",
+                        None,
+                        {"content": f"如果非要提，我会先看 Bob-{game_index}。"},
+                    ),
                 ],
             ),
             "nominate",
@@ -161,7 +185,12 @@ def _phase_specs(game_index: int) -> list[tuple[GameState, str, str]]:
                 ],
                 event_entries=[
                     ("vote_cast", "p4", "p2", {"vote": True}),
-                    ("player_speaks", "p3", None, {"content": f"如果票数够，我愿意跟票处决 Bob-{game_index}。"}),
+                    (
+                        "player_speaks",
+                        "p3",
+                        None,
+                        {"content": f"如果票数够，我愿意跟票处决 Bob-{game_index}。"},
+                    ),
                 ],
             ),
             "vote",
@@ -181,7 +210,12 @@ def _phase_specs(game_index: int) -> list[tuple[GameState, str, str]]:
                     ("p3", f"白天的焦点还在 Bob-{game_index} 身上。"),
                 ],
                 event_entries=[
-                    ("voting_resolved", "storyteller", "p2", {"passed": True, "votes": 2, "needed": 2}),
+                    (
+                        "voting_resolved",
+                        "storyteller",
+                        "p2",
+                        {"passed": True, "votes": 2, "needed": 2},
+                    ),
                     ("execution_resolved", "storyteller", "p2", {"executed": "p2", "votes": 2}),
                     ("player_death", "storyteller", "p2", {"reason": "execution"}),
                 ],
@@ -202,8 +236,18 @@ def _phase_specs(game_index: int) -> list[tuple[GameState, str, str]]:
                     ("p5", f"我还是觉得 Eve-{game_index} 很危险。"),
                 ],
                 event_entries=[
-                    ("player_speaks", "p4", None, {"content": f"Eve-{game_index} 现在越来越像恶魔了。"}),
-                    ("player_speaks", "p3", None, {"content": f"Cathy-{game_index} 昨天的信息依旧站得住。"}),
+                    (
+                        "player_speaks",
+                        "p4",
+                        None,
+                        {"content": f"Eve-{game_index} 现在越来越像恶魔了。"},
+                    ),
+                    (
+                        "player_speaks",
+                        "p3",
+                        None,
+                        {"content": f"Cathy-{game_index} 昨天的信息依旧站得住。"},
+                    ),
                 ],
             ),
             "speak",
@@ -224,7 +268,12 @@ def _phase_specs(game_index: int) -> list[tuple[GameState, str, str]]:
                 ],
                 event_entries=[
                     ("nomination_started", "p4", "p5", {"threshold": 2}),
-                    ("player_speaks", "p3", None, {"content": f"Eve-{game_index} 的问题比昨天更大。"}),
+                    (
+                        "player_speaks",
+                        "p3",
+                        None,
+                        {"content": f"Eve-{game_index} 的问题比昨天更大。"},
+                    ),
                 ],
             ),
             "nominate",
@@ -248,7 +297,12 @@ def _phase_specs(game_index: int) -> list[tuple[GameState, str, str]]:
                 ],
                 event_entries=[
                     ("vote_cast", "p4", "p5", {"vote": True}),
-                    ("player_speaks", "p3", None, {"content": f"如果现在不投 Eve-{game_index}，后面会更难。"}),
+                    (
+                        "player_speaks",
+                        "p3",
+                        None,
+                        {"content": f"如果现在不投 Eve-{game_index}，后面会更难。"},
+                    ),
                 ],
             ),
             "vote",
@@ -306,9 +360,7 @@ async def _run_archetype_game(game_index: int, archetype: str) -> dict[str, Any]
         if item["action_type"] in {"nomination_intent", "nominate"}
     )
     vote_signature = tuple(
-        bool(item["decision"])
-        for item in decisions
-        if item["action_type"] == "vote"
+        bool(item["decision"]) for item in decisions if item["action_type"] == "vote"
     )
     signature = nomination_signature + tuple("Y" if value else "N" for value in vote_signature)
 
@@ -358,7 +410,8 @@ async def run_acceptance() -> dict[str, Any]:
 
         if (
             report["episode_count"] == len(_phase_specs(report["game_index"]))
-            and report["episode_counts_progression"] == list(range(1, len(_phase_specs(report["game_index"])) + 1))
+            and report["episode_counts_progression"]
+            == list(range(1, len(_phase_specs(report["game_index"])) + 1))
             and ">> 第1天 白天" in report["episodic_summary"]
             and ">> 第2天 白天" in report["episodic_summary"]
         ):
@@ -430,7 +483,9 @@ def _validate(metrics: dict[str, Any]) -> None:
             f"long_game_persona_diversity_score too low: {metrics['long_game_persona_diversity_score']}"
         )
     if metrics["long_game_stability_score"] < 0.75:
-        raise SystemExit(f"long_game_stability_score too low: {metrics['long_game_stability_score']}")
+        raise SystemExit(
+            f"long_game_stability_score too low: {metrics['long_game_stability_score']}"
+        )
     if metrics["long_game_retention_rate"] < 1.0:
         raise SystemExit(f"long_game_retention_rate too low: {metrics['long_game_retention_rate']}")
     if metrics["long_game_social_consistency_rate"] < 0.8:

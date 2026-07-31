@@ -3,12 +3,13 @@ from typing import Any
 import sys
 import os
 
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from src.state.game_state import GameState, PlayerState, GamePhase
 from src.state.event_log import GameEvent
 from src.agents.ai_agent import AIAgent, Persona
 from src.agents.memory.working_memory import Observation
+
 
 class MockBackend:
     def __init__(self):
@@ -18,80 +19,113 @@ class MockBackend:
         self.captured_prompt = messages[0].content if messages else ""
         from src.llm.base_backend import LLMResponse
         from src.llm.base_backend import Message
-        return LLMResponse(message=Message(role="assistant", content='{"action": "none"}'), usage={})
+
+        return LLMResponse(
+            message=Message(role="assistant", content='{"action": "none"}'), usage={}
+        )
+
 
 async def main():
     # 构造假玩家和假局势
     player = PlayerState(player_id="p6", name="Player 6", is_alive=True, role_id="imp", team="evil")
-    teammate = PlayerState(player_id="p8", name="Player 8", is_alive=True, role_id="baron", team="evil")
-    target = PlayerState(player_id="p1", name="Player 1", is_alive=True, role_id="washerwoman", team="good")
-    
+    teammate = PlayerState(
+        player_id="p8", name="Player 8", is_alive=True, role_id="baron", team="evil"
+    )
+    target = PlayerState(
+        player_id="p1", name="Player 1", is_alive=True, role_id="washerwoman", team="good"
+    )
+
     state = GameState(
         players=(player, teammate, target),
         phase=GamePhase.DAY_DISCUSSION,
         day_number=1,
-        round_number=1
+        round_number=1,
     )
-    
+
     agent = AIAgent(
         player_id="p6",
         name="Player 6",
         persona=Persona(
             description="你谁也不信，觉得每个人都在撒谎。你会抓住细节反复质问，试图从对方的反应中寻找破绽。",
-            speaking_style="怀疑、犀利、经常连珠炮式提问"
+            speaking_style="怀疑、犀利、经常连珠炮式提问",
         ),
-        backend=MockBackend()
+        backend=MockBackend(),
     )
     agent.team = "evil"
     agent.perceived_role_id = "imp"
-    
+
     visible_state = agent._build_visible_state(state)
-    
+
     # 塞入一些记忆
     # Objective memory
-    agent.working_memory.remember_objective_info("evil_teammates", "【绝密推演可用】已知邪恶同伴名单：Player 8", day_number=1, round_number=1)
-    agent.working_memory.remember_objective_info("nomination", "Player 1 提名了 Player 6", day_number=1, round_number=1)
-    
+    agent.working_memory.remember_objective_info(
+        "evil_teammates", "【绝密推演可用】已知邪恶同伴名单：Player 8", day_number=1, round_number=1
+    )
+    agent.working_memory.remember_objective_info(
+        "nomination", "Player 1 提名了 Player 6", day_number=1, round_number=1
+    )
+
     # Private memory
-    agent.working_memory.remember_private_info("night_info", "你的 3 个不在场角色：厨师, 管家, 占卜师", day_number=1, round_number=1)
-    
+    agent.working_memory.remember_private_info(
+        "night_info", "你的 3 个不在场角色：厨师, 管家, 占卜师", day_number=1, round_number=1
+    )
+
     # Public memory
-    agent.working_memory.remember_public_info("public_fact", "Player 7 公开跳身份为 占卜师", day_number=1, round_number=1)
-    
+    agent.working_memory.remember_public_info(
+        "public_fact", "Player 7 公开跳身份为 占卜师", day_number=1, round_number=1
+    )
+
     # Impressions & thoughts
     agent.working_memory.impressions.append("目前局势对我极其不利，我必须全力反击。")
     agent.working_memory.internal_thoughts.append("如果我不投票，可能会被处决。")
-    
+
     # Recent observations
-    agent.working_memory.observations.append(Observation(observation_id="obs1", phase=GamePhase.DAY_DISCUSSION, round_number=1, content="Player 1 说：我觉得 6 号很有问题。"))
-    
+    agent.working_memory.observations.append(
+        Observation(
+            observation_id="obs1",
+            phase=GamePhase.DAY_DISCUSSION,
+            round_number=1,
+            content="Player 1 说：我觉得 6 号很有问题。",
+        )
+    )
+
     # 伪造合法动作
     from src.agents.ai_agent import AgentActionLegalContext
+
     legal_context = AgentActionLegalContext(
         can_speak=True,
         can_nominate=True,
         can_vote=False,
     )
-    
+
     # W3-C/A3-MEM-3: 严格按 MemoryTier 分块提取记忆
     objective_memories = agent.working_memory.get_objective_memory_summaries()
     high_confidence_memories = agent.working_memory.get_private_memory_summaries()
     public_memories = agent.working_memory.get_public_memory_summaries()
-    
+
     tier_text_blocks = []
     if objective_memories:
-        tier_text_blocks.append("【绝对客观事实 (OBJECTIVE - 100%可信)】\n" + "\n".join([f"- {m}" for m in objective_memories]))
+        tier_text_blocks.append(
+            "【绝对客观事实 (OBJECTIVE - 100%可信)】\n"
+            + "\n".join([f"- {m}" for m in objective_memories])
+        )
     if high_confidence_memories:
-        tier_text_blocks.append("【高可信度线索 (HIGH_CONFIDENCE - 夜晚结果或私密信息)】\n" + "\n".join([f"- {m}" for m in high_confidence_memories]))
+        tier_text_blocks.append(
+            "【高可信度线索 (HIGH_CONFIDENCE - 夜晚结果或私密信息)】\n"
+            + "\n".join([f"- {m}" for m in high_confidence_memories])
+        )
     if public_memories:
-        tier_text_blocks.append("【公开讨论与声明 (PUBLIC - 可能存在欺骗与伪装)】\n" + "\n".join([f"- {m}" for m in public_memories[-15:]]))
-    
+        tier_text_blocks.append(
+            "【公开讨论与声明 (PUBLIC - 可能存在欺骗与伪装)】\n"
+            + "\n".join([f"- {m}" for m in public_memories[-15:]])
+        )
+
     tiered_memory_text = "\n\n".join(tier_text_blocks)
     obs_text = agent.working_memory.get_recent_context(agent._obs_limit)
     episodic_text = agent.episodic_memory.get_summary(max_episodes=8)
     social_text = agent.social_graph.get_graph_summary()
     visible_state_text = agent._build_visible_state_summary(visible_state)
-    
+
     visible_players = ", ".join(
         f"{p.name}({p.player_id},{'alive' if p.is_alive else 'dead'})"
         for p in visible_state.players
@@ -154,12 +188,15 @@ async def main():
   "reasoning": "此处写下你作为一个玩家的真实心境和逻辑推理（不公开）"
 }}"""
 
-    out_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'docs', 'alpha-1.0-plan', 'sample_prompt.md'))
+    out_path = os.path.abspath(
+        os.path.join(os.path.dirname(__file__), "..", "docs", "alpha-1.0-plan", "sample_prompt.md")
+    )
     with open(out_path, "w", encoding="utf-8") as f:
         f.write("# 当前 AI 动作决策 Prompt 结构样例\n\n```text\n")
         f.write(system_prompt)
         f.write("\n```\n")
     print(f"Prompt exported to {out_path}")
+
 
 if __name__ == "__main__":
     asyncio.run(main())

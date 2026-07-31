@@ -4,6 +4,7 @@ Adds controlled unpredictability to nomination and vote decisions,
 scaled by difficulty level. Uses hash-based seeding for reproducibility
 within a game session while still producing varied outcomes across games.
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -39,6 +40,7 @@ _BOLD_MOVE_REASONS: tuple[str, ...] = (
 @dataclass
 class BoldMoveResult:
     """Result of a bold move roll, including social reason label."""
+
     triggered: bool
     reason: str = ""
 
@@ -52,6 +54,7 @@ class DecisionNoise:
     varying across different contexts. Seed binds to game_id to avoid
     cross-game pattern repetition.
     """
+
     difficulty: str
     player_id: str
     game_id: str = ""

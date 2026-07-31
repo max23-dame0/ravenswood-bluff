@@ -35,17 +35,17 @@ class DialogueManager:
         生成公开发言，强制LLM调用 speak 工具。
         """
         system_prompt = self._build_system_prompt(me, persona)
-        
+
         context = []
         context.append(f"【当前阶段】 第{game_state.round_number}轮 白天讨论")
         if game_state.current_nominee:
             nominee = game_state.get_player(game_state.current_nominee)
             context.append(f"⚠️ 当前正在进行针对 {nominee.name if nominee else ''} 的处决投票环节。")
-            
+
         context.append("\n" + social_graph_summary)
         context.append("\n" + working_memory.get_recent_context(limit=10))
         context.append(f"\n【你的内心策略】\n{current_strategy}")
-        
+
         user_prompt = (
             f"结合当前局势和你的内心策略，轮到你发言了。\n"
             f"{chr(10).join(context)}\n\n"
@@ -54,7 +54,7 @@ class DialogueManager:
         )
 
         messages = [Message(role="user", content=user_prompt)]
-        
+
         tools = [
             ToolDef(
                 name="speak",
@@ -64,26 +64,28 @@ class DialogueManager:
                     "properties": {
                         "content": {
                             "type": "string",
-                            "description": "你的发言内容，应自然、像人类口语，不要太长"
+                            "description": "你的发言内容，应自然、像人类口语，不要太长",
                         },
                         "tone": {
                             "type": "string",
                             "enum": ["calm", "passionate", "accusatory", "defensive", "hesitant"],
-                            "description": "发言时的语气情绪"
+                            "description": "发言时的语气情绪",
                         },
                         "target_player": {
                             "type": ["string", "null"],
-                            "description": "如果你这番话主要是对某个人说的（例如质问他），填他的名字。否则填 null"
-                        }
+                            "description": "如果你这番话主要是对某个人说的（例如质问他），填他的名字。否则填 null",
+                        },
                     },
-                    "required": ["content", "tone"]
-                }
+                    "required": ["content", "tone"],
+                },
             )
         ]
 
         try:
-            resp = await self.backend.generate(system_prompt, messages, tools=tools, temperature=0.8)
-            
+            resp = await self.backend.generate(
+                system_prompt, messages, tools=tools, temperature=0.8
+            )
+
             # 解析工具调用
             if resp.tool_calls:
                 for tc in resp.tool_calls:
@@ -92,12 +94,12 @@ class DialogueManager:
                             "action": "speak",
                             "content": tc.arguments.get("content", "嗯...我没什么想说的。"),
                             "tone": tc.arguments.get("tone", "calm"),
-                            "target_player": tc.arguments.get("target_player")
+                            "target_player": tc.arguments.get("target_player"),
                         }
-            
+
             # Fallback
             return {"action": "speak", "content": "（陷入了沉默）", "tone": "calm"}
-            
+
         except Exception as e:
             logger.error(f"对话生成异常: {e}")
             return {"action": "speak", "content": "（头痛欲裂，无法说话）", "tone": "hesitant"}

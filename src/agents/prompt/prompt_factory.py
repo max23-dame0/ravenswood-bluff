@@ -46,7 +46,7 @@ class PromptFactory:
 
         action_hints = {
             "speak": "口语化发言，直接表达观点或质疑。",
-            "nominate": "你的任务是决定是否提名。如果不确定或不想提名，请果断输出 {\"action\": \"none\"} 放弃提名，不要勉强。",
+            "nominate": '你的任务是决定是否提名。如果不确定或不想提名，请果断输出 {"action": "none"} 放弃提名，不要勉强。',
             "nomination_intent": "你的任务是先判断是否提名。不要像规则机器，先想清楚再说。不确信可直接不提名。",
             "vote": "你的任务是投票。请从性格角度出发，不一定要投给可疑分最高的人；不要像算分机器一样刻板。",
             "defense_speech": "你是被提名者。请像真人一样辩解，语气要贴合你的性格。",
@@ -54,20 +54,20 @@ class PromptFactory:
             "death_trigger": "你刚刚因为夜晚死亡而触发角色能力。请选择合适目标并自然表达。",
         }
         block = f"""【稳定人格锚点】
-- 角色名: {profile.get('role_name', get_role_name(agent.role_id or 'unknown'))}
-- 角色说明: {profile.get('role_description', get_role_description(agent.role_id or 'unknown'))}
+- 角色名: {profile.get("role_name", get_role_name(agent.role_id or "unknown"))}
+- 角色说明: {profile.get("role_description", get_role_description(agent.role_id or "unknown"))}
 - 个性提示: {agent.persona.description}
 - 说话风格: {agent.persona.speaking_style}{strategy_block}
-- 人格签名: {profile.get('signature', agent.persona_signature or 'unknown')}
-- 角色气质: {profile.get('role_hint', '保持自然、连贯且像真人。')}
-- 表达锚点: {profile.get('voice_anchor', '先说结论再补理由')}
-- 决策风格: {profile.get('decision_style', '保持谨慎但自然')}
-- 语句节奏: {profile.get('speech_rhythm', '短句、自然、不过度模板化')}
-- 风险偏好: {profile.get('risk_tolerance', '均衡')}
-- 社交倾向: {profile.get('social_style', '独立')}
-- 压力方式: {profile.get('assertiveness', '中性')}
-- 行为约束: {profile.get('posture', '保持像真人一样思考')}
-- 当前动作风格: {action_hints.get(action_type, '保持自然、像人类一样反应。')}
+- 人格签名: {profile.get("signature", agent.persona_signature or "unknown")}
+- 角色气质: {profile.get("role_hint", "保持自然、连贯且像真人。")}
+- 表达锚点: {profile.get("voice_anchor", "先说结论再补理由")}
+- 决策风格: {profile.get("decision_style", "保持谨慎但自然")}
+- 语句节奏: {profile.get("speech_rhythm", "短句、自然、不过度模板化")}
+- 风险偏好: {profile.get("risk_tolerance", "均衡")}
+- 社交倾向: {profile.get("social_style", "独立")}
+- 压力方式: {profile.get("assertiveness", "中性")}
+- 行为约束: {profile.get("posture", "保持像真人一样思考")}
+- 当前动作风格: {action_hints.get(action_type, "保持自然、像人类一样反应。")}
 """
         # Append difficulty modifiers
         preset = agent.difficulty_preset
@@ -107,7 +107,11 @@ class PromptFactory:
             base = "当前没有合法提名目标，请返回 action=none。"
             return f"{base}\n{memory_brief}" if memory_brief else base
         if action_type == "vote":
-            nominee = agent._player_name_from_visible_state(visible_state.current_nominee, visible_state) if visible_state.current_nominee else "无"
+            nominee = (
+                agent._player_name_from_visible_state(visible_state.current_nominee, visible_state)
+                if visible_state.current_nominee
+                else "无"
+            )
             threshold = legal_context.votes_required
             current_yes = visible_state.yes_votes
             remaining_voters = list(legal_context.remaining_voters)
@@ -182,7 +186,9 @@ class PromptFactory:
             base = f"{first_speaker_hint}{base}"
         return f"{base}\n{memory_brief}" if memory_brief else base
 
-    def build_memory_signal_brief(self, visible_state: AgentVisibleState, action_type: str = "") -> str:
+    def build_memory_signal_brief(
+        self, visible_state: AgentVisibleState, action_type: str = ""
+    ) -> str:
         agent = self._agent
         lines: list[str] = []
 
@@ -250,6 +256,7 @@ class PromptFactory:
         alive_count = sum(1 for p in visible_state.players if p.is_alive)
 
         from src.engine.scripts import get_role_counts
+
         counts = get_role_counts(player_count)
         board_setup = f"{counts['townsfolk']}镇民, {counts['outsider']}外来者, {counts['minion']}爪牙, {counts['demon']}恶魔"
 

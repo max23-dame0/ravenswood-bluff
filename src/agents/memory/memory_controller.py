@@ -110,7 +110,9 @@ class MemoryController:
         archetype = get_archetype(agent.persona.archetype_key)
 
         posture = "邪恶阵营" if agent.team == "evil" else "正义阵营"
-        signature = agent._stable_hash(agent.player_id, role_id, agent.persona.description, agent.persona.speaking_style)[:10]
+        signature = agent._stable_hash(
+            agent.player_id, role_id, agent.persona.description, agent.persona.speaking_style
+        )[:10]
         agent.persona_signature = signature
         agent.persona_profile = {
             "role_id": role_id,
@@ -160,21 +162,29 @@ class MemoryController:
 
         try:
             from src.llm.base_backend import Message
+
             response = await agent.backend.generate(
                 system_prompt=system_prompt,
-                messages=[Message(role="user", content=f"这是你的近期记忆，请提炼局势印象：\n\n{recent_context}")]
+                messages=[
+                    Message(
+                        role="user",
+                        content=f"这是你的近期记忆，请提炼局势印象：\n\n{recent_context}",
+                    )
+                ],
             )
             impression = response.content.strip()
             if impression:
                 # 存入持久化印象层
-                agent.working_memory.add_impression(f"记忆反思（D{visible_state.day_number}）: {impression}")
+                agent.working_memory.add_impression(
+                    f"记忆反思（D{visible_state.day_number}）: {impression}"
+                )
 
                 # 构造一条总结性的观察片段，存入观察层并触发压缩
                 summary_obs = Observation(
                     observation_id=f"reflect-{visible_state.day_number}-{visible_state.round_number}",
                     content=f"【自我反思总结】我现在的总体印象是：{impression[:100]}...",
                     phase=visible_state.phase,
-                    round_number=visible_state.round_number
+                    round_number=visible_state.round_number,
                 )
                 agent.working_memory.compact(summary_obs)
                 logger.info(f"[{agent.name}] 完成了一次记忆反思与蒸馏。")
@@ -220,7 +230,11 @@ class MemoryController:
             return
 
         # 获取当前阶段的所有观察和思考
-        current_obs = [obs.content for obs in agent.working_memory.observations if obs.phase == visible_state.phase]
+        current_obs = [
+            obs.content
+            for obs in agent.working_memory.observations
+            if obs.phase == visible_state.phase
+        ]
         current_thoughts = agent.working_memory.internal_thoughts[-5:]
 
         if not current_obs and not current_thoughts:
@@ -232,6 +246,7 @@ class MemoryController:
         if len(current_obs) > 3:
             try:
                 from src.llm.base_backend import Message
+
                 obs_context = "\n".join([f"- {o}" for o in current_obs])
                 thought_context = "\n".join([f"- {t}" for t in current_thoughts])
 
@@ -245,7 +260,7 @@ class MemoryController:
 
                 response = await agent.backend.generate(
                     system_prompt="你是一个逻辑严密的血染钟楼玩家。请提供精炼的阶段归纳。",
-                    messages=[Message(role="user", content=distill_prompt)]
+                    messages=[Message(role="user", content=distill_prompt)],
                 )
                 summary = response.content.strip() or "阶段总结完成"
             except Exception as e:
@@ -269,10 +284,15 @@ class MemoryController:
         # [Task B] 将阶段总结存入向量记忆
         if getattr(agent, "vector_memory", None):
             import asyncio
+
             asyncio.create_task(
                 agent.vector_memory.add_text(
                     f"阶段总结 ({visible_state.phase}): {summary[:280]}",
-                    {"type": "phase_summary", "phase": str(visible_state.phase), "round": visible_state.round_number}
+                    {
+                        "type": "phase_summary",
+                        "phase": str(visible_state.phase),
+                        "round": visible_state.round_number,
+                    },
                 )
             )
         # 提取关键事件标签
@@ -308,9 +328,13 @@ class MemoryController:
             except Exception:
                 embedding_status = {}
 
-        vector_stats = agent.vector_memory.get_stats() if hasattr(agent.vector_memory, "get_stats") else {}
+        vector_stats = (
+            agent.vector_memory.get_stats() if hasattr(agent.vector_memory, "get_stats") else {}
+        )
         last_query = vector_stats.get("last_query") or agent._last_retrieval_query
-        top_hits = vector_stats.get("last_hits_preview") or [item.get("text", "") for item in agent._last_retrieval_items[:3]]
+        top_hits = vector_stats.get("last_hits_preview") or [
+            item.get("text", "") for item in agent._last_retrieval_items[:3]
+        ]
         hit_count = vector_stats.get("last_hit_count", len(agent._last_retrieval_items))
 
         return {
@@ -326,7 +350,8 @@ class MemoryController:
             "retrieval_summary": {
                 "status": vector_stats.get("status", "unknown"),
                 "embeddings_enabled": vector_stats.get("embeddings_enabled"),
-                "disable_reason": vector_stats.get("disable_reason") or embedding_status.get("disabled_reason"),
+                "disable_reason": vector_stats.get("disable_reason")
+                or embedding_status.get("disabled_reason"),
                 "last_query": last_query,
                 "hit_count": hit_count,
                 "top_hits": top_hits,

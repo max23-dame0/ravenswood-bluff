@@ -9,7 +9,15 @@ import src.engine.roles.minions  # noqa: F401
 import src.engine.roles.outsiders  # noqa: F401
 import src.engine.roles.townsfolk  # noqa: F401
 from src.engine.roles.base_role import get_role_class
-from src.state.game_state import GameEvent, GamePhase, GameState, PlayerState, PlayerStatus, Team, Visibility
+from src.state.game_state import (
+    GameEvent,
+    GamePhase,
+    GameState,
+    PlayerState,
+    PlayerStatus,
+    Team,
+    Visibility,
+)
 
 
 def make_player(player_id: str, name: str, role_id: str, team: Team, **kwargs) -> PlayerState:

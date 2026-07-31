@@ -17,10 +17,11 @@ from src.state.game_state import GameState
 
 class StateSnapshot(BaseModel):
     """状态快照"""
+
     snapshot_id: int
     timestamp: datetime = Field(default_factory=datetime.now)
     game_state: GameState
-    description: str = ""    # 快照描述（如 "第2天 白天讨论开始"）
+    description: str = ""  # 快照描述（如 "第2天 白天讨论开始"）
 
 
 class SnapshotManager:

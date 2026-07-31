@@ -23,7 +23,16 @@ from src.orchestrator.storyteller_balance import (
     build_storyteller_node_samples,
     export_storyteller_adjudication_sample,
 )
-from src.state.game_state import GameConfig, GameEvent, GamePhase, GameState, PlayerState, PlayerStatus, Team, Visibility
+from src.state.game_state import (
+    GameConfig,
+    GameEvent,
+    GamePhase,
+    GameState,
+    PlayerState,
+    PlayerStatus,
+    Team,
+    Visibility,
+)
 
 
 def _base_config(player_count: int = 5) -> GameConfig:
@@ -48,11 +57,24 @@ def _empath_suppressed_state() -> GameState:
         config=_base_config(),
         payload={"seed": "storyteller-balance-empath"},
         players=(
-            PlayerState(player_id="p1", name="Empath", role_id="empath", team=Team.GOOD, statuses=(PlayerStatus.ALIVE, PlayerStatus.DRUNK)),
+            PlayerState(
+                player_id="p1",
+                name="Empath",
+                role_id="empath",
+                team=Team.GOOD,
+                statuses=(PlayerStatus.ALIVE, PlayerStatus.DRUNK),
+            ),
             PlayerState(player_id="p2", name="Minion", role_id="poisoner", team=Team.EVIL),
             PlayerState(player_id="p3", name="Imp", role_id="imp", team=Team.EVIL),
             PlayerState(player_id="p4", name="Town", role_id="washerwoman", team=Team.GOOD),
-            PlayerState(player_id="p5", name="DeadTown", role_id="chef", team=Team.GOOD, is_alive=False, statuses=(PlayerStatus.DEAD,)),
+            PlayerState(
+                player_id="p5",
+                name="DeadTown",
+                role_id="chef",
+                team=Team.GOOD,
+                is_alive=False,
+                statuses=(PlayerStatus.DEAD,),
+            ),
         ),
         event_log=(
             GameEvent(
@@ -80,7 +102,9 @@ def _fortune_teller_state() -> GameState:
             "fortune_teller_red_herring": "p5",
         },
         players=(
-            PlayerState(player_id="p1", name="Fortune Teller", role_id="fortune_teller", team=Team.GOOD),
+            PlayerState(
+                player_id="p1", name="Fortune Teller", role_id="fortune_teller", team=Team.GOOD
+            ),
             PlayerState(player_id="p2", name="Imp", role_id="imp", team=Team.EVIL),
             PlayerState(player_id="p3", name="Spy", role_id="spy", team=Team.EVIL),
             PlayerState(player_id="p4", name="Town", role_id="washerwoman", team=Team.GOOD),
@@ -110,7 +134,13 @@ def _spy_book_state() -> GameState:
         payload={"seed": "storyteller-balance-spy"},
         bluffs=("chef", "monk", "slayer"),
         players=(
-            PlayerState(player_id="p1", name="Spy", role_id="spy", team=Team.EVIL, statuses=(PlayerStatus.ALIVE, PlayerStatus.POISONED)),
+            PlayerState(
+                player_id="p1",
+                name="Spy",
+                role_id="spy",
+                team=Team.EVIL,
+                statuses=(PlayerStatus.ALIVE, PlayerStatus.POISONED),
+            ),
             PlayerState(player_id="p2", name="Imp", role_id="imp", team=Team.EVIL),
             PlayerState(player_id="p3", name="Empath", role_id="empath", team=Team.GOOD),
             PlayerState(player_id="p4", name="Virgin", role_id="virgin", team=Team.GOOD),
@@ -123,7 +153,11 @@ def _spy_book_state() -> GameState:
                 round_number=1,
                 trace_id="balance-spy-evil-info",
                 target="p1",
-                payload={"type": "evil_reveal", "teammates": ["Imp"], "bluffs": ["chef", "monk", "slayer"]},
+                payload={
+                    "type": "evil_reveal",
+                    "teammates": ["Imp"],
+                    "bluffs": ["chef", "monk", "slayer"],
+                },
                 visibility=Visibility.PRIVATE,
             ),
         ),
@@ -170,7 +204,9 @@ def _daytime_trace_state() -> GameState:
             PlayerState(player_id="p1", name="Player 1", role_id="washerwoman", team=Team.GOOD),
             PlayerState(player_id="p2", name="Player 2", role_id="chef", team=Team.GOOD),
             PlayerState(player_id="p3", name="Player 3", role_id="imp", team=Team.EVIL),
-            PlayerState(player_id="p4", name="Player 4", role_id="spy", team=Team.EVIL, is_alive=False),
+            PlayerState(
+                player_id="p4", name="Player 4", role_id="spy", team=Team.EVIL, is_alive=False
+            ),
         ),
         event_log=(
             GameEvent(
@@ -205,9 +241,32 @@ def _daytime_trace_state() -> GameState:
         ),
         payload={
             "nomination_history": [
-                {"day_number": 1, "kind": "nomination_started", "round": 1, "nominator": "p1", "nominee": "p3", "trace_id": "curated-day-trace-01"},
-                {"day_number": 1, "kind": "voting_resolved", "round": 1, "nominee": "p3", "passed": True, "votes": 3, "needed": 2, "trace_id": "curated-day-trace-01"},
-                {"day_number": 1, "kind": "execution_resolved", "round": 1, "executed": "p3", "votes": 3, "trace_id": "curated-day-trace-02"},
+                {
+                    "day_number": 1,
+                    "kind": "nomination_started",
+                    "round": 1,
+                    "nominator": "p1",
+                    "nominee": "p3",
+                    "trace_id": "curated-day-trace-01",
+                },
+                {
+                    "day_number": 1,
+                    "kind": "voting_resolved",
+                    "round": 1,
+                    "nominee": "p3",
+                    "passed": True,
+                    "votes": 3,
+                    "needed": 2,
+                    "trace_id": "curated-day-trace-01",
+                },
+                {
+                    "day_number": 1,
+                    "kind": "execution_resolved",
+                    "round": 1,
+                    "executed": "p3",
+                    "votes": 3,
+                    "trace_id": "curated-day-trace-02",
+                },
             ]
         },
     )
@@ -289,7 +348,9 @@ def _merge_aggregate_summary(target: dict[str, object], source: dict[str, object
             target[key] = int(target.get(key, 0)) + int(value)
 
 
-async def _run_full_game_storyteller_trace(seed: str, timeout_seconds: int) -> tuple[GameOrchestrator, StorytellerAgent]:
+async def _run_full_game_storyteller_trace(
+    seed: str, timeout_seconds: int
+) -> tuple[GameOrchestrator, StorytellerAgent]:
     _seed_rng(seed)
     backend = MockBackend()
     storyteller = StorytellerAgent(backend)
@@ -360,7 +421,11 @@ async def _build_curated_node_samples() -> list[tuple[str, list]]:
             if not player:
                 return {}, "missing_player", "unavailable"
             if role_id == "undertaker":
-                return {"type": "undertaker_info", "role_seen": "imp"}, "legacy_get_night_info", "fixed_info.legacy_fallback"
+                return (
+                    {"type": "undertaker_info", "role_seen": "imp"},
+                    "legacy_get_night_info",
+                    "fixed_info.legacy_fallback",
+                )
             return super()._build_base_info(game_state, player_id, role_id)
 
     legacy_agent = _LegacyFallbackStorytellerAgent(MockBackend())
@@ -536,7 +601,11 @@ async def _build_curated_full_game_samples() -> list[tuple[dict[str, object], li
             if not player:
                 return {}, "missing_player", "unavailable"
             if role_id == "undertaker":
-                return {"type": "undertaker_info", "role_seen": "imp"}, "legacy_get_night_info", "fixed_info.legacy_fallback"
+                return (
+                    {"type": "undertaker_info", "role_seen": "imp"},
+                    "legacy_get_night_info",
+                    "fixed_info.legacy_fallback",
+                )
             return super()._build_base_info(game_state, player_id, role_id)
 
     legacy_agent = _LegacyFallbackStorytellerAgent(MockBackend())
@@ -655,7 +724,9 @@ async def _build_curated_full_game_samples() -> list[tuple[dict[str, object], li
 
     storyteller_agent = StorytellerAgent(MockBackend())
     storyteller_base = _fortune_teller_state()
-    storyteller_info = await storyteller_agent.decide_night_info(storyteller_base, "p1", "fortune_teller")
+    storyteller_info = await storyteller_agent.decide_night_info(
+        storyteller_base, "p1", "fortune_teller"
+    )
     storyteller_trace = "curated-full-storyteller-info"
     storyteller_action_trace = "curated-full-storyteller-night"
     storyteller_nom_trace = "curated-full-storyteller-nom"
@@ -773,7 +844,9 @@ async def export_samples(
     static_files: list[str] = []
     for idx, sample in enumerate(static_samples, start=1):
         filename = f"sample_{idx:02d}_{sample['role_id']}.json"
-        (output_dir / filename).write_text(json.dumps(sample, ensure_ascii=False, indent=2), encoding="utf-8")
+        (output_dir / filename).write_text(
+            json.dumps(sample, ensure_ascii=False, indent=2), encoding="utf-8"
+        )
         static_files.append(filename)
 
     curated_node_paths: list[Path] = []
@@ -920,7 +993,7 @@ async def export_samples(
             seed=seed,
         )
         if max_node_samples is not None:
-            node_samples = node_samples[:max(0, max_node_samples)]
+            node_samples = node_samples[: max(0, max_node_samples)]
 
         game_aggregate = aggregate_storyteller_node_samples(node_samples)
 
@@ -974,11 +1047,17 @@ async def export_samples(
         "full_games": game_summaries,
         "aggregate_balance_summary": aggregate,
     }
-    (output_dir / "sample_index.json").write_text(json.dumps(index_payload, ensure_ascii=False, indent=2), encoding="utf-8")
-    return static_samples, [*curated_node_paths, *node_files], {
-        "curated_node_count": len(curated_node_paths),
-        "full_game_node_count": len(node_files),
-    }
+    (output_dir / "sample_index.json").write_text(
+        json.dumps(index_payload, ensure_ascii=False, indent=2), encoding="utf-8"
+    )
+    return (
+        static_samples,
+        [*curated_node_paths, *node_files],
+        {
+            "curated_node_count": len(curated_node_paths),
+            "full_game_node_count": len(node_files),
+        },
+    )
 
 
 def main() -> int:

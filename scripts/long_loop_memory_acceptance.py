@@ -14,7 +14,15 @@ if str(REPO_ROOT) not in sys.path:
 
 from src.agents.ai_agent import AIAgent, Persona
 from src.llm.mock_backend import MockBackend
-from src.state.game_state import ChatMessage, GameEvent, GamePhase, GameState, PlayerState, Team, Visibility
+from src.state.game_state import (
+    ChatMessage,
+    GameEvent,
+    GamePhase,
+    GameState,
+    PlayerState,
+    Team,
+    Visibility,
+)
 
 
 def _backend() -> MockBackend:
@@ -22,12 +30,8 @@ def _backend() -> MockBackend:
     backend.set_response(
         '{"action":"speak","content":"我先听听大家对 Bob 的看法。","tone":"calm","reasoning":"phase1"}'
     )
-    backend.set_response(
-        '{"action":"none","reasoning":"phase2"}'
-    )
-    backend.set_response(
-        '{"action":"vote","decision":true,"reasoning":"phase3"}'
-    )
+    backend.set_response('{"action":"none","reasoning":"phase2"}')
+    backend.set_response('{"action":"vote","decision":true,"reasoning":"phase3"}')
     backend.set_response(
         '{"action":"speak","content":"Bob 这轮的说法还是很怪。","tone":"accusatory","reasoning":"phase4"}'
     )
@@ -154,7 +158,12 @@ async def run_acceptance() -> dict[str, Any]:
                 event_entries=[
                     ("vote_cast", "p1", "p2", {"vote": True}),
                     ("vote_cast", "p3", "p2", {"vote": True}),
-                    ("voting_resolved", "storyteller", "p2", {"passed": True, "votes": 2, "needed": 2}),
+                    (
+                        "voting_resolved",
+                        "storyteller",
+                        "p2",
+                        {"passed": True, "votes": 2, "needed": 2},
+                    ),
                 ],
             ),
             "vote",

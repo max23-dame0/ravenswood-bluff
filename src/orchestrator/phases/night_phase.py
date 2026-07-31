@@ -91,7 +91,9 @@ class NightPhaseHandler:
         await self._o._batch_reflect_agents(GamePhase.FIRST_NIGHT)
         self._o._record_data_snapshot(
             "first_night_complete",
-            private_info_events=sum(1 for e in self._o.state.event_log if e.event_type == "private_info_delivered"),
+            private_info_events=sum(
+                1 for e in self._o.state.event_log if e.event_type == "private_info_delivered"
+            ),
         )
 
     async def _run_evil_first_night_coordination(self, evil_players: list) -> None:
@@ -102,7 +104,9 @@ class NightPhaseHandler:
         their visible_state.public_chat_history.
         """
         # Sort so the demon (imp) goes first
-        sorted_players = sorted(evil_players, key=lambda p: 0 if (p.true_role_id or p.role_id) == "imp" else 1)
+        sorted_players = sorted(
+            evil_players, key=lambda p: 0 if (p.true_role_id or p.role_id) == "imp" else 1
+        )
         for player in sorted_players:
             agent = self._o.broker.agents.get(player.player_id)
             if not agent or not hasattr(agent, "generate_first_night_coordination"):
@@ -130,18 +134,22 @@ class NightPhaseHandler:
         self._o._sync_all_agents("BOTC-FLOW-NIGHT")
         self._o._update_grimoire()
         for dead_id in sorted(pre_alive - {p.player_id for p in self._o.state.get_alive_players()}):
-            await self._o._publish_event(GameEvent(
-                event_type="player_death",
-                phase=GamePhase.NIGHT,
-                round_number=self._o.state.round_number,
-                trace_id=self._o._make_trace_id("BOTC-RULE-DEATH"),
-                target=dead_id,
-                visibility=Visibility.PUBLIC,
-                payload={"reason": "night"},
-            ))
+            await self._o._publish_event(
+                GameEvent(
+                    event_type="player_death",
+                    phase=GamePhase.NIGHT,
+                    round_number=self._o.state.round_number,
+                    trace_id=self._o._make_trace_id("BOTC-RULE-DEATH"),
+                    target=dead_id,
+                    visibility=Visibility.PUBLIC,
+                    payload={"reason": "night"},
+                )
+            )
 
     async def _resolve_on_death_triggers(self, pre_alive: set[str]) -> None:
-        newly_dead_ids = sorted(pre_alive - {p.player_id for p in self._o.state.get_alive_players()})
+        newly_dead_ids = sorted(
+            pre_alive - {p.player_id for p in self._o.state.get_alive_players()}
+        )
         for dead_id in newly_dead_ids:
             player = self._o.state.get_player(dead_id)
             if not player:
@@ -154,15 +162,17 @@ class NightPhaseHandler:
             if not agent:
                 continue
             trace_id = self._o._make_trace_id("BOTC-ST-DEATH")
-            await self._o._publish_event(GameEvent(
-                event_type="death_trigger_requested",
-                phase=GamePhase.NIGHT,
-                round_number=self._o.state.round_number,
-                trace_id=trace_id,
-                actor=dead_id,
-                visibility=Visibility.STORYTELLER_ONLY,
-                payload={"role_id": role_id},
-            ))
+            await self._o._publish_event(
+                GameEvent(
+                    event_type="death_trigger_requested",
+                    phase=GamePhase.NIGHT,
+                    round_number=self._o.state.round_number,
+                    trace_id=trace_id,
+                    actor=dead_id,
+                    visibility=Visibility.STORYTELLER_ONLY,
+                    payload={"role_id": role_id},
+                )
+            )
             self._o._log_storyteller(
                 "death_trigger_requested",
                 actor=dead_id,
@@ -183,7 +193,9 @@ class NightPhaseHandler:
                 legal_context = self._o._get_agent_legal_context(player.player_id, visible_state)
                 self._o._mark_progress(f"ai_action:{player.player_id}:death_trigger")
                 action = await self._o._timed_act(
-                    agent, visible_state, "death_trigger",
+                    agent,
+                    visible_state,
+                    "death_trigger",
                     legal_context=legal_context,
                     player_id=player.player_id,
                     phase="death_trigger",
@@ -191,7 +203,11 @@ class NightPhaseHandler:
             except Exception as exc:
                 self._o._record_recent_exception(f"death_trigger:{dead_id}", exc)
                 logger.warning("死亡触发决策失败: %s", exc)
-                action = {"action": "death_trigger", "target": None, "reasoning": f"death_trigger_error:{type(exc).__name__}"}
+                action = {
+                    "action": "death_trigger",
+                    "target": None,
+                    "reasoning": f"death_trigger_error:{type(exc).__name__}",
+                }
             target = action.get("target")
             role = role_cls()
             new_state, events = role.execute_ability(self._o.state, player, target)
@@ -234,19 +250,22 @@ class NightPhaseHandler:
             return
 
         from src.engine.roles.townsfolk import SlayerRole
+
         role = SlayerRole()
 
         trace_id = self._o._make_trace_id("BOTC-FLOW-SLAYER")
-        await self._o._publish_event(GameEvent(
-            event_type="slayer_shot_announced",
-            phase=self._o.phase_manager.current_phase,
-            round_number=self._o.state.round_number,
-            trace_id=trace_id,
-            actor=actor_id,
-            target=target_id,
-            visibility=Visibility.PUBLIC,
-            payload={"message": f"{actor.name} 对 {target.name} 发动了猎手技能！"}
-        ))
+        await self._o._publish_event(
+            GameEvent(
+                event_type="slayer_shot_announced",
+                phase=self._o.phase_manager.current_phase,
+                round_number=self._o.state.round_number,
+                trace_id=trace_id,
+                actor=actor_id,
+                target=target_id,
+                visibility=Visibility.PUBLIC,
+                payload={"message": f"{actor.name} 对 {target.name} 发动了猎手技能！"},
+            )
+        )
 
         # 执行技能
         try:
@@ -255,7 +274,7 @@ class NightPhaseHandler:
                 # 确保 trace_id 一致
                 event_dict = event.model_dump()
                 event_dict["trace_id"] = trace_id
-                #重新封装以通过 event_bus
+                # 重新封装以通过 event_bus
                 new_event = GameEvent(**event_dict)
                 await self._o._publish_event(new_event)
 
@@ -270,13 +289,24 @@ class NightPhaseHandler:
             logger.error(f"Slayer shot execution failed: {e}")
 
     async def _execute_night_actions(self, phase: GamePhase) -> None:
-        steps = await self._o.storyteller_agent.build_night_order(self._o.state, phase) if self._o._should_storyteller_auto_act() else []
+        steps = (
+            await self._o.storyteller_agent.build_night_order(self._o.state, phase)
+            if self._o._should_storyteller_auto_act()
+            else []
+        )
         self._o._log_storyteller("night_action_queue", phase=phase.value, steps=len(steps))
         self._o._record_storyteller_judgement(
             "night_queue",
             decision="queue",
             phase=phase.value,
-            steps=[{"player_id": step["player_id"], "role_id": step["role_id"], "night_order": step["night_order"]} for step in steps],
+            steps=[
+                {
+                    "player_id": step["player_id"],
+                    "role_id": step["role_id"],
+                    "night_order": step["night_order"],
+                }
+                for step in steps
+            ],
         )
         self._o._current_night_steps = steps
         for i, step in enumerate(steps):
@@ -294,7 +324,9 @@ class NightPhaseHandler:
                     role_def = role_cls.get_definition()
                     # 守鸦人等 ON_DEATH 角色允许在当晚死后行动一次
                     if role_def.ability.trigger != AbilityTrigger.ON_DEATH:
-                        logger.info(f"BOTC-FLOW-NIGHT: 跳过已死亡玩家 {player.player_id} ({player.role_id}) 的行动")
+                        logger.info(
+                            f"BOTC-FLOW-NIGHT: 跳过已死亡玩家 {player.player_id} ({player.role_id}) 的行动"
+                        )
                         continue
                 else:
                     continue
@@ -324,21 +356,23 @@ class NightPhaseHandler:
                 elif last_error:
                     reminder_msg = f"操作失败: {last_error}。由于规则或格式限制，请修正后重新提交。"
 
-                await self._o._publish_event(GameEvent(
-                    event_type="night_action_requested",
-                    phase=phase,
-                    round_number=self._o.state.round_number,
-                    trace_id=trace_id,
-                    actor=player.player_id,
-                    visibility=Visibility.STORYTELLER_ONLY,
-                    payload={
-                        "role_id": player.true_role_id or player.role_id,
-                        "requires_choice": True,
-                        "required_targets": legal_context.required_targets,
-                        "can_target_self": legal_context.can_target_self,
-                        "reminder": reminder_msg if reminder_msg else None
-                    },
-                ))
+                await self._o._publish_event(
+                    GameEvent(
+                        event_type="night_action_requested",
+                        phase=phase,
+                        round_number=self._o.state.round_number,
+                        trace_id=trace_id,
+                        actor=player.player_id,
+                        visibility=Visibility.STORYTELLER_ONLY,
+                        payload={
+                            "role_id": player.true_role_id or player.role_id,
+                            "requires_choice": True,
+                            "required_targets": legal_context.required_targets,
+                            "can_target_self": legal_context.can_target_self,
+                            "reminder": reminder_msg if reminder_msg else None,
+                        },
+                    )
+                )
                 self._o._log_storyteller(
                     "night_action_requested",
                     phase=phase.value,
@@ -358,7 +392,9 @@ class NightPhaseHandler:
                 try:
                     self._o._mark_progress(f"ai_action:{player.player_id}:night_action")
                     action = await self._o._timed_act(
-                        agent, visible_state, "night_action",
+                        agent,
+                        visible_state,
+                        "night_action",
                         legal_context=legal_context,
                         player_id=player.player_id,
                         phase=phase.value,
@@ -369,7 +405,12 @@ class NightPhaseHandler:
                 except Exception as exc:
                     self._o._record_recent_exception(f"night_action:{player.player_id}", exc)
                     logger.warning("夜晚行动决策失败: %s", exc)
-                    action = {"action": "night_action", "target": None, "targets": [], "reasoning": f"night_action_error:{type(exc).__name__}"}
+                    action = {
+                        "action": "night_action",
+                        "target": None,
+                        "targets": [],
+                        "reasoning": f"night_action_error:{type(exc).__name__}",
+                    }
 
                 if (
                     player
@@ -377,16 +418,22 @@ class NightPhaseHandler:
                     and hasattr(agent, "build_evil_night_coordination_message")
                 ):
                     try:
-                        coordination_msg = await agent.build_evil_night_coordination_message(action, visible_state, legal_context)
+                        coordination_msg = await agent.build_evil_night_coordination_message(
+                            action, visible_state, legal_context
+                        )
                     except Exception:
                         coordination_msg = ""
                     if coordination_msg:
-                        await self._o.handle_chat(player.player_id, coordination_msg, is_private=True)
+                        await self._o.handle_chat(
+                            player.player_id, coordination_msg, is_private=True
+                        )
 
                 role_cls = get_role_class(player.true_role_id or player.role_id)
 
                 # 鲁棒性：解析 targets 并处理可能的嵌套列表
-                raw_targets = action.get("targets") or ([action["target"]] if action.get("target") else [])
+                raw_targets = action.get("targets") or (
+                    [action["target"]] if action.get("target") else []
+                )
 
                 def flatten_targets(items):
                     """递归展平列表并过滤非字符串"""
@@ -402,7 +449,9 @@ class NightPhaseHandler:
 
                 # 校验：如果不允许空选（required_targets > 0）但玩家空选了，则重试
                 if legal_context.required_targets > 0 and not targets:
-                    logger.warning(f"[GameLoop] 玩家 {player.player_id} ({player.role_id}) 尝试空选，重新请求。")
+                    logger.warning(
+                        f"[GameLoop] 玩家 {player.player_id} ({player.role_id}) 尝试空选，重新请求。"
+                    )
                     trying_empty = True
                     last_error = "必须选择目标"
                     continue
@@ -420,9 +469,8 @@ class NightPhaseHandler:
                         # 成功执行，发布事件并记录
                         for event in events:
                             await self._o.event_bus.publish(event)
-                            if (
-                                event.event_type == "night_kill"
-                                and event.payload.get("redirected_from")
+                            if event.event_type == "night_kill" and event.payload.get(
+                                "redirected_from"
                             ):
                                 self._o._record_storyteller_judgement(
                                     "mayor_redirect",
@@ -455,8 +503,13 @@ class NightPhaseHandler:
                         )
                         break  # 执行成功，跳出重试循环
                     except Exception as exc:
-                        logger.warning("夜晚行动无效: actor=%s role=%s targets=%s error=%s. 重新请求。",
-                                       player.player_id, player.true_role_id or player.role_id, targets, exc)
+                        logger.warning(
+                            "夜晚行动无效: actor=%s role=%s targets=%s error=%s. 重新请求。",
+                            player.player_id,
+                            player.true_role_id or player.role_id,
+                            targets,
+                            exc,
+                        )
                         last_error = str(exc)
                         # 执行失败（如校验不通过），继续循环重试
                         continue
@@ -467,16 +520,18 @@ class NightPhaseHandler:
             # 清除待办
             self._o._pending_night_action = None
 
-            await self._o._publish_event(GameEvent(
-                event_type="night_action_resolved",
-                phase=phase,
-                round_number=self._o.state.round_number,
-                trace_id=trace_id,
-                actor=player.player_id,
-                target=action.get("target"),
-                visibility=Visibility.STORYTELLER_ONLY,
-                payload={"role_id": player.true_role_id or player.role_id, "targets": targets},
-            ))
+            await self._o._publish_event(
+                GameEvent(
+                    event_type="night_action_resolved",
+                    phase=phase,
+                    round_number=self._o.state.round_number,
+                    trace_id=trace_id,
+                    actor=player.player_id,
+                    target=action.get("target"),
+                    visibility=Visibility.STORYTELLER_ONLY,
+                    payload={"role_id": player.true_role_id or player.role_id, "targets": targets},
+                )
+            )
             self._o._log_storyteller(
                 "night_action_resolved",
                 phase=phase.value,
@@ -497,8 +552,12 @@ class NightPhaseHandler:
 
     async def _distribute_night_info(self, phase: GamePhase) -> None:
         players_needing_info = [
-            p for p in self._o.state.get_alive_players()
-            if self._o.storyteller_agent and self._o.storyteller_agent.role_receives_storyteller_info(p.true_role_id or p.role_id)
+            p
+            for p in self._o.state.get_alive_players()
+            if self._o.storyteller_agent
+            and self._o.storyteller_agent.role_receives_storyteller_info(
+                p.true_role_id or p.role_id
+            )
         ]
         self._o._current_night_steps = [
             {"player_id": p.player_id, "role_id": p.true_role_id or p.role_id, "type": "info"}
@@ -508,7 +567,13 @@ class NightPhaseHandler:
         async def _decide_single(player: "PlayerState") -> tuple["PlayerState", str, dict]:
             """并发执行单个角色的夜晚信息分发，返回 (player, role_id, info)。"""
             role_id = player.true_role_id or player.role_id
-            info = await self._o.storyteller_agent.decide_night_info(self._o.state, player.player_id, role_id) if self._o._should_storyteller_auto_act() else {}
+            info = (
+                await self._o.storyteller_agent.decide_night_info(
+                    self._o.state, player.player_id, role_id
+                )
+                if self._o._should_storyteller_auto_act()
+                else {}
+            )
             if not info:
                 active_role_id = role_id
                 if active_role_id == "drunken" and player.perceived_role_id:
@@ -576,7 +641,13 @@ class NightPhaseHandler:
             scrambled["pairs"] = (scrambled.get("pairs", 0) + random.randint(1, 2)) % 4
         elif info_type == "fortune_teller_info":
             scrambled["has_demon"] = not scrambled.get("has_demon", False)
-        elif info_type in ["investigator_info", "librarian_info", "washerwoman_info", "undertaker_info", "ravenkeeper_info"]:
+        elif info_type in [
+            "investigator_info",
+            "librarian_info",
+            "washerwoman_info",
+            "undertaker_info",
+            "ravenkeeper_info",
+        ]:
             scrambled["role_seen"] = random.choice(list(get_all_role_ids()))
 
         return scrambled
@@ -588,7 +659,11 @@ class NightPhaseHandler:
             # 清理状态列表
             # 只清理 POISONED 和 PROTECTED。
             # 注意：DRUNK (醉酒) 通常是持久的 (如酒鬼角色)，不应在每晚结束时自动清除。
-            statuses = tuple(status for status in player.statuses if status not in {PlayerStatus.PROTECTED, PlayerStatus.POISONED})
+            statuses = tuple(
+                status
+                for status in player.statuses
+                if status not in {PlayerStatus.PROTECTED, PlayerStatus.POISONED}
+            )
             if not statuses:
                 statuses = (PlayerStatus.ALIVE,) if player.is_alive else (PlayerStatus.DEAD,)
 

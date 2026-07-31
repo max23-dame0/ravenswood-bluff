@@ -228,30 +228,22 @@ class TestMultiAxisDifficulty:
             preset = PRESETS[key]
             for axis in axes:
                 val = getattr(preset, axis)
-                assert 0.0 <= val <= 1.0, (
-                    f"{key}.{axis} = {val} out of [0,1] range"
-                )
+                assert 0.0 <= val <= 1.0, f"{key}.{axis} = {val} out of [0,1] range"
 
     def test_master_highest_competence(self):
         master = PRESETS["master"].competence
         for key in ("casual", "standard", "chaos"):
-            assert master >= PRESETS[key].competence, (
-                f"Master competence should be >= {key}"
-            )
+            assert master >= PRESETS[key].competence, f"Master competence should be >= {key}"
 
     def test_chaos_highest_volatility(self):
         chaos = PRESETS["chaos"].volatility
         for key in ("casual", "standard", "master"):
-            assert chaos >= PRESETS[key].volatility, (
-                f"Chaos volatility should be >= {key}"
-            )
+            assert chaos >= PRESETS[key].volatility, f"Chaos volatility should be >= {key}"
 
     def test_master_highest_deception(self):
         master = PRESETS["master"].deception
         for key in ("casual", "standard", "chaos"):
-            assert master >= PRESETS[key].deception, (
-                f"Master deception should be >= {key}"
-            )
+            assert master >= PRESETS[key].deception, f"Master deception should be >= {key}"
 
     def test_casual_highest_information_openness(self):
         casual = PRESETS["casual"].information_openness
@@ -265,9 +257,7 @@ class TestMultiAxisDifficulty:
         for key in ("casual", "standard", "master", "chaos"):
             budget = PRESETS[key].latency_budget
             for action in required:
-                assert action in budget, (
-                    f"{key} latency_budget missing {action}"
-                )
+                assert action in budget, f"{key} latency_budget missing {action}"
                 assert budget[action] > 0
 
     def test_master_latency_budget_tightest(self):
@@ -476,18 +466,24 @@ class TestAgentDeceptionBudgetPrompt:
     def test_good_agent_returns_empty(self):
         agent = _make_agent(team=Team.GOOD.value, difficulty="master")
         from src.state.game_state import AgentVisibleState, GamePhase
+
         vs = AgentVisibleState(
-            game_id="test", phase=GamePhase.DAY_DISCUSSION,
-            day_number=1, round_number=1,
+            game_id="test",
+            phase=GamePhase.DAY_DISCUSSION,
+            day_number=1,
+            round_number=1,
         )
         assert agent._deception_budget_prompt(vs) == ""
 
     def test_evil_agent_empty_when_budget_available(self):
         agent = _make_agent(team=Team.EVIL.value, difficulty="master")
         from src.state.game_state import AgentVisibleState, GamePhase
+
         vs = AgentVisibleState(
-            game_id="test", phase=GamePhase.DAY_DISCUSSION,
-            day_number=1, round_number=1,
+            game_id="test",
+            phase=GamePhase.DAY_DISCUSSION,
+            day_number=1,
+            round_number=1,
         )
         result = agent._deception_budget_prompt(vs)
         assert result == ""
@@ -498,9 +494,12 @@ class TestAgentDeceptionBudgetPrompt:
         for _ in range(tracker.max_fabrications_per_day - 1):
             tracker.record_fabrication(day_number=1, content="x")
         from src.state.game_state import AgentVisibleState, GamePhase
+
         vs = AgentVisibleState(
-            game_id="test", phase=GamePhase.DAY_DISCUSSION,
-            day_number=1, round_number=1,
+            game_id="test",
+            phase=GamePhase.DAY_DISCUSSION,
+            day_number=1,
+            round_number=1,
         )
         result = agent._deception_budget_prompt(vs)
         assert "最后一次" in result
@@ -511,9 +510,12 @@ class TestAgentDeceptionBudgetPrompt:
         for _ in range(tracker.max_fabrications_per_day):
             tracker.record_fabrication(day_number=1, content="x")
         from src.state.game_state import AgentVisibleState, GamePhase
+
         vs = AgentVisibleState(
-            game_id="test", phase=GamePhase.DAY_DISCUSSION,
-            day_number=1, round_number=1,
+            game_id="test",
+            phase=GamePhase.DAY_DISCUSSION,
+            day_number=1,
+            round_number=1,
         )
         result = agent._deception_budget_prompt(vs)
         assert "已用完" in result
@@ -568,6 +570,7 @@ class TestSpeedProfile:
         agent = _make_agent(team=Team.GOOD.value, difficulty="standard")
         agent.player_count = 10
         import os
+
         old = os.environ.get("AI_ACTION_TIMEOUT_SECONDS")
         try:
             os.environ["AI_ACTION_TIMEOUT_SECONDS"] = "5.0"

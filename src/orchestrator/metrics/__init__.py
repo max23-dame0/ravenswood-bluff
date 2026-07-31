@@ -55,7 +55,9 @@ class MetricsCollector:
             elapsed_ms = (time.perf_counter() - start) * 1000
             fallback_used = True
             fallback_reason = f"orchestrator_hard_timeout:{action_type}"
-            action = self._smart_latency_fallback(agent, action_type, visible_state, legal_context, fallback_reason)
+            action = self._smart_latency_fallback(
+                agent, action_type, visible_state, legal_context, fallback_reason
+            )
             logger.warning(
                 f"[Speed] {player_id} {action_type} timed out after {elapsed_ms:.0f}ms "
                 f"(budget {budget_ms}ms), using fallback"
@@ -64,13 +66,17 @@ class MetricsCollector:
             elapsed_ms = (time.perf_counter() - start) * 1000
             fallback_used = True
             fallback_reason = f"error:{type(exc).__name__}"
-            action = self._smart_latency_fallback(agent, action_type, visible_state, legal_context, fallback_reason)
+            action = self._smart_latency_fallback(
+                agent, action_type, visible_state, legal_context, fallback_reason
+            )
             self._record_recent_exception(f"{action_type}:{player_id}", exc)
 
         elapsed_ms = (time.perf_counter() - start) * 1000
         agent_metric = self._latest_agent_metric(agent, action_type)
         if action_type in {"speak", "defense_speech"}:
-            self._record_speech_metric_from_action(visible_state, action_type, action, agent_metric, fallback_used, fallback_reason)
+            self._record_speech_metric_from_action(
+                visible_state, action_type, action, agent_metric, fallback_used, fallback_reason
+            )
 
         # Record latency
         latency_record = {
@@ -81,7 +87,9 @@ class MetricsCollector:
             "fallback_used": fallback_used,
             "fallback_reason": fallback_reason,
             "timeout_budget_ms": budget_ms,
-            "budget_source": "agent_difficulty_preset" if hasattr(agent, "_action_timeout_seconds") else "orchestrator_default",
+            "budget_source": "agent_difficulty_preset"
+            if hasattr(agent, "_action_timeout_seconds")
+            else "orchestrator_default",
         }
         if agent_metric:
             latency_record["agent_fallback_used"] = bool(agent_metric.get("fallback_used"))
@@ -108,6 +116,7 @@ class MetricsCollector:
             return False
         # Human agents: always wait, no timeout for speech
         from src.agents.human_agent import HumanAgent
+
         if isinstance(agent, HumanAgent):
             return True
         profile = getattr(agent, "_backend_speed_profile", "")
@@ -119,7 +128,9 @@ class MetricsCollector:
             try:
                 agent_ms = int(float(getter(action_type)) * 1000)
                 margin = 1500 if action_type in {"speak", "defense_speech"} else 500
-                return max(agent_ms + margin, self._o._action_latency_budgets.get(action_type, 2000))
+                return max(
+                    agent_ms + margin, self._o._action_latency_budgets.get(action_type, 2000)
+                )
             except Exception:
                 pass
         return self._o._action_latency_budgets.get(action_type, 2000)
@@ -147,7 +158,10 @@ class MetricsCollector:
         orchestrator_fallback: bool,
         orchestrator_reason: str,
     ) -> None:
-        key = (getattr(visible_state, "day_number", self._o.state.day_number), getattr(visible_state, "round_number", self._o.state.round_number))
+        key = (
+            getattr(visible_state, "day_number", self._o.state.day_number),
+            getattr(visible_state, "round_number", self._o.state.round_number),
+        )
         stats = self._o.day_discussion_handler._speech_round_stats.setdefault(
             key,
             {
@@ -159,7 +173,9 @@ class MetricsCollector:
             },
         )
         stats["speech_count"] += 1
-        speech_source = (agent_metric or {}).get("speech_source") or action.get("speech_source") or ""
+        speech_source = (
+            (agent_metric or {}).get("speech_source") or action.get("speech_source") or ""
+        )
         agent_fallback = bool((agent_metric or {}).get("fallback_used"))
         if orchestrator_fallback or agent_fallback:
             stats["fallback_count"] += 1
@@ -178,9 +194,11 @@ class MetricsCollector:
                 logger.warning(
                     "[M5-L][release_blocker] day=%s round=%s fallback_rate=%.0f%% (%d/%d) "
                     "llm_success=%d cache_finalized=%d orchestrator_timeout=%d",
-                    key[0], key[1],
+                    key[0],
+                    key[1],
                     round_fallback_rate * 100,
-                    stats["fallback_count"], stats["speech_count"],
+                    stats["fallback_count"],
+                    stats["speech_count"],
                     stats["llm_success_count"],
                     stats["cache_finalized_count"],
                     stats["orchestrator_timeout_count"],
@@ -194,27 +212,48 @@ class MetricsCollector:
         (with persona-aware content) should have already fired first.
         """
         import random
+
         if action_type == "vote":
-            return {"action": "vote", "decision": False, "reasoning": "orchestrator_hard_timeout:vote"}
+            return {
+                "action": "vote",
+                "decision": False,
+                "reasoning": "orchestrator_hard_timeout:vote",
+            }
         if action_type == "nomination_intent":
-            return {"action": "not_nominating", "target": "not_nominating", "reasoning": "orchestrator_hard_timeout:nomination_intent"}
+            return {
+                "action": "not_nominating",
+                "target": "not_nominating",
+                "reasoning": "orchestrator_hard_timeout:nomination_intent",
+            }
         if action_type == "speak":
-            content = random.choice([
-                "我还在想。",
-                "让我再琢磨一下。",
-                "嗯……等我理理思路。",
-                "我在整理思路，稍等。",
-                "有点复杂，我再想想。",
-            ])
-            return {"action": "speak", "content": content, "reasoning": "orchestrator_hard_timeout:speak"}
+            content = random.choice(
+                [
+                    "我还在想。",
+                    "让我再琢磨一下。",
+                    "嗯……等我理理思路。",
+                    "我在整理思路，稍等。",
+                    "有点复杂，我再想想。",
+                ]
+            )
+            return {
+                "action": "speak",
+                "content": content,
+                "reasoning": "orchestrator_hard_timeout:speak",
+            }
         if action_type == "defense_speech":
-            content = random.choice([
-                "我没有要补充的。",
-                "该说的我都说了。",
-                "我能说的就这些了。",
-                "我没什么好辩解的。",
-            ])
-            return {"action": "speak", "content": content, "reasoning": "orchestrator_hard_timeout:defense_speech"}
+            content = random.choice(
+                [
+                    "我没有要补充的。",
+                    "该说的我都说了。",
+                    "我能说的就这些了。",
+                    "我没什么好辩解的。",
+                ]
+            )
+            return {
+                "action": "speak",
+                "content": content,
+                "reasoning": "orchestrator_hard_timeout:defense_speech",
+            }
         if action_type == "night_action":
             return {"action": "none", "reasoning": "orchestrator_hard_timeout:night_action"}
         return {"action": "none", "reasoning": f"orchestrator_hard_timeout:{action_type}"}
@@ -240,7 +279,8 @@ class MetricsCollector:
             except Exception as exc:
                 logger.debug(
                     "[Speed] agent _fallback_decision failed for %s: %s, using hardcoded fallback",
-                    action_type, exc,
+                    action_type,
+                    exc,
                 )
         return MetricsCollector._latency_fallback(action_type, legal_context)
 
@@ -268,7 +308,10 @@ class MetricsCollector:
             idx = int(len(sorted_data) * pct / 100)
             return sorted_data[min(idx, len(sorted_data) - 1)]
 
-        summary: dict[str, Any] = {"record_count": len(self._o._action_latencies), "by_action_type": {}}
+        summary: dict[str, Any] = {
+            "record_count": len(self._o._action_latencies),
+            "by_action_type": {},
+        }
         for at, latencies in by_type.items():
             summary["by_action_type"][at] = {
                 "count": len(latencies),
@@ -326,7 +369,11 @@ class MetricsCollector:
             try:
                 records.extend(exporter())
             except Exception as exc:
-                logger.warning("export_action_metrics failed for %s: %s", getattr(agent, "player_id", "unknown"), exc)
+                logger.warning(
+                    "export_action_metrics failed for %s: %s",
+                    getattr(agent, "player_id", "unknown"),
+                    exc,
+                )
         return records
 
     def _snapshot_ai_action_positions(self) -> dict[str, int]:
@@ -338,7 +385,11 @@ class MetricsCollector:
             try:
                 positions[player_id] = len(exporter())
             except Exception as exc:
-                logger.warning("export_action_metrics failed for %s: %s", getattr(agent, "player_id", "unknown"), exc)
+                logger.warning(
+                    "export_action_metrics failed for %s: %s",
+                    getattr(agent, "player_id", "unknown"),
+                    exc,
+                )
                 positions[player_id] = 0
         return positions
 
@@ -351,9 +402,13 @@ class MetricsCollector:
             try:
                 agent_records = exporter()
             except Exception as exc:
-                logger.warning("export_action_metrics failed for %s: %s", getattr(agent, "player_id", "unknown"), exc)
+                logger.warning(
+                    "export_action_metrics failed for %s: %s",
+                    getattr(agent, "player_id", "unknown"),
+                    exc,
+                )
                 continue
-            records.extend(agent_records[positions.get(player_id, 0):])
+            records.extend(agent_records[positions.get(player_id, 0) :])
         return records
 
     @staticmethod
@@ -397,17 +452,25 @@ class MetricsCollector:
     def _summarize_ai_action_records(self, records: list[dict[str, Any]]) -> dict[str, Any]:
         total_tokens = sum(int(item.get("total_tokens", 0) or 0) for item in records)
         fallback_count = sum(1 for item in records if item.get("fallback_used"))
-        fallback_tokens = sum(int(item.get("total_tokens", 0) or 0) for item in records if item.get("fallback_used"))
+        fallback_tokens = sum(
+            int(item.get("total_tokens", 0) or 0) for item in records if item.get("fallback_used")
+        )
         by_player: dict[str, int] = {}
         by_action_type: dict[str, int] = {}
         by_phase: dict[str, int] = {}
         fallback_by_player: dict[str, int] = {}
         fallback_by_action_type: dict[str, int] = {}
         fallback_by_phase: dict[str, int] = {}
-        speak_records = [item for item in records if item.get("action_type") in {"speak", "defense_speech"}]
+        speak_records = [
+            item for item in records if item.get("action_type") in {"speak", "defense_speech"}
+        ]
         speak_fallbacks = [item for item in speak_records if item.get("fallback_used")]
         llm_speeches = [item for item in speak_records if item.get("speech_source") == "live_llm"]
-        cache_speeches = [item for item in speak_records if str(item.get("speech_source") or "").startswith("cache_finalized")]
+        cache_speeches = [
+            item
+            for item in speak_records
+            if str(item.get("speech_source") or "").startswith("cache_finalized")
+        ]
         for item in records:
             player_id = str(item.get("player_id") or "unknown")
             action_type = str(item.get("action_type") or "unknown")
@@ -418,9 +481,13 @@ class MetricsCollector:
             by_phase[phase] = by_phase.get(phase, 0) + tokens
             if item.get("fallback_used"):
                 fallback_by_player[player_id] = fallback_by_player.get(player_id, 0) + 1
-                fallback_by_action_type[action_type] = fallback_by_action_type.get(action_type, 0) + 1
+                fallback_by_action_type[action_type] = (
+                    fallback_by_action_type.get(action_type, 0) + 1
+                )
                 fallback_by_phase[phase] = fallback_by_phase.get(phase, 0) + 1
-        top_calls = sorted(records, key=lambda item: int(item.get("total_tokens", 0) or 0), reverse=True)[:10]
+        top_calls = sorted(
+            records, key=lambda item: int(item.get("total_tokens", 0) or 0), reverse=True
+        )[:10]
         return {
             "action_count": len(records),
             "total_tokens": total_tokens,
@@ -441,12 +508,21 @@ class MetricsCollector:
             "speech": {
                 "count": len(speak_records),
                 "fallback_count": len(speak_fallbacks),
-                "fallback_rate": round(len(speak_fallbacks) / len(speak_records), 3) if speak_records else 0,
-                "llm_successful_speech_rate": round(len(llm_speeches) / len(speak_records), 3) if speak_records else 0,
-                "cache_finalized_rate": round(len(cache_speeches) / len(speak_records), 3) if speak_records else 0,
+                "fallback_rate": round(len(speak_fallbacks) / len(speak_records), 3)
+                if speak_records
+                else 0,
+                "llm_successful_speech_rate": round(len(llm_speeches) / len(speak_records), 3)
+                if speak_records
+                else 0,
+                "cache_finalized_rate": round(len(cache_speeches) / len(speak_records), 3)
+                if speak_records
+                else 0,
                 "round_stats": {
                     f"day{day}_round{round_no}": dict(stats)
-                    for (day, round_no), stats in self._o.day_discussion_handler._speech_round_stats.items()
+                    for (
+                        day,
+                        round_no,
+                    ), stats in self._o.day_discussion_handler._speech_round_stats.items()
                 },
             },
             "claim_extraction_failures": dict(self._o._claim_extraction_failures),
@@ -454,7 +530,13 @@ class MetricsCollector:
 
     def collect_ai_action_metrics(self, limit: int = 40) -> dict[str, Any]:
         records = self._collect_ai_action_records()
-        records.sort(key=lambda item: (item.get("day_number", 0), item.get("round_number", 0), item.get("latency_ms", 0)))
+        records.sort(
+            key=lambda item: (
+                item.get("day_number", 0),
+                item.get("round_number", 0),
+                item.get("latency_ms", 0),
+            )
+        )
         return {
             "summary": self._summarize_ai_action_records(records),
             "recent": records[-limit:],
@@ -462,16 +544,24 @@ class MetricsCollector:
 
     def collect_runtime_diagnostics(self) -> dict[str, Any]:
         now = time.time()
-        phase_elapsed_ms = int((now - self._o._phase_started_at) * 1000) if self._o._phase_started_at else None
-        current_phase_records = self._collect_ai_action_records_since(self._o._phase_started_action_positions)
+        phase_elapsed_ms = (
+            int((now - self._o._phase_started_at) * 1000) if self._o._phase_started_at else None
+        )
+        current_phase_records = self._collect_ai_action_records_since(
+            self._o._phase_started_action_positions
+        )
         return {
             "current_phase": self._o.state.phase.value,
             "current_waiting_for": self._o._current_waiting_for,
             "last_progress_at": self._o._last_progress_at,
-            "seconds_since_progress": round(now - self._o._last_progress_at, 2) if self._o._last_progress_at else None,
+            "seconds_since_progress": round(now - self._o._last_progress_at, 2)
+            if self._o._last_progress_at
+            else None,
             "phase_elapsed_ms": phase_elapsed_ms,
             "recent_exception": self._o._recent_exception,
-            "current_phase_ai_action_summary": self._summarize_ai_action_records(current_phase_records),
+            "current_phase_ai_action_summary": self._summarize_ai_action_records(
+                current_phase_records
+            ),
             "phase_durations": self._o._phase_duration_history[-20:],
             "pace_events": list(self._o.state.payload.get("pace_events", []))[-20:],
         }
@@ -495,9 +585,15 @@ class MetricsCollector:
                 "nomination_stage": nomination_state.get("stage"),
                 "visible_state_summary": {
                     "alive_players": [player.name for player in self._o.state.get_alive_players()],
-                    "dead_players": [player.name for player in self._o.state.players if not player.is_alive],
-                    "current_nominee": self._o._player_label(self._o.state.current_nominee) if self._o.state.current_nominee else None,
-                    "current_nominator": self._o._player_label(self._o.state.current_nominator) if self._o.state.current_nominator else None,
+                    "dead_players": [
+                        player.name for player in self._o.state.players if not player.is_alive
+                    ],
+                    "current_nominee": self._o._player_label(self._o.state.current_nominee)
+                    if self._o.state.current_nominee
+                    else None,
+                    "current_nominator": self._o._player_label(self._o.state.current_nominator)
+                    if self._o.state.current_nominator
+                    else None,
                 },
                 "working_memory_summary": ai_snapshot["working_memory_summary"],
                 "social_graph_summary": ai_snapshot["social_graph_summary"],
@@ -523,8 +619,14 @@ class MetricsCollector:
             except Exception as exc:
                 logger.warning("build_data_snapshot_summary failed for %s: %s", player_id, exc)
                 continue
-            summary["working_memory_summary"][player_id] = agent_summary.get("working_memory_summary", {})
-            summary["social_graph_summary"][player_id] = agent_summary.get("social_graph_summary", "")
-            summary["claim_history_summary"][player_id] = agent_summary.get("claim_history_summary", {})
+            summary["working_memory_summary"][player_id] = agent_summary.get(
+                "working_memory_summary", {}
+            )
+            summary["social_graph_summary"][player_id] = agent_summary.get(
+                "social_graph_summary", ""
+            )
+            summary["claim_history_summary"][player_id] = agent_summary.get(
+                "claim_history_summary", {}
+            )
             summary["retrieval_summary"][player_id] = agent_summary.get("retrieval_summary", {})
         return summary

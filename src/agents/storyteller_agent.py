@@ -23,7 +23,10 @@ storyteller_logger = logging.getLogger("storyteller")
 def _ensure_storyteller_log_handler() -> None:
     abs_path = os.path.abspath("storyteller_run.log")
     for handler in storyteller_logger.handlers:
-        if isinstance(handler, logging.FileHandler) and os.path.abspath(getattr(handler, "baseFilename", "")) == abs_path:
+        if (
+            isinstance(handler, logging.FileHandler)
+            and os.path.abspath(getattr(handler, "baseFilename", "")) == abs_path
+        ):
             return
     handler = logging.FileHandler("storyteller_run.log", encoding="utf-8")
     handler.setFormatter(logging.Formatter("%(asctime)s [%(levelname)s] %(name)s: %(message)s"))
@@ -104,7 +107,9 @@ class StorytellerAgent:
                 pass
         return str(value)
 
-    def _classify_judgement_bucket(self, category: str, decision: str, fields: dict[str, Any]) -> str:
+    def _classify_judgement_bucket(
+        self, category: str, decision: str, fields: dict[str, Any]
+    ) -> str:
         if category in {"drunk_role"}:
             return "setup"
         if category in {"red_herring"}:
@@ -123,13 +128,24 @@ class StorytellerAgent:
             return "phase_narration"
         if category in {"human_step"}:
             return "human_storyteller"
-        if category in {"nomination_window", "nomination_choice", "nomination_started", "defense", "voting", "execution"}:
+        if category in {
+            "nomination_window",
+            "nomination_choice",
+            "nomination_started",
+            "defense",
+            "voting",
+            "execution",
+        }:
             return "day_judgement"
         return "general"
 
-    def _normalize_judgement_fields(self, category: str, decision: str, fields: dict[str, Any]) -> dict[str, Any]:
+    def _normalize_judgement_fields(
+        self, category: str, decision: str, fields: dict[str, Any]
+    ) -> dict[str, Any]:
         normalized = dict(fields)
-        normalized.setdefault("bucket", self._classify_judgement_bucket(category, decision, normalized))
+        normalized.setdefault(
+            "bucket", self._classify_judgement_bucket(category, decision, normalized)
+        )
         normalized.setdefault("phase", None)
         normalized.setdefault("day_number", None)
         normalized.setdefault("round_number", None)
@@ -138,14 +154,20 @@ class StorytellerAgent:
         normalized.setdefault("distortion_strategy", None)
         return normalized
 
-    def record_judgement(self, category: str, decision: str, reason: str | None = None, **fields: Any) -> dict[str, Any]:
+    def record_judgement(
+        self, category: str, decision: str, reason: str | None = None, **fields: Any
+    ) -> dict[str, Any]:
         entry_fields = self._normalize_judgement_fields(category, decision, fields)
         entry = {"category": category, "decision": decision, "reason": reason, **entry_fields}
         self.decision_ledger.append(entry)
         bits = [f"decision={decision}"]
         if reason:
             bits.append(f"reason={reason}")
-        bits.extend(f"{key}={self._stringify(value)}" for key, value in entry_fields.items() if value is not None)
+        bits.extend(
+            f"{key}={self._stringify(value)}"
+            for key, value in entry_fields.items()
+            if value is not None
+        )
         storyteller_logger.info("[judgement][%s] %s", category, " ".join(bits))
         return entry
 
@@ -158,22 +180,36 @@ class StorytellerAgent:
             return "说书人正在维持平衡。"
 
         context = self._build_storyteller_context(game_state)
-        advantage = self._evaluate_team_advantage(StorytellerDecisionContext(
-            truth_view={},
-            public_state={},
-            private_delivery_history=[],
-            recent_judgements=[],
-            balance_context=context,
-        ))
+        advantage = self._evaluate_team_advantage(
+            StorytellerDecisionContext(
+                truth_view={},
+                public_state={},
+                private_delivery_history=[],
+                recent_judgements=[],
+                balance_context=context,
+            )
+        )
 
-        advantage_text = "正义方大优" if advantage > 2 else ("正义方小优" if advantage > 0.5 else ("邪恶方大优" if advantage < -2 else ("邪恶方小优" if advantage < -0.5 else "局势均势")))
+        advantage_text = (
+            "正义方大优"
+            if advantage > 2
+            else (
+                "正义方小优"
+                if advantage > 0.5
+                else (
+                    "邪恶方大优"
+                    if advantage < -2
+                    else ("邪恶方小优" if advantage < -0.5 else "局势均势")
+                )
+            )
+        )
 
         prompt = f"""你是一名《血染钟楼》的说书人（上帝视角）。
 当前核心局势：
-- 阶段：{context['phase']} (Day {context['day_number']}, Round {context['round_number']})
-- 人数：正义 {context['alive_good']} 存活 / 邪恶 {context['alive_evil']} 存活
+- 阶段：{context["phase"]} (Day {context["day_number"]}, Round {context["round_number"]})
+- 人数：正义 {context["alive_good"]} 存活 / 邪恶 {context["alive_evil"]} 存活
 - 系统客观评估：{advantage_text} (平衡分值: {advantage:.2f})
-- 近期关键裁量记录：{context['recent_judgements']}
+- 近期关键裁量记录：{context["recent_judgements"]}
 
 作为说书人，你的核心目标是让对局悬念迭起、充满戏剧性。如果某一方优势过大，你需要考虑在规则允许的范围内（如利用中毒、醉酒、信息技能的模糊地带）暗中帮助劣势方。
 
@@ -184,19 +220,22 @@ class StorytellerAgent:
         请直接输出这段极具掌控力与反派魅力的独白，不要有任何客套话。"""
         try:
             from src.llm.base_backend import Message
+
             response = await self.backend.generate(
                 prompt,
                 [Message(role="user", content="请生成当前阶段的说书人内心独白。")],
                 max_tokens=200,
             )
-            thinking = response.content.strip() if response and response.content else "维持当前平衡。"
+            thinking = (
+                response.content.strip() if response and response.content else "维持当前平衡。"
+            )
             self.record_judgement(
                 "strategic_analysis",
                 decision=advantage_text,
                 reason=thinking,
                 advantage_score=advantage,
-                phase=context['phase'],
-                day_number=context['day_number']
+                phase=context["phase"],
+                day_number=context["day_number"],
             )
             return thinking
         except Exception as e:
@@ -218,15 +257,25 @@ class StorytellerAgent:
                     **self._jsonable(entry),
                 }
             )
-        categories = sorted({str(item.get("category", "")) for item in exported if item.get("category")})
+        categories = sorted(
+            {str(item.get("category", "")) for item in exported if item.get("category")}
+        )
         buckets = sorted({str(item.get("bucket", "")) for item in exported if item.get("bucket")})
         # [A3-ST-3] 增加最低门槛统计
         night_info_count = sum(1 for item in exported if item.get("category") == "night_info")
-        delivers = sum(1 for item in exported if item.get("category") == "night_info" and item.get("decision") == "deliver")
-        fallbacks = sum(1 for item in exported if "legacy_fallback" in str(item.get("adjudication_path", "")))
+        delivers = sum(
+            1
+            for item in exported
+            if item.get("category") == "night_info" and item.get("decision") == "deliver"
+        )
+        fallbacks = sum(
+            1 for item in exported if "legacy_fallback" in str(item.get("adjudication_path", ""))
+        )
         suppressed = sum(1 for item in exported if item.get("decision") == "suppressed")
-        distorted = sum(1 for item in exported if item.get("distortion_strategy") not in {None, "none"})
-        
+        distorted = sum(
+            1 for item in exported if item.get("distortion_strategy") not in {None, "none"}
+        )
+
         statistics = {
             "judgement_count": len(exported),
             "night_info_total": night_info_count,
@@ -254,7 +303,8 @@ class StorytellerAgent:
             details = {
                 key: value
                 for key, value in entry.items()
-                if key not in {
+                if key
+                not in {
                     "category",
                     "decision",
                     "reason",
@@ -288,7 +338,9 @@ class StorytellerAgent:
             )
         return summaries
 
-    def build_decision_context(self, game_state: GameState, recent_limit: int = 8) -> StorytellerDecisionContext:
+    def build_decision_context(
+        self, game_state: GameState, recent_limit: int = 8
+    ) -> StorytellerDecisionContext:
         """[A3-ST-1] 统一说书人裁量输入边界。"""
         balance_context = self._build_storyteller_context(game_state)
         return StorytellerDecisionContext(
@@ -308,7 +360,11 @@ class StorytellerAgent:
                     "name": player.name,
                     "true_role_id": player.true_role_id or player.role_id,
                     "perceived_role_id": player.perceived_role_id,
-                    "role_type": self._role_type_for_role_id(player.true_role_id or player.role_id).value if self._role_type_for_role_id(player.true_role_id or player.role_id) else None,
+                    "role_type": self._role_type_for_role_id(
+                        player.true_role_id or player.role_id
+                    ).value
+                    if self._role_type_for_role_id(player.true_role_id or player.role_id)
+                    else None,
                     "current_team": (player.current_team or player.team).value,
                     "is_alive": player.is_alive,
                     "is_poisoned": player.is_poisoned,
@@ -388,8 +444,16 @@ class StorytellerAgent:
         ]
 
     def _build_storyteller_context(self, game_state: GameState) -> dict[str, Any]:
-        alive_good = sum(1 for player in game_state.players if player.is_alive and (player.current_team or player.team) == Team.GOOD)
-        alive_evil = sum(1 for player in game_state.players if player.is_alive and (player.current_team or player.team) == Team.EVIL)
+        alive_good = sum(
+            1
+            for player in game_state.players
+            if player.is_alive and (player.current_team or player.team) == Team.GOOD
+        )
+        alive_evil = sum(
+            1
+            for player in game_state.players
+            if player.is_alive and (player.current_team or player.team) == Team.EVIL
+        )
         hard_lock_risk = alive_evil == 0 or alive_good <= 1
         early_end_risk = game_state.day_number <= 2 and (alive_good <= 2 or alive_evil == 1)
         return {
@@ -410,19 +474,21 @@ class StorytellerAgent:
         alive_good = context.balance_context.get("alive_good", 0)
         alive_evil = context.balance_context.get("alive_evil", 0)
         margin = alive_good - alive_evil
-        
+
         # 2. 进度修正 (前期好人多是正常的)
         day = context.balance_context.get("day_number", 1)
         if day <= 1:
             margin -= 1
-            
+
         # 3. 风险修正
         if context.balance_context.get("hard_lock_risk"):
-            margin -= 2 # 好人陷入僵局，某种意义上是坏人优势
-            
+            margin -= 2  # 好人陷入僵局，某种意义上是坏人优势
+
         return float(margin)
 
-    def build_balance_sample(self, game_state: GameState, player_id: str, role_id: str) -> dict[str, Any]:
+    def build_balance_sample(
+        self, game_state: GameState, player_id: str, role_id: str
+    ) -> dict[str, Any]:
         decision_context = self.build_decision_context(game_state, recent_limit=8)
         player = game_state.get_player(player_id)
         info, info_source, contract_mode = self._adjudicate_raw_info(game_state, player_id, role_id)
@@ -431,7 +497,9 @@ class StorytellerAgent:
         distortion_strategy = "none"
         suppressed = bool(player and player.ability_suppressed)
         if suppressed and info and player:
-            chosen_info, distortion_strategy = self._apply_suppression_to_info(decision_context, role_id, info, player_id)
+            chosen_info, distortion_strategy = self._apply_suppression_to_info(
+                decision_context, role_id, info, player_id
+            )
 
         candidates: list[dict[str, Any]] = []
         if info:
@@ -515,10 +583,14 @@ class StorytellerAgent:
             if not role_cls:
                 continue
             role = role_cls()
-            mismatch = validate_night_order_value(role_id, role.get_definition().ability.night_order)
+            mismatch = validate_night_order_value(
+                role_id, role.get_definition().ability.night_order
+            )
             if mismatch:
                 mismatches.append(mismatch)
-            if role.can_act_at_phase(game_state, phase) and self.role_requires_player_choice(role_id):
+            if role.can_act_at_phase(game_state, phase) and self.role_requires_player_choice(
+                role_id
+            ):
                 seat_index = (
                     game_state.seat_order.index(player.player_id)
                     if game_state.seat_order and player.player_id in game_state.seat_order
@@ -547,7 +619,9 @@ class StorytellerAgent:
         storyteller_logger.info(
             "[build_night_order] phase=%s steps=%s",
             phase.value,
-            ",".join(f"{step['role_id']}@{step['night_order']}" for step in ordered) if ordered else "none",
+            ",".join(f"{step['role_id']}@{step['night_order']}" for step in ordered)
+            if ordered
+            else "none",
         )
         if mismatches:
             storyteller_logger.warning(
@@ -561,7 +635,9 @@ class StorytellerAgent:
             )
         self.record_judgement(
             "night_order",
-            decision="validated_with_mismatches" if mismatches else ("validated_with_ties" if tie_groups else ("validated" if ordered else "empty")),
+            decision="validated_with_mismatches"
+            if mismatches
+            else ("validated_with_ties" if tie_groups else ("validated" if ordered else "empty")),
             phase=phase.value,
             steps=ordered,
             canonical_reference="trouble_brewing_night_order",
@@ -587,7 +663,9 @@ class StorytellerAgent:
             return False
         return role_cls.uses_storyteller_adjudication()
 
-    def _build_base_info(self, game_state: GameState, player_id: str, role_id: str) -> tuple[dict, str, str]:
+    def _build_base_info(
+        self, game_state: GameState, player_id: str, role_id: str
+    ) -> tuple[dict, str, str]:
         from src.engine.roles.base_role import get_role_class
 
         player = game_state.get_player(player_id)
@@ -606,7 +684,9 @@ class StorytellerAgent:
             return legacy_info, "legacy_get_night_info", f"{contract_mode}.legacy_fallback"
         return {}, "empty", contract_mode
 
-    def _adjudicate_raw_info(self, game_state: GameState, player_id: str, role_id: str) -> tuple[dict, str, str]:
+    def _adjudicate_raw_info(
+        self, game_state: GameState, player_id: str, role_id: str
+    ) -> tuple[dict, str, str]:
         info, info_source, contract_mode = self._build_base_info(game_state, player_id, role_id)
         return info, info_source, contract_mode
 
@@ -638,7 +718,9 @@ class StorytellerAgent:
             return "storyteller_info.adjudicated"
         return "adjudicated"
 
-    def _distort_fixed_info(self, context: StorytellerDecisionContext, role_id: str, info: dict, player_id: str) -> tuple[dict, str]:
+    def _distort_fixed_info(
+        self, context: StorytellerDecisionContext, role_id: str, info: dict, player_id: str
+    ) -> tuple[dict, str]:
         distorted = dict(info)
         actor_id = player_id
         if role_id in {"washerwoman", "librarian", "investigator"}:
@@ -650,7 +732,11 @@ class StorytellerAgent:
             target_player = self._pick_false_target_player(context, actor_id, preferred_type)
             if target_player:
                 target_pid = target_player["player_id"]
-                decoys = [p["player_id"] for p in context.truth_view.get("players", []) if p["player_id"] not in {actor_id, target_pid}]
+                decoys = [
+                    p["player_id"]
+                    for p in context.truth_view.get("players", [])
+                    if p["player_id"] not in {actor_id, target_pid}
+                ]
                 pair = [target_pid]
                 if decoys:
                     pair.append(random.choice(decoys))
@@ -660,9 +746,14 @@ class StorytellerAgent:
                 distorted["role_seen"] = role_seen
                 # Rewrite lines
                 from src.engine.roles.base_role import get_role_class
+
                 role_cls = get_role_class(role_seen)
                 role_name = role_cls.get_definition().name if role_cls else role_seen
-                player_names = [p["name"] for p in context.truth_view.get("players", []) if p["player_id"] in pair]
+                player_names = [
+                    p["name"]
+                    for p in context.truth_view.get("players", [])
+                    if p["player_id"] in pair
+                ]
                 distorted["lines"] = [f"玩家 {', '.join(player_names)} 中有一位是 {role_name}"]
             if role_id == "librarian":
                 distorted["has_outsider"] = True
@@ -687,13 +778,15 @@ class StorytellerAgent:
                 # 这里我们保持原样，因为 _distort_fixed_info 只在能力被抑制时调用。
                 # 如果要“尽量给真信息”，我们可以选择不翻转。
                 return distorted, "empath_mercy_truth.help_good"
-            
+
             distorted["evil_count"] = 1 if actual_count == 0 else 0
             return distorted, "empath_binary_flip.default"
         if role_id == "undertaker":
             players = context.truth_view.get("players", [])
             if players:
-                distorted["role_seen"] = random.choice([p.get("true_role_id") or p.get("role_id") for p in players])
+                distorted["role_seen"] = random.choice(
+                    [p.get("true_role_id") or p.get("role_id") for p in players]
+                )
             return distorted, "undertaker_random_role_seen"
         if role_id == "spy":
             book = [dict(entry) for entry in distorted.get("book", [])]
@@ -701,9 +794,17 @@ class StorytellerAgent:
                 idx = 0 if len(book) == 1 else random.randrange(len(book))
                 entry = dict(book[idx])
                 actual_role = entry.get("role_id")
-                false_role_type_val = self._role_type_for_role_id(actual_role).value if self._role_type_for_role_id(actual_role) else None
+                false_role_type_val = (
+                    self._role_type_for_role_id(actual_role).value
+                    if self._role_type_for_role_id(actual_role)
+                    else None
+                )
                 false_role_type = RoleType(false_role_type_val) if false_role_type_val else None
-                false_role_ids = self._role_ids_of_type(false_role_type, exclude_role_id=actual_role) if false_role_type else []
+                false_role_ids = (
+                    self._role_ids_of_type(false_role_type, exclude_role_id=actual_role)
+                    if false_role_type
+                    else []
+                )
                 if not false_role_ids:
                     false_role_ids = [role for role in self._all_role_ids() if role != actual_role]
                 if false_role_ids:
@@ -717,7 +818,9 @@ class StorytellerAgent:
             return distorted, "spy_book_single_entry_distortion"
         return distorted, "fixed_info_passthrough"
 
-    def _distort_storyteller_info(self, context: StorytellerDecisionContext, role_id: str, info: dict) -> tuple[dict, str]:
+    def _distort_storyteller_info(
+        self, context: StorytellerDecisionContext, role_id: str, info: dict
+    ) -> tuple[dict, str]:
         distorted = dict(info)
         if role_id == "fortune_teller":
             actual = distorted.get("has_demon", False)
@@ -731,13 +834,13 @@ class StorytellerAgent:
                 return distorted, "fortune_teller_truth.help_good"
             distorted["has_demon"] = not actual
             return distorted, "fortune_teller_boolean_flip"
-        
+
         if role_id == "ravenkeeper":
             advantage = self._evaluate_team_advantage(context)
             if advantage < -1.0:
                 # 坏人优势大，毒死了也大发慈悲给个真信息
                 return distorted, "ravenkeeper_truth.help_good"
-            
+
             # 给个错误的身份
             actual_role = distorted.get("role_id")
             false_roles = [r for r in self._all_role_ids() if r != actual_role]
@@ -747,16 +850,18 @@ class StorytellerAgent:
 
         return distorted, "storyteller_info_passthrough"
 
-    async def _apply_suppression_to_info_async(self, context: StorytellerDecisionContext, role_id: str, info: dict, player_id: str) -> tuple[dict, str]:
+    async def _apply_suppression_to_info_async(
+        self, context: StorytellerDecisionContext, role_id: str, info: dict, player_id: str
+    ) -> tuple[dict, str]:
         """异步版本的抑制逻辑，支持 LLM 介入。"""
         from src.engine.roles.base_role import get_role_class
 
         role_cls = get_role_class(role_id)
-        
+
         # 如果开启了 AI 模式且有 backend，尝试用 LLM 做“更有趣”的虚假信息选择
         if self.mode == "auto" and self.backend and role_cls and not role_cls.is_fixed_info_role():
-             # 目前暂未实现全量 LLM 虚假信息生成，先走增强的启发式，未来可在此注入 LLM 决策
-             pass
+            # 目前暂未实现全量 LLM 虚假信息生成，先走增强的启发式，未来可在此注入 LLM 决策
+            pass
 
         if role_cls and role_cls.is_fixed_info_role():
             return self._distort_fixed_info(context, role_id, info, player_id)
@@ -764,9 +869,12 @@ class StorytellerAgent:
             return self._distort_storyteller_info(context, role_id, info)
         return dict(info), "unspecified_suppression_passthrough"
 
-    def _apply_suppression_to_info(self, context: StorytellerDecisionContext, role_id: str, info: dict, player_id: str) -> tuple[dict, str]:
+    def _apply_suppression_to_info(
+        self, context: StorytellerDecisionContext, role_id: str, info: dict, player_id: str
+    ) -> tuple[dict, str]:
         # 兼容同步调用
         from src.engine.roles.base_role import get_role_class
+
         role_cls = get_role_class(role_id)
         if role_cls and role_cls.is_fixed_info_role():
             return self._distort_fixed_info(context, role_id, info, player_id)
@@ -774,7 +882,9 @@ class StorytellerAgent:
             return self._distort_storyteller_info(context, role_id, info)
         return dict(info), "unspecified_suppression_passthrough"
 
-    def _pick_false_role_seen(self, game_state: GameState, role_id: str, excluded_roles: set[str]) -> str:
+    def _pick_false_role_seen(
+        self, game_state: GameState, role_id: str, excluded_roles: set[str]
+    ) -> str:
         from src.engine.roles.base_role import get_all_role_ids, get_role_class
 
         preferred_type = {
@@ -802,7 +912,9 @@ class StorytellerAgent:
                         candidate_roles.append(actual_role_id)
 
         if not candidate_roles:
-            candidate_roles = [role_id for role_id in get_all_role_ids() if role_id not in excluded_roles]
+            candidate_roles = [
+                role_id for role_id in get_all_role_ids() if role_id not in excluded_roles
+            ]
 
         return random.choice(candidate_roles) if candidate_roles else "unknown"
 
@@ -820,24 +932,23 @@ class StorytellerAgent:
         actor_id: str | None,
         preferred_type: RoleType | None,
     ) -> dict[str, Any] | None:
-        eligible_players = [p for p in context.truth_view.get("players", []) if p["player_id"] != actor_id]
+        eligible_players = [
+            p for p in context.truth_view.get("players", []) if p["player_id"] != actor_id
+        ]
         if not eligible_players:
             return None
-        
+
         pref_val = preferred_type.value if preferred_type else None
-        typed_players = [
-            p for p in eligible_players
-            if pref_val and p.get("role_type") == pref_val
-        ]
+        typed_players = [p for p in eligible_players if pref_val and p.get("role_type") == pref_val]
         pool = typed_players or eligible_players
-        
+
         # [A3-ST-5] 主动干预：如果好人优势，优先选邪恶队友作为假信息目标，帮他们“穿衣服”
         advantage = self._evaluate_team_advantage(context)
         if advantage > 1.0:
             evil_pool = [p for p in pool if p.get("current_team") == "evil"]
             if evil_pool:
                 return random.choice(evil_pool)
-                
+
         return random.choice(pool)
 
     async def decide_night_info(self, game_state: GameState, player_id: str, role_id: str) -> dict:
@@ -845,7 +956,7 @@ class StorytellerAgent:
         player_truth = context.get_player(player_id)
         if not player_truth:
             return {}
-        
+
         if not self.role_receives_storyteller_info(role_id):
             storyteller_logger.info(
                 "[decide_night_info] player=%s role=%s skipped=no_storyteller_info",
@@ -885,9 +996,15 @@ class StorytellerAgent:
             )
             return {}
 
-        info_scope = self._classify_info_scope(role_id, info_source, context.is_suppressed(player_id))
+        info_scope = self._classify_info_scope(
+            role_id, info_source, context.is_suppressed(player_id)
+        )
         adjudication_path = self._resolve_adjudication_path(role_id, info_source)
-        red_herring_id = game_state.payload.get("fortune_teller_red_herring") if role_id == "fortune_teller" else None
+        red_herring_id = (
+            game_state.payload.get("fortune_teller_red_herring")
+            if role_id == "fortune_teller"
+            else None
+        )
         red_herring_hit = bool(red_herring_id and red_herring_id in (info.get("players") or []))
         if role_id == "fortune_teller" and red_herring_id:
             self.record_judgement(
@@ -903,7 +1020,9 @@ class StorytellerAgent:
                 round_number=context.public_state["round_number"],
             )
         if context.is_suppressed(player_id):
-            distorted, distortion_strategy = await self._apply_suppression_to_info_async(context, role_id, info, player_id)
+            distorted, distortion_strategy = await self._apply_suppression_to_info_async(
+                context, role_id, info, player_id
+            )
             storyteller_logger.info(
                 "[decide_night_info] player=%s role=%s suppressed=true info_type=%s summary=%s",
                 player_id,
@@ -982,7 +1101,9 @@ class StorytellerAgent:
 
         return get_role_class(role_id)
 
-    def _role_ids_of_type(self, role_type: RoleType, exclude_role_id: str | None = None) -> list[str]:
+    def _role_ids_of_type(
+        self, role_type: RoleType, exclude_role_id: str | None = None
+    ) -> list[str]:
         ids: list[str] = []
         for role_id in self._all_role_ids():
             if role_id == exclude_role_id:
@@ -1007,7 +1128,7 @@ class StorytellerAgent:
         context = self.build_decision_context(game_state)
         advantage = self._evaluate_team_advantage(context)
         flavor = ""
-        
+
         if game_state.phase == GamePhase.DAY_DISCUSSION:
             if advantage > 2.0:
                 flavor = " 正义的锋芒势不可挡。"
@@ -1017,7 +1138,9 @@ class StorytellerAgent:
             if game_state.day_number >= 3:
                 flavor = " 鲜血染红了月色，这一夜注定不平静。"
 
-        narration = phase_names.get(game_state.phase, f"现在进入 {game_state.phase.value} 阶段。") + flavor
+        narration = (
+            phase_names.get(game_state.phase, f"现在进入 {game_state.phase.value} 阶段。") + flavor
+        )
         storyteller_logger.info(
             "[narrate_phase] phase=%s narration=%s",
             game_state.phase.value,
@@ -1036,13 +1159,14 @@ class StorytellerAgent:
     async def decide_initial_setup_info(self, game_state: GameState) -> GameState:
         """为所有需要的角色预先决定初始信息（如：洗衣妇看到的两个玩家和角色，厨师得到的邻座数等）。"""
         new_payload = dict(game_state.payload)
-        
+
         # 1. 预报身份类角色
         for player in game_state.players:
             # [A3-ST-BUGFIX] 使用 perceived_role_id 确保酒鬼也能在 SETUP 阶段生成初始信息载荷
             role_id = player.perceived_role_id or player.role_id
             if role_id in {"washerwoman", "librarian", "investigator", "chef"}:
                 from src.engine.roles.base_role import get_role_class
+
                 role_cls = get_role_class(role_id)
                 if role_cls:
                     role_instance = role_cls()
@@ -1052,34 +1176,58 @@ class StorytellerAgent:
                     if info:
                         key = f"initial_info:{role_id}:{player.player_id}"
                         new_payload[key] = info
-                        storyteller_logger.info(f"[decide_initial_setup_info] player={player.player_id} role={role_id} (perceived) info={info}")
-                        self.record_judgement("initial_setup_info", decision="preset", player_id=player.player_id, role_id=role_id, info=info, phase=game_state.phase.value, day_number=game_state.day_number, round_number=game_state.round_number)
-        
+                        storyteller_logger.info(
+                            f"[decide_initial_setup_info] player={player.player_id} role={role_id} (perceived) info={info}"
+                        )
+                        self.record_judgement(
+                            "initial_setup_info",
+                            decision="preset",
+                            player_id=player.player_id,
+                            role_id=role_id,
+                            info=info,
+                            phase=game_state.phase.value,
+                            day_number=game_state.day_number,
+                            round_number=game_state.round_number,
+                        )
+
         # 2. 预言家宿敌 (Red Herring)
         # [A3-ST-5] 智能选择红鲱鱼：优先选择对当前局势有“调节”作用的好人。
         # 比如：选择一个可疑的好人作为红鲱鱼，可以让预言家查验他时得到“有恶魔”的结果，增加干扰。
-        ft_player = next((p for p in game_state.players if (p.perceived_role_id or p.role_id) == "fortune_teller"), None)
+        ft_player = next(
+            (
+                p
+                for p in game_state.players
+                if (p.perceived_role_id or p.role_id) == "fortune_teller"
+            ),
+            None,
+        )
         if ft_player and "fortune_teller_red_herring" not in new_payload:
             # 候选人：非恶魔的好人（且不是占卜师自己）
-            candidates = [p for p in game_state.players if p.team == Team.GOOD and p.player_id != ft_player.player_id]
+            candidates = [
+                p
+                for p in game_state.players
+                if p.team == Team.GOOD and p.player_id != ft_player.player_id
+            ]
             if candidates:
                 # [A3-ST-5] 智能逻辑：
                 # 如果正义方初始强度高，红鲱鱼选个“干净”的人（比如调查员点名过的人），让预言家查出“有恶魔”，增加正义方内耗。
                 # 此处目前基于基础评分系统
                 context = self.build_decision_context(game_state)
                 advantage = self._evaluate_team_advantage(context)
-                
+
                 # 如果局势对正义方有利（advantage > 0），选个看起来“像好人”的人作为红鲱鱼来迷惑他们。
                 if advantage >= 0:
                     # 倾向于选择非关键信息位的好人作为宿敌
                     low_prio_roles = {RoleType.OUTSIDER, RoleType.TOWNSFOLK}
-                    red_herring = random.choice(candidates) # 兜底
+                    red_herring = random.choice(candidates)  # 兜底
                 else:
                     # 局势不利于正义方时，随便选一个，尽量不干扰核心推导。
                     red_herring = random.choice(candidates)
-                
+
                 new_payload["fortune_teller_red_herring"] = red_herring.player_id
-                storyteller_logger.info(f"[decide_initial_setup_info] fortune_teller_red_herring set to {red_herring.player_id} (advantage={advantage:.2f})")
+                storyteller_logger.info(
+                    f"[decide_initial_setup_info] fortune_teller_red_herring set to {red_herring.player_id} (advantage={advantage:.2f})"
+                )
                 self.record_judgement(
                     "red_herring",
                     decision="selected",
@@ -1099,7 +1247,7 @@ class StorytellerAgent:
         new_payload = dict(game_state.payload)
         context = self.build_decision_context(game_state)
         advantage = self._evaluate_team_advantage(context)
-        
+
         for player in game_state.players:
             role_id = player.true_role_id or player.role_id
             if role_id == "recluse":
@@ -1119,12 +1267,34 @@ class StorytellerAgent:
                     role_type = random.choice([RoleType.MINION, RoleType.DEMON])
                     new_payload[f"misregistration:team:{player.player_id}"] = team.value
                     new_payload[f"misregistration:type:{player.player_id}"] = role_type.value
-                    self.record_judgement("misregistration", decision="active", player_id=player.player_id, role_id="recluse", team=team.value, type=role_type.value, reason=f"balancing_advantage_{advantage:.2f}", phase=game_state.phase.value, day_number=game_state.day_number, round_number=game_state.round_number)
+                    self.record_judgement(
+                        "misregistration",
+                        decision="active",
+                        player_id=player.player_id,
+                        role_id="recluse",
+                        team=team.value,
+                        type=role_type.value,
+                        reason=f"balancing_advantage_{advantage:.2f}",
+                        phase=game_state.phase.value,
+                        day_number=game_state.day_number,
+                        round_number=game_state.round_number,
+                    )
                 else:
                     new_payload.pop(f"misregistration:team:{player.player_id}", None)
                     new_payload.pop(f"misregistration:type:{player.player_id}", None)
-                    self.record_judgement("misregistration", decision="inactive", player_id=player.player_id, role_id="recluse", team=Team.GOOD.value, type=RoleType.OUTSIDER.value, reason=f"balancing_advantage_{advantage:.2f}", phase=game_state.phase.value, day_number=game_state.day_number, round_number=game_state.round_number)
-            
+                    self.record_judgement(
+                        "misregistration",
+                        decision="inactive",
+                        player_id=player.player_id,
+                        role_id="recluse",
+                        team=Team.GOOD.value,
+                        type=RoleType.OUTSIDER.value,
+                        reason=f"balancing_advantage_{advantage:.2f}",
+                        phase=game_state.phase.value,
+                        day_number=game_state.day_number,
+                        round_number=game_state.round_number,
+                    )
+
             elif role_id == "spy":
                 # [A3-ST-5] 智能间谍误报：
                 # 如果正义方有优势 (advantage > 1.0)，间谍大概率误报为好人或村民，降低被发现概率。
@@ -1142,12 +1312,34 @@ class StorytellerAgent:
                     role_type = RoleType.TOWNSFOLK
                     new_payload[f"misregistration:team:{player.player_id}"] = team.value
                     new_payload[f"misregistration:type:{player.player_id}"] = role_type.value
-                    self.record_judgement("misregistration", decision="active", player_id=player.player_id, role_id="spy", team=team.value, type=role_type.value, reason=f"balancing_advantage_{advantage:.2f}", phase=game_state.phase.value, day_number=game_state.day_number, round_number=game_state.round_number)
+                    self.record_judgement(
+                        "misregistration",
+                        decision="active",
+                        player_id=player.player_id,
+                        role_id="spy",
+                        team=team.value,
+                        type=role_type.value,
+                        reason=f"balancing_advantage_{advantage:.2f}",
+                        phase=game_state.phase.value,
+                        day_number=game_state.day_number,
+                        round_number=game_state.round_number,
+                    )
                 else:
                     new_payload.pop(f"misregistration:team:{player.player_id}", None)
                     new_payload.pop(f"misregistration:type:{player.player_id}", None)
-                    self.record_judgement("misregistration", decision="inactive", player_id=player.player_id, role_id="spy", team=Team.EVIL.value, type=RoleType.MINION.value, reason=f"balancing_advantage_{advantage:.2f}", phase=game_state.phase.value, day_number=game_state.day_number, round_number=game_state.round_number)
-                    
+                    self.record_judgement(
+                        "misregistration",
+                        decision="inactive",
+                        player_id=player.player_id,
+                        role_id="spy",
+                        team=Team.EVIL.value,
+                        type=RoleType.MINION.value,
+                        reason=f"balancing_advantage_{advantage:.2f}",
+                        phase=game_state.phase.value,
+                        day_number=game_state.day_number,
+                        round_number=game_state.round_number,
+                    )
+
         return game_state.with_update(payload=new_payload)
 
     async def get_human_storyteller_step(self, game_state: GameState, phase: GamePhase) -> dict:

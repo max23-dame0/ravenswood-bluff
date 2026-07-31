@@ -284,7 +284,10 @@ class GameRecordStore:
                     await self._recover_disk_store(include_primary_db=False)
                     await self._ensure_schema()
                 except (aiosqlite.OperationalError, PermissionError) as retry_exc:
-                    if not isinstance(retry_exc, PermissionError) and "disk i/o error" not in str(retry_exc).lower():
+                    if (
+                        not isinstance(retry_exc, PermissionError)
+                        and "disk i/o error" not in str(retry_exc).lower()
+                    ):
                         raise
                     logger.warning(
                         "GameRecordStore initialize still failing for %s; attempting primary-db recovery",
@@ -294,7 +297,9 @@ class GameRecordStore:
                         await self._recover_disk_store(include_primary_db=True)
                         await self._ensure_schema()
                     except (aiosqlite.OperationalError, PermissionError) as final_exc:
-                        if "disk i/o error" not in str(final_exc).lower() and not isinstance(final_exc, PermissionError):
+                        if "disk i/o error" not in str(final_exc).lower() and not isinstance(
+                            final_exc, PermissionError
+                        ):
                             raise
                         logger.warning(
                             "GameRecordStore initialize could not recover SQLite file at %s; falling back to JSON storage",
@@ -385,9 +390,7 @@ class GameRecordStore:
             return self._load_json_records().get("games", {}).get(game_id)
         async with self._connect() as db:
             db.row_factory = aiosqlite.Row
-            cursor = await db.execute(
-                "SELECT * FROM game_records WHERE game_id = ?", (game_id,)
-            )
+            cursor = await db.execute("SELECT * FROM game_records WHERE game_id = ?", (game_id,))
             row = await cursor.fetchone()
             if not row:
                 return None
@@ -397,9 +400,7 @@ class GameRecordStore:
             record["config"] = json.loads(record["config"]) if record["config"] else {}
 
             # 获取玩家列表
-            cursor2 = await db.execute(
-                "SELECT * FROM game_players WHERE game_id = ?", (game_id,)
-            )
+            cursor2 = await db.execute("SELECT * FROM game_players WHERE game_id = ?", (game_id,))
             players = [dict(r) for r in await cursor2.fetchall()]
             record["players"] = players
 
@@ -409,51 +410,77 @@ class GameRecordStore:
         """[A3-DATA-4] 导出完整对局历史数据（提供统一的导出接口命名）。"""
         return await self.get_game(game_id)
 
-    async def export_storyteller_judgements(self, game_id: str, storyteller_agent: Any) -> Optional[dict[str, Any]]:
+    async def export_storyteller_judgements(
+        self, game_id: str, storyteller_agent: Any
+    ) -> Optional[dict[str, Any]]:
         """[A3-DATA-4] 导出与 game_id 对齐的说书人判决数据。"""
         history = await self.get_game(game_id)
         if history is None:
             return None
         if storyteller_agent is None:
             settlement = history.get("settlement", {}) if isinstance(history, dict) else {}
-            summary = settlement.get("judgement_summary", []) if isinstance(settlement, dict) else []
+            summary = (
+                settlement.get("judgement_summary", []) if isinstance(settlement, dict) else []
+            )
             return {
                 "game_id": game_id,
                 "judgement_count": len(summary),
                 "categories": sorted(
-                    {str(item.get("category", "")) for item in summary if isinstance(item, dict) and item.get("category")}
+                    {
+                        str(item.get("category", ""))
+                        for item in summary
+                        if isinstance(item, dict) and item.get("category")
+                    }
                 ),
                 "buckets": sorted(
-                    {str(item.get("bucket", "")) for item in summary if isinstance(item, dict) and item.get("bucket")}
+                    {
+                        str(item.get("bucket", ""))
+                        for item in summary
+                        if isinstance(item, dict) and item.get("bucket")
+                    }
                 ),
                 "judgements": [],
                 "recent_summary": list(summary),
             }
         if hasattr(storyteller_agent, "export_judgement_history"):
             return storyteller_agent.export_judgement_history(game_id)
-        exported = storyteller_agent.export_judgements() if hasattr(storyteller_agent, "export_judgements") else []
+        exported = (
+            storyteller_agent.export_judgements()
+            if hasattr(storyteller_agent, "export_judgements")
+            else []
+        )
         return {
             "game_id": game_id,
             "judgement_count": len(exported),
-            "categories": sorted({str(item.get("category", "")) for item in exported if item.get("category")}),
-            "buckets": sorted({str(item.get("bucket", "")) for item in exported if item.get("bucket")}),
+            "categories": sorted(
+                {str(item.get("category", "")) for item in exported if item.get("category")}
+            ),
+            "buckets": sorted(
+                {str(item.get("bucket", "")) for item in exported if item.get("bucket")}
+            ),
             "judgements": [{"game_id": game_id, **item} for item in exported],
             "recent_summary": [],
         }
 
-    async def export_game_assets(self, game_id: str, storyteller_agent: Any | None = None) -> Optional[dict[str, Any]]:
+    async def export_game_assets(
+        self, game_id: str, storyteller_agent: Any | None = None
+    ) -> Optional[dict[str, Any]]:
         """[A3-DATA-4] 最小统一导出接口：按 game_id 汇总对局历史与说书人判决。"""
         game_history = await self.export_game_history(game_id)
         if game_history is None:
             return None
-        storyteller_judgements = await self.export_storyteller_judgements(game_id, storyteller_agent)
+        storyteller_judgements = await self.export_storyteller_judgements(
+            game_id, storyteller_agent
+        )
         return {
             "game_id": game_id,
             "game_history": game_history,
             "storyteller_judgements": storyteller_judgements,
         }
 
-    async def export_history_detail(self, game_id: str, storyteller_agent: Any | None = None) -> Optional[dict[str, Any]]:
+    async def export_history_detail(
+        self, game_id: str, storyteller_agent: Any | None = None
+    ) -> Optional[dict[str, Any]]:
         """[A3-ST-4] 历史详情统一资产：结算详情 + 说书人裁量摘要。"""
         assets = await self.export_game_assets(game_id, storyteller_agent=storyteller_agent)
         if assets is None:
@@ -477,7 +504,9 @@ class GameRecordStore:
             return [cls._strip_player_history_secrets(item) for item in value]
         return value
 
-    async def export_player_history_detail(self, game_id: str, player_name: str | None = None) -> Optional[dict[str, Any]]:
+    async def export_player_history_detail(
+        self, game_id: str, player_name: str | None = None
+    ) -> Optional[dict[str, Any]]:
         """[A3-ST-4] 玩家视角历史详情：保留公开结算信息，剔除幕后身份与说书人裁量。"""
         history = await self.export_game_history(game_id)
         if history is None:
@@ -489,9 +518,7 @@ class GameRecordStore:
             public_history["player_name"] = player_name
         return public_history
 
-    async def list_games(
-        self, limit: int = 20, offset: int = 0
-    ) -> list[dict[str, Any]]:
+    async def list_games(self, limit: int = 20, offset: int = 0) -> list[dict[str, Any]]:
         """分页获取历史对局列表（不含完整 settlement JSON）"""
         await self.initialize()
         if self._using_json_fallback():

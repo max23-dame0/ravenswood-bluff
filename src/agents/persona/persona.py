@@ -13,6 +13,7 @@ class ParsedRoleStatement:
 
 class Persona:
     """Agent的人格配方"""
+
     def __init__(
         self,
         description: str,

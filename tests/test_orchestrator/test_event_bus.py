@@ -121,8 +121,11 @@ class TestEventBus:
         assert results == ["ok"]
 
     def test_handler_count(self, event_bus: EventBus):
-        async def h1(e): pass
-        async def h2(e): pass
+        async def h1(e):
+            pass
+
+        async def h2(e):
+            pass
 
         event_bus.subscribe("a", h1)
         event_bus.subscribe("b", h2)
@@ -130,7 +133,9 @@ class TestEventBus:
         assert event_bus.handler_count == 2
 
     def test_clear(self, event_bus: EventBus):
-        async def h(e): pass
+        async def h(e):
+            pass
+
         event_bus.subscribe("test", h)
         event_bus.clear()
         assert event_bus.handler_count == 0

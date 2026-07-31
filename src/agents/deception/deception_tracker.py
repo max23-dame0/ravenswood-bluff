@@ -26,12 +26,16 @@ class DeceptionTracker:
         return self._daily_fabrication_count.get(day_number, 0) < self.max_fabrications_per_day
 
     def record_fabrication(self, day_number: int, content: str, target: str = "") -> None:
-        self._daily_fabrication_count[day_number] = self._daily_fabrication_count.get(day_number, 0) + 1
-        self._fabrication_log.append({
-            "day": day_number,
-            "content": content[:100],
-            "target": target,
-        })
+        self._daily_fabrication_count[day_number] = (
+            self._daily_fabrication_count.get(day_number, 0) + 1
+        )
+        self._fabrication_log.append(
+            {
+                "day": day_number,
+                "content": content[:100],
+                "target": target,
+            }
+        )
         if content not in self._narrative_threads:
             self._narrative_threads.append(content[:80])
         self._narrative_threads = self._narrative_threads[-5:]
@@ -44,7 +48,9 @@ class DeceptionTracker:
             roles = ", ".join(self._self_claims.keys())
             parts.append(f"你已公开跳身份为 {roles}。后续发言必须与之一致，不要改口。")
         if self._narrative_threads:
-            parts.append(f"你正在推进的叙事线: {'; '.join(self._narrative_threads[-2:])}。继续沿着这条线推进，不要突然换故事。")
+            parts.append(
+                f"你正在推进的叙事线: {'; '.join(self._narrative_threads[-2:])}。继续沿着这条线推进，不要突然换故事。"
+            )
         return " ".join(parts)
 
     # --- Team-level claim coordination ---

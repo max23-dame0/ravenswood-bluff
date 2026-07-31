@@ -74,7 +74,9 @@ def test_storyteller_balance_sample_export_contains_schema_keys():
     assert result.returncode == 0, result.stderr or result.stdout
     payload = _extract_json_payload(result.stdout)
     assert EXPECTED_SAMPLE_KEYS <= payload.keys()
-    index_payload = json.loads((repo_root / "storyteller_eval_samples" / "sample_index.json").read_text(encoding="utf-8"))
+    index_payload = json.loads(
+        (repo_root / "storyteller_eval_samples" / "sample_index.json").read_text(encoding="utf-8")
+    )
     assert EXPECTED_INDEX_KEYS <= index_payload.keys()
     assert index_payload["curated_node_count"] >= 1
     assert len(index_payload["curated_node_files"]) >= 1
@@ -128,7 +130,12 @@ def test_storyteller_balance_sample_index_tracks_multiple_full_games():
         payload["full_game_node_count"] + payload["curated_node_count"]
     )
     assert "aggregate_balance_summary" in payload["full_games"][0]
-    game_dir = repo_root / "storyteller_eval_samples" / "full_game_nodes" / payload["full_games"][0]["game_id"]
+    game_dir = (
+        repo_root
+        / "storyteller_eval_samples"
+        / "full_game_nodes"
+        / payload["full_games"][0]["game_id"]
+    )
     game_index = json.loads((game_dir / "sample_index.json").read_text(encoding="utf-8"))
     assert game_index["game_id"] == payload["full_games"][0]["game_id"]
     assert game_index["node_count"] == payload["full_games"][0]["node_count"]

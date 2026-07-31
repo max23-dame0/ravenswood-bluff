@@ -4,7 +4,12 @@ from __future__ import annotations
 
 import pytest
 
-from src.agents.decision_noise import BoldMoveResult, DecisionNoise, _NOISE_MAGNITUDE, _BOLD_MOVE_PROB
+from src.agents.decision_noise import (
+    BoldMoveResult,
+    DecisionNoise,
+    _NOISE_MAGNITUDE,
+    _BOLD_MOVE_PROB,
+)
 
 
 # ============================================================
@@ -46,9 +51,7 @@ class TestThresholdNoiseBounds:
         mag = noise.magnitude
         for i in range(100):
             value = noise.threshold_noise(f"context_{i}")
-            assert -mag <= value <= mag, (
-                f"{difficulty}: noise {value} outside [-{mag}, +{mag}]"
-            )
+            assert -mag <= value <= mag, f"{difficulty}: noise {value} outside [-{mag}, +{mag}]"
 
     def test_unknown_difficulty_uses_default_magnitude(self):
         noise = DecisionNoise(difficulty="unknown", player_id="p1")
@@ -112,19 +115,19 @@ class TestBoldMoveProbability:
         result = noise.should_bold_move("ctx")
         assert isinstance(result, BoldMoveResult)
 
-    @pytest.mark.parametrize("difficulty,expected_prob", [
-        ("casual", 0.08),
-        ("standard", 0.03),
-        ("master", 0.01),
-        ("chaos", 0.15),
-    ])
+    @pytest.mark.parametrize(
+        "difficulty,expected_prob",
+        [
+            ("casual", 0.08),
+            ("standard", 0.03),
+            ("master", 0.01),
+            ("chaos", 0.15),
+        ],
+    )
     def test_probability_roughly_matches(self, difficulty, expected_prob):
         noise = DecisionNoise(difficulty=difficulty, player_id="p1")
         trials = 5000
-        count = sum(
-            noise.should_bold_move(f"ctx_{i}").triggered
-            for i in range(trials)
-        )
+        count = sum(noise.should_bold_move(f"ctx_{i}").triggered for i in range(trials))
         observed_rate = count / trials
         # Allow generous tolerance for statistical variation
         assert abs(observed_rate - expected_prob) < 0.03, (
@@ -249,8 +252,7 @@ class TestNoisyTargetDiffersFromOptimal:
         optimal = max(scores, key=scores.get)
 
         same_count = sum(
-            noise.pick_noisy_target(f"ctx_{i}", candidates, scores) == optimal
-            for i in range(200)
+            noise.pick_noisy_target(f"ctx_{i}", candidates, scores) == optimal for i in range(200)
         )
         # Master noise is tiny (0.02), so optimal should win most of the time
         assert same_count > 150, (

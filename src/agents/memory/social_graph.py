@@ -19,6 +19,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class ClaimRecord:
     """对公开身份相关发言的结构化记录。"""
+
     role_id: str
     claim_type: str
     source_text: str = ""
@@ -31,20 +32,21 @@ class ClaimRecord:
 @dataclass
 class PlayerProfile:
     """Agent心中对某个特定玩家的侧写"""
+
     player_id: str
     name: str
-    
+
     # 信任度：-1.0 (绝对是坏人) 到 1.0 (绝对是好人)
     # 初始倾向为 0.0（中立）
     trust_score: float = 0.0
-    
+
     # 身份推测字典: role_id -> 概率 (0.0~1.0)
     # 例如可能觉得某人是洗衣妇的概率有 0.8
     role_beliefs: dict[str, float] = field(default_factory=dict)
-    
+
     # 阵营推测: "good" -> % , "evil" -> %
     alignment_beliefs: dict[str, float] = field(default_factory=lambda: {"good": 0.5, "evil": 0.5})
-    
+
     # 对玩家历史发言一致性/疑点的文字记录
     notes: list[str] = field(default_factory=list)
     # 身份相关声明历史
@@ -55,7 +57,7 @@ class PlayerProfile:
     claims_about_others: dict[str, list[ClaimRecord]] = field(default_factory=dict)
     # 发言冲突记录
     claim_conflicts: list[str] = field(default_factory=list)
-    
+
     # [Task D] 记忆冻结状态：如果为 True，在摘要中将只显示极简总结，以节省空间
     is_frozen: bool = False
     frozen_summary: str = ""
@@ -77,7 +79,7 @@ class SocialGraph:
         note_limit: int = 30,
         claim_limit: int = 20,
         summary_note_limit: int = 5,
-        summary_claim_limit: int = 4
+        summary_claim_limit: int = 4,
     ) -> None:
         self.my_player_id = my_player_id
         self.note_limit = note_limit
@@ -123,7 +125,7 @@ class SocialGraph:
         profile = self.get_profile(player_id)
         if profile:
             profile.notes.append(note)
-            profile.notes = profile.notes[-self.note_limit:]
+            profile.notes = profile.notes[-self.note_limit :]
 
     def record_claim(
         self,
@@ -161,16 +163,20 @@ class SocialGraph:
                 speaker_name=speaker_name,
             )
             profile.claim_history.append(record)
-            profile.claim_history = profile.claim_history[-self.claim_limit:]
+            profile.claim_history = profile.claim_history[-self.claim_limit :]
             if claim_type == "self_claim":
                 if previous_claim and previous_claim != role_id:
-                    profile.notes.append(f"公开身份从 {previous_claim} 改成 {role_id}，存在改口/冲突")
-                    profile.claim_conflicts.append(f"D{day_number}R{round_number}: {previous_claim} -> {role_id}")
+                    profile.notes.append(
+                        f"公开身份从 {previous_claim} 改成 {role_id}，存在改口/冲突"
+                    )
+                    profile.claim_conflicts.append(
+                        f"D{day_number}R{round_number}: {previous_claim} -> {role_id}"
+                    )
                 profile.current_self_claim = role_id
             elif claim_type == "denial" and profile.current_self_claim == role_id:
                 profile.current_self_claim = None
                 profile.notes.append(f"明确否认自己是 {role_id}")
-            profile.notes = profile.notes[-self.note_limit:]
+            profile.notes = profile.notes[-self.note_limit :]
 
     def _format_claim_record(self, record: ClaimRecord) -> str:
         marker = f"D{record.day_number or '-'}R{record.round_number or '-'}"
@@ -232,14 +238,14 @@ class SocialGraph:
         """输出社交图谱的文字摘要，给 LLM 参考"""
         if not self.profiles:
             return "你目前对其他人没有任何了解或信任偏好。"
-            
+
         summary = ["【你心中的社交图谱】"]
-        
+
         # 将信任度分为几个梯队
         trusted = []
         neutral = []
         suspicious = []
-        
+
         for pid, prof in self.profiles.items():
             if prof.trust_score >= 0.4:
                 trusted.append(f"{prof.name} (信任+{prof.trust_score:.1f})")
@@ -247,20 +253,22 @@ class SocialGraph:
                 suspicious.append(f"{prof.name} (怀疑{prof.trust_score:.1f})")
             else:
                 neutral.append(f"{prof.name} (中立)")
-                
+
         if trusted:
             summary.append(f"🟢 你比较信任的人: {', '.join(trusted)}")
         if suspicious:
             summary.append(f"🔴 你高度怀疑的人: {', '.join(suspicious)}")
         if neutral:
             summary.append(f"⚪ 你持保留态度的人: {', '.join(neutral)}")
-            
+
         # 加上最近的推理笔记
         for pid, prof in self.profiles.items():
             if prof.is_frozen:
                 # 冻结模式：只输出一行摘要
                 status = " (已冻结/由于死亡或身份确认为已知)"
-                summary.append(f"- 【{prof.name}】{status}: {prof.frozen_summary or '该玩家信息已归档。'}")
+                summary.append(
+                    f"- 【{prof.name}】{status}: {prof.frozen_summary or '该玩家信息已归档。'}"
+                )
                 continue
 
             if prof.current_self_claim:
@@ -270,12 +278,14 @@ class SocialGraph:
                 if latest_claim.claim_type == "denial":
                     summary.append(f"- {prof.name} 明确否认自己是: {latest_claim.role_id}")
             if prof.claim_history:
-                recent_claims = prof.claim_history[-self.summary_claim_limit:]
-                claim_text = "; ".join(self._format_claim_record(record) for record in recent_claims)
+                recent_claims = prof.claim_history[-self.summary_claim_limit :]
+                claim_text = "; ".join(
+                    self._format_claim_record(record) for record in recent_claims
+                )
                 summary.append(f"- {prof.name} 的身份发言记录: {claim_text}")
             if prof.notes:
                 # 只取最近几条笔记
-                recent_notes = prof.notes[-self.summary_note_limit:]
+                recent_notes = prof.notes[-self.summary_note_limit :]
                 notes_text = "; ".join(recent_notes)
                 if len(notes_text) > 80:
                     notes_text = notes_text[:80] + "..."
@@ -293,6 +303,8 @@ class SocialGraph:
                 "notes_count": len(prof.notes),
                 "current_self_claim": prof.current_self_claim,
                 "claim_history_count": len(prof.claim_history),
-                "recent_claims": [self._format_claim_record(record) for record in prof.claim_history[-3:]],
+                "recent_claims": [
+                    self._format_claim_record(record) for record in prof.claim_history[-3:]
+                ],
             }
         return json.dumps(data, ensure_ascii=False)

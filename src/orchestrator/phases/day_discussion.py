@@ -82,12 +82,14 @@ class DayDiscussionHandler:
                     continue
                 if player.player_id not in human_ids:
                     if ai_message_limit is not None and len(ai_players) >= ai_message_limit:
-                        self._o._record_pace_event({
-                            "kind": "ai_discussion_throttled",
-                            "player_id": player.player_id,
-                            "discussion_round": discussion_round,
-                            "ai_message_limit": ai_message_limit,
-                        })
+                        self._o._record_pace_event(
+                            {
+                                "kind": "ai_discussion_throttled",
+                                "player_id": player.player_id,
+                                "discussion_round": discussion_round,
+                                "ai_message_limit": ai_message_limit,
+                            }
+                        )
                         continue
                     ai_players.append(player)
                     self._o._mark_progress(f"ai_action:{player.player_id}:speak")
@@ -114,32 +116,46 @@ class DayDiscussionHandler:
                     visible_state = self._o._get_agent_visible_state(player.player_id)
                     if not visible_state:
                         continue
-                    legal_context = self._o._get_agent_legal_context(player.player_id, visible_state)
+                    legal_context = self._o._get_agent_legal_context(
+                        player.player_id, visible_state
+                    )
                     self._o._mark_progress(f"human_action:{player.player_id}:speak")
                     action = await self._o._timed_act(
-                        agent, visible_state, "speak",
+                        agent,
+                        visible_state,
+                        "speak",
                         legal_context=legal_context,
                         player_id=player.player_id,
                         phase="day_discussion",
                     )
                     if action.get("action") == "skip_discussion":
                         pregen_cache.cancel_all()
-                        self._o._record_data_snapshot("day_discussion_complete", discussion_round=discussion_round)
+                        self._o._record_data_snapshot(
+                            "day_discussion_complete", discussion_round=discussion_round
+                        )
                         return
                     if action.get("action") == "speak" and action.get("content"):
-                        content = self._dedupe_public_speech_content(str(action["content"]), player.player_id, discussion_round)
-                        payload = {"content": content, "tone": action.get("tone", "calm"), "round": discussion_round}
+                        content = self._dedupe_public_speech_content(
+                            str(action["content"]), player.player_id, discussion_round
+                        )
+                        payload = {
+                            "content": content,
+                            "tone": action.get("tone", "calm"),
+                            "round": discussion_round,
+                        }
                         if "extracted_claims" in action:
                             payload["extracted_claims"] = action["extracted_claims"]
-                        await self._o._publish_event(GameEvent(
-                            event_type="player_speaks",
-                            phase=GamePhase.DAY_DISCUSSION,
-                            round_number=self._o.state.round_number,
-                            trace_id=self._o._make_trace_id("BOTC-FLOW-SPEAK"),
-                            actor=player.player_id,
-                            visibility=Visibility.PUBLIC,
-                            payload=payload,
-                        ))
+                        await self._o._publish_event(
+                            GameEvent(
+                                event_type="player_speaks",
+                                phase=GamePhase.DAY_DISCUSSION,
+                                round_number=self._o.state.round_number,
+                                trace_id=self._o._make_trace_id("BOTC-FLOW-SPEAK"),
+                                actor=player.player_id,
+                                visibility=Visibility.PUBLIC,
+                                payload=payload,
+                            )
+                        )
                     if action.get("action") == "slayer_shot":
                         target_id = action.get("target")
                         if target_id:
@@ -162,7 +178,9 @@ class DayDiscussionHandler:
                 try:
                     if draft and draft.content:
                         action = await self._o._timed_act(
-                            speak_agent, visible_state, "speak",
+                            speak_agent,
+                            visible_state,
+                            "speak",
                             legal_context=legal_context,
                             player_id=p.player_id,
                             phase="day_discussion",
@@ -173,7 +191,9 @@ class DayDiscussionHandler:
                             action["speech_source"] = "cache_refined"
                     else:
                         action = await self._o._timed_act(
-                            speak_agent, visible_state, "speak",
+                            speak_agent,
+                            visible_state,
+                            "speak",
                             legal_context=legal_context,
                             player_id=p.player_id,
                             phase="day_discussion",
@@ -190,22 +210,32 @@ class DayDiscussionHandler:
                     continue
                 if action.get("action") == "skip_discussion":
                     pregen_cache.cancel_all()
-                    self._o._record_data_snapshot("day_discussion_complete", discussion_round=discussion_round)
+                    self._o._record_data_snapshot(
+                        "day_discussion_complete", discussion_round=discussion_round
+                    )
                     return
                 if action.get("action") == "speak" and action.get("content"):
-                    content = self._dedupe_public_speech_content(str(action["content"]), p.player_id, discussion_round)
-                    payload = {"content": content, "tone": action.get("tone", "calm"), "round": discussion_round}
+                    content = self._dedupe_public_speech_content(
+                        str(action["content"]), p.player_id, discussion_round
+                    )
+                    payload = {
+                        "content": content,
+                        "tone": action.get("tone", "calm"),
+                        "round": discussion_round,
+                    }
                     if "extracted_claims" in action:
                         payload["extracted_claims"] = action["extracted_claims"]
-                    await self._o._publish_event(GameEvent(
-                        event_type="player_speaks",
-                        phase=GamePhase.DAY_DISCUSSION,
-                        round_number=self._o.state.round_number,
-                        trace_id=self._o._make_trace_id("BOTC-FLOW-SPEAK"),
-                        actor=p.player_id,
-                        visibility=Visibility.PUBLIC,
-                        payload=payload,
-                    ))
+                    await self._o._publish_event(
+                        GameEvent(
+                            event_type="player_speaks",
+                            phase=GamePhase.DAY_DISCUSSION,
+                            round_number=self._o.state.round_number,
+                            trace_id=self._o._make_trace_id("BOTC-FLOW-SPEAK"),
+                            actor=p.player_id,
+                            visibility=Visibility.PUBLIC,
+                            payload=payload,
+                        )
+                    )
                 if action.get("action") == "slayer_shot":
                     target_id = action.get("target")
                     if target_id:
@@ -216,14 +246,17 @@ class DayDiscussionHandler:
         await self._o._batch_reflect_agents(GamePhase.DAY_DISCUSSION)
         self._o._record_data_snapshot("day_discussion_complete", discussion_round=rounds)
 
-    def _dedupe_public_speech_content(self, content: str, actor_id: str, discussion_round: int) -> str:
+    def _dedupe_public_speech_content(
+        self, content: str, actor_id: str, discussion_round: int
+    ) -> str:
         text = content.strip()
         if not text:
             return text
         existing = {
             str(event.payload.get("content", "")).strip()
             for event in self._o.event_log.events
-            if event.event_type == "player_speaks" and event.payload.get("round") == discussion_round
+            if event.event_type == "player_speaks"
+            and event.payload.get("round") == discussion_round
         }
         if text not in existing:
             return text
@@ -241,25 +274,44 @@ class DayDiscussionHandler:
         return player_id
 
     def _draft_focus_target(self, self_player_id: str, visible_state: AgentVisibleState) -> str:
-        candidates = [p for p in visible_state.players if p.player_id != self_player_id and p.is_alive]
+        candidates = [
+            p for p in visible_state.players if p.player_id != self_player_id and p.is_alive
+        ]
         if not candidates:
             return ""
-        index = (visible_state.day_number + visible_state.round_number + len(self._o.event_log.events)) % len(candidates)
+        index = (
+            visible_state.day_number + visible_state.round_number + len(self._o.event_log.events)
+        ) % len(candidates)
         return candidates[index].name
 
     async def handle_chat(self, sender_id: str, content: str, is_private: bool = False) -> None:
         sender = self._o.state.get_player(sender_id)
         # 允许说书人发消息，即使他不在玩家列表中
-        is_storyteller = sender_id in ["h1", "storyteller", "admin"] or (self._o.state.config and sender_id == self._o.state.config.storyteller_client_id)
+        is_storyteller = sender_id in ["h1", "storyteller", "admin"] or (
+            self._o.state.config and sender_id == self._o.state.config.storyteller_client_id
+        )
 
         if not sender and not is_storyteller:
             return
 
-        current_phase = self._o.state.phase if self._o.state.phase != GamePhase.SETUP else self._o.phase_manager.current_phase
-        private_window_open = current_phase in {GamePhase.FIRST_NIGHT, GamePhase.NIGHT, GamePhase.DAY_DISCUSSION}
+        current_phase = (
+            self._o.state.phase
+            if self._o.state.phase != GamePhase.SETUP
+            else self._o.phase_manager.current_phase
+        )
+        private_window_open = current_phase in {
+            GamePhase.FIRST_NIGHT,
+            GamePhase.NIGHT,
+            GamePhase.DAY_DISCUSSION,
+        }
 
         can_use_evil_chat = False
-        if is_private and private_window_open and sender and (sender.current_team or sender.team) == Team.EVIL:
+        if (
+            is_private
+            and private_window_open
+            and sender
+            and (sender.current_team or sender.team) == Team.EVIL
+        ):
             if current_phase == GamePhase.DAY_DISCUSSION:
                 # Enforce whisper budget during day
                 day = self._o.state.day_number or 1
@@ -273,20 +325,32 @@ class DayDiscussionHandler:
                 can_use_evil_chat = True
 
         visibility = Visibility.TEAM_EVIL if can_use_evil_chat else Visibility.PUBLIC
-        recipient_ids = tuple(p.player_id for p in self._o.state.players if (p.current_team or p.team) == Team.EVIL) if visibility == Visibility.TEAM_EVIL else None
-        self._o.state = self._o.state.with_message(ChatMessage(
-            speaker=sender_id,
-            content=content,
-            phase=current_phase,
-            round_number=self._o.state.round_number or self._o.phase_manager.round_number,
-            recipient_ids=recipient_ids,
-        ))
-        await self._o._publish_event(GameEvent(
-            event_type="player_speaks",
-            phase=current_phase,
-            round_number=self._o.state.round_number or self._o.phase_manager.round_number,
-            trace_id=self._o._make_trace_id("BOTC-FLOW-CHAT"),
-            actor=sender_id,
-            visibility=visibility,
-            payload={"content": content, "is_private": can_use_evil_chat},
-        ))
+        recipient_ids = (
+            tuple(
+                p.player_id
+                for p in self._o.state.players
+                if (p.current_team or p.team) == Team.EVIL
+            )
+            if visibility == Visibility.TEAM_EVIL
+            else None
+        )
+        self._o.state = self._o.state.with_message(
+            ChatMessage(
+                speaker=sender_id,
+                content=content,
+                phase=current_phase,
+                round_number=self._o.state.round_number or self._o.phase_manager.round_number,
+                recipient_ids=recipient_ids,
+            )
+        )
+        await self._o._publish_event(
+            GameEvent(
+                event_type="player_speaks",
+                phase=current_phase,
+                round_number=self._o.state.round_number or self._o.phase_manager.round_number,
+                trace_id=self._o._make_trace_id("BOTC-FLOW-CHAT"),
+                actor=sender_id,
+                visibility=visibility,
+                payload={"content": content, "is_private": can_use_evil_chat},
+            )
+        )

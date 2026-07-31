@@ -86,26 +86,62 @@ async def run_multi_round_execution_scenario() -> None:
     )
     orch = GameOrchestrator(state)
     orch.storyteller_agent = DummyStoryteller()
-    orch.register_agent(ScriptedAgent("p1", "One", {
-        "nomination_intent": [{"action": "nominate", "target": "p3"}, {"action": "none"}],
-        "vote": [{"action": "vote", "decision": True}, {"action": "vote", "decision": True}],
-        "defense_speech": [{"action": "defense_speech", "content": "No comment."}],
-    }))
-    orch.register_agent(ScriptedAgent("p2", "Two", {
-        "nomination_intent": [{"action": "none"}, {"action": "nominate", "target": "p4"}],
-        "vote": [{"action": "vote", "decision": False}, {"action": "vote", "decision": True}],
-        "defense_speech": [{"action": "defense_speech", "content": "Second round."}],
-    }))
-    orch.register_agent(ScriptedAgent("p3", "Three", {
-        "nomination_intent": [{"action": "none"}, {"action": "none"}],
-        "vote": [{"action": "vote", "decision": True}, {"action": "vote", "decision": False}],
-        "defense_speech": [{"action": "defense_speech", "content": "I am innocent."}],
-    }))
-    orch.register_agent(ScriptedAgent("p4", "Four", {
-        "nomination_intent": [{"action": "none"}, {"action": "none"}],
-        "vote": [{"action": "vote", "decision": False}, {"action": "vote", "decision": True}],
-        "defense_speech": [{"action": "defense_speech", "content": "Please spare me."}],
-    }))
+    orch.register_agent(
+        ScriptedAgent(
+            "p1",
+            "One",
+            {
+                "nomination_intent": [{"action": "nominate", "target": "p3"}, {"action": "none"}],
+                "vote": [
+                    {"action": "vote", "decision": True},
+                    {"action": "vote", "decision": True},
+                ],
+                "defense_speech": [{"action": "defense_speech", "content": "No comment."}],
+            },
+        )
+    )
+    orch.register_agent(
+        ScriptedAgent(
+            "p2",
+            "Two",
+            {
+                "nomination_intent": [{"action": "none"}, {"action": "nominate", "target": "p4"}],
+                "vote": [
+                    {"action": "vote", "decision": False},
+                    {"action": "vote", "decision": True},
+                ],
+                "defense_speech": [{"action": "defense_speech", "content": "Second round."}],
+            },
+        )
+    )
+    orch.register_agent(
+        ScriptedAgent(
+            "p3",
+            "Three",
+            {
+                "nomination_intent": [{"action": "none"}, {"action": "none"}],
+                "vote": [
+                    {"action": "vote", "decision": True},
+                    {"action": "vote", "decision": False},
+                ],
+                "defense_speech": [{"action": "defense_speech", "content": "I am innocent."}],
+            },
+        )
+    )
+    orch.register_agent(
+        ScriptedAgent(
+            "p4",
+            "Four",
+            {
+                "nomination_intent": [{"action": "none"}, {"action": "none"}],
+                "vote": [
+                    {"action": "vote", "decision": False},
+                    {"action": "vote", "decision": True},
+                ],
+                "defense_speech": [{"action": "defense_speech", "content": "Please spare me."}],
+            },
+        )
+    )
 
     await orch._run_nomination_phase()
 

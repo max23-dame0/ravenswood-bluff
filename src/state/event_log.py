@@ -31,7 +31,8 @@ class EventLog:
     def get_events_for_team(self, team: str) -> list[GameEvent]:
         """获取某个阵营可见的事件"""
         return [
-            e for e in self._events
+            e
+            for e in self._events
             if e.visibility in (Visibility.PUBLIC, Visibility.TEAM_EVIL)
             and (team == "evil" or e.visibility == Visibility.PUBLIC)
         ]
@@ -39,7 +40,8 @@ class EventLog:
     def get_private_events(self, player_id: str) -> list[GameEvent]:
         """获取某个玩家可见的所有事件（公开 + 私人）"""
         return [
-            e for e in self._events
+            e
+            for e in self._events
             if e.visibility == Visibility.PUBLIC
             or (e.visibility == Visibility.PRIVATE and e.actor == player_id)
             or (e.visibility == Visibility.PRIVATE and e.target == player_id)

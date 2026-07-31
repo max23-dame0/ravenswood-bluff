@@ -59,7 +59,9 @@ class InformationBroker:
             ghost_votes_remaining=player.ghost_votes_remaining,
         )
 
-    def _is_event_visible_to_player(self, player_id: str, event: GameEvent, game_state: GameState) -> bool:
+    def _is_event_visible_to_player(
+        self, player_id: str, event: GameEvent, game_state: GameState
+    ) -> bool:
         player = game_state.get_player(player_id)
         if not player:
             return False
@@ -106,16 +108,21 @@ class InformationBroker:
             ),
             current_nominee=game_state.current_nominee,
             current_nominator=game_state.current_nominator,
-            seat_order=game_state.seat_order or tuple(player.player_id for player in game_state.players),
+            seat_order=game_state.seat_order
+            or tuple(player.player_id for player in game_state.players),
             nominations_today=game_state.nominations_today,
             nominees_today=game_state.nominees_today,
             yes_votes=sum(1 for vote in game_state.votes_today.values() if vote is True),
             voted_player_ids=tuple(game_state.votes_today.keys()),
             public_chat_history=tuple(
-                message for message in game_state.chat_history if self._is_chat_visible_to_player(player_id, message)
+                message
+                for message in game_state.chat_history
+                if self._is_chat_visible_to_player(player_id, message)
             ),
             visible_event_log=tuple(
-                event for event in game_state.event_log if self._is_event_visible_to_player(player_id, event, game_state)
+                event
+                for event in game_state.event_log
+                if self._is_event_visible_to_player(player_id, event, game_state)
             ),
         )
 
@@ -133,7 +140,7 @@ class InformationBroker:
             allowed, _ = RuleEngine.can_nominate(game_state, player_id, candidate.player_id)
             if allowed:
                 nomination_targets.append(candidate.player_id)
-        
+
         # 始终为人类玩家展示“不提名”选项（只要该角色有提名权限）
         if nomination_targets:
             nomination_targets.append("not_nominating")
@@ -143,7 +150,11 @@ class InformationBroker:
             if player.player_id != player_id
         ]
         voters_so_far = set(game_state.votes_today.keys())
-        seat_order = visible_state.seat_order if visible_state else (game_state.seat_order or tuple(p.player_id for p in game_state.players))
+        seat_order = (
+            visible_state.seat_order
+            if visible_state
+            else (game_state.seat_order or tuple(p.player_id for p in game_state.players))
+        )
         remaining_voters = [pid for pid in seat_order if pid not in voters_so_far]
 
         # 动态获取角色行动要求
@@ -152,6 +163,7 @@ class InformationBroker:
         can_slayer_shot = False
         from src.engine.roles.base_role import get_role_class
         from src.engine.roles.townsfolk import SlayerRole
+
         player = game_state.get_player(player_id)
         if player:
             role_cls = get_role_class(player.role_id)
@@ -159,7 +171,7 @@ class InformationBroker:
                 role_instance = role_cls()
                 required_targets = role_instance.get_required_targets(game_state, game_state.phase)
                 can_target_self = role_instance.can_target_self()
-                
+
                 # Slayer 特殊处理
                 if player.role_id == "slayer":
                     if game_state.phase in (GamePhase.DAY_DISCUSSION, GamePhase.NOMINATION):
@@ -180,34 +192,41 @@ class InformationBroker:
         """根据事件可见性路由到对应的 Agent"""
         config = game_state.config
         st_id = config.storyteller_client_id if config else None
-        
+
         # 2. 基础分发逻辑
         recipients = set()
-        
+
         if event.visibility == Visibility.PUBLIC:
             recipients.update(self.agents.keys())
-                
+
         elif event.visibility == Visibility.STORYTELLER_ONLY:
             # 只有当事人或说书人知道
-            if event.actor: recipients.add(event.actor)
-            if event.target: recipients.add(event.target)
+            if event.actor:
+                recipients.add(event.actor)
+            if event.target:
+                recipients.add(event.target)
             if st_id:
                 recipients.add(st_id)
 
         elif event.visibility == Visibility.PRIVATE:
             # 仅当事人/目标知道，说书人也要知道
-            if event.target: recipients.add(event.target)
+            if event.target:
+                recipients.add(event.target)
             if st_id:
                 recipients.add(st_id)
 
         elif event.visibility == Visibility.TEAM_EVIL:
-            evil_player_ids = {p.player_id for p in game_state.players if (p.current_team or p.team) == Team.EVIL}
+            evil_player_ids = {
+                p.player_id for p in game_state.players if (p.current_team or p.team) == Team.EVIL
+            }
             recipients.update(evil_player_ids)
             if st_id:
                 recipients.add(st_id)
 
         elif event.visibility == Visibility.TEAM_GOOD:
-            good_player_ids = {p.player_id for p in game_state.players if (p.current_team or p.team) == Team.GOOD}
+            good_player_ids = {
+                p.player_id for p in game_state.players if (p.current_team or p.team) == Team.GOOD
+            }
             recipients.update(good_player_ids)
             if st_id:
                 recipients.add(st_id)

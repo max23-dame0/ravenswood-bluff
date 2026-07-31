@@ -179,10 +179,14 @@ async def _fallback_probe_metrics() -> dict[str, Any]:
         "fallback_count": len(fallback_records),
         "fallback_rate": round(len(fallback_records) / (len(records) or 1), 3),
         "fallback_by_action_type": {
-            action_type: sum(1 for record in fallback_records if record.get("action_type") == action_type)
+            action_type: sum(
+                1 for record in fallback_records if record.get("action_type") == action_type
+            )
             for action_type in sorted({str(record.get("action_type")) for record in records})
         },
-        "fallback_reasons": sorted({str(record.get("fallback_reason")) for record in fallback_records}),
+        "fallback_reasons": sorted(
+            {str(record.get("fallback_reason")) for record in fallback_records}
+        ),
     }
 
 

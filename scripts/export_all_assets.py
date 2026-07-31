@@ -21,7 +21,9 @@ from src.state.game_record import GameRecordStore
 
 def _write_json(path: Path, payload: Any) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(payload, ensure_ascii=False, indent=2, default=str), encoding="utf-8")
+    path.write_text(
+        json.dumps(payload, ensure_ascii=False, indent=2, default=str), encoding="utf-8"
+    )
 
 
 def _read_log_tail(path: Path, max_lines: int) -> dict[str, Any]:
@@ -62,8 +64,10 @@ def _build_metrics_summary(
         "game_id": game_id,
         "has_game_history": bool(game_history),
         "winning_team": (game_history or {}).get("winning_team") or settlement.get("winning_team"),
-        "victory_reason": (game_history or {}).get("victory_reason") or settlement.get("victory_reason"),
-        "player_count": (game_history or {}).get("player_count") or settlement.get("statistics", {}).get("player_count"),
+        "victory_reason": (game_history or {}).get("victory_reason")
+        or settlement.get("victory_reason"),
+        "player_count": (game_history or {}).get("player_count")
+        or settlement.get("statistics", {}).get("player_count"),
         "round_count": (game_history or {}).get("round_count") or settlement.get("duration_rounds"),
         "ai_trace_stats": trace_stats,
         "storyteller_judgement_count": judgement_count,

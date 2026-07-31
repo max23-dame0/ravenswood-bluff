@@ -23,7 +23,12 @@ from src.agents.memory.vector_memory import VectorMemory
 from src.agents.persona_registry import ARCHETYPES, Archetype, get_archetype
 from src.agents.difficulty_presets import DifficultyPreset, get_preset
 from src.agents.decision_noise import DecisionNoise
-from src.content.trouble_brewing_terms import TROUBLE_BREWING_ROLE_TERMS, get_role_description, get_role_name, get_role_persona_hint
+from src.content.trouble_brewing_terms import (
+    TROUBLE_BREWING_ROLE_TERMS,
+    get_role_description,
+    get_role_name,
+    get_role_persona_hint,
+)
 from src.llm.base_backend import LLMBackend
 from src.state.game_state import (
     AgentActionLegalContext,
@@ -86,14 +91,14 @@ class AIAgent(BaseAgent):
         self._fact_limit = max(15, int(player_count * 2))
         # 3. 反思阈值：积累到多少条观察后触发一次蒸馏
         self._reflection_threshold = max(30, int(player_count * 5))
-        
+
         # 记忆模块
         self.working_memory = WorkingMemory(
             observation_limit=self._obs_limit,
             fact_limit=self._fact_limit,
             internal_thought_limit=5,
             impression_limit=max(5, int(player_count / 2)),
-            storage_limit=max(40, int(player_count * 4))
+            storage_limit=max(40, int(player_count * 4)),
         )
         self.episodic_memory = EpisodicMemory()
         embedding_dimension = int(os.getenv("EMBEDDING_DIMENSION", "1536"))
@@ -103,7 +108,7 @@ class AIAgent(BaseAgent):
             note_limit=max(30, int(player_count * 3)),
             claim_limit=max(20, int(player_count * 2)),
             summary_note_limit=6,
-            summary_claim_limit=5
+            summary_claim_limit=5,
         )
         self._last_retrieval_query: str = ""
         self._last_retrieval_items: list[dict[str, Any]] = []
@@ -137,7 +142,11 @@ class AIAgent(BaseAgent):
             except ValueError:
                 pass
         preset_budget_ms = self.difficulty_preset.latency_budget.get(action_type)
-        base = (preset_budget_ms / 1000.0) if preset_budget_ms else self.ACTION_BUDGET.get(action_type, self._DEFAULT_BUDGET)
+        base = (
+            (preset_budget_ms / 1000.0)
+            if preset_budget_ms
+            else self.ACTION_BUDGET.get(action_type, self._DEFAULT_BUDGET)
+        )
         if self._backend_speed_profile in {"live", "live_slow"}:
             live_minimums = {
                 "vote": 20.0,
@@ -153,10 +162,18 @@ class AIAgent(BaseAgent):
                 "speak": 420.0,
                 "defense_speech": 420.0,
             }
-            minimums = slow_minimums if self._backend_speed_profile == "live_slow" else live_minimums
+            minimums = (
+                slow_minimums if self._backend_speed_profile == "live_slow" else live_minimums
+            )
             base = max(base, minimums.get(action_type, base))
         # Adaptive scaling: tighter budgets for larger games, but do not squeeze live LLM actions.
-        if self._backend_speed_profile in {"live", "live_slow"} and action_type in {"vote", "nomination_intent", "night_action", "speak", "defense_speech"}:
+        if self._backend_speed_profile in {"live", "live_slow"} and action_type in {
+            "vote",
+            "nomination_intent",
+            "night_action",
+            "speak",
+            "defense_speech",
+        }:
             return base
         if self._speed_profile == "extreme":
             return max(0.5, base * 0.7)
@@ -178,7 +195,10 @@ class AIAgent(BaseAgent):
             model_name = ""
         if "mock" in backend_name or "stub" in backend_name or "dummy" in backend_name:
             return "mock"
-        if "openai_backend" in module_name or os.getenv("BOTC_BACKEND", "").lower() in {"live", "auto"}:
+        if "openai_backend" in module_name or os.getenv("BOTC_BACKEND", "").lower() in {
+            "live",
+            "auto",
+        }:
             if any(marker in model_name for marker in ("flash", "fast", "mini", "turbo")):
                 return "live"
             return "live_slow"
@@ -187,7 +207,10 @@ class AIAgent(BaseAgent):
     def _should_wait_without_game_timeout(self, action_type: str) -> bool:
         if os.getenv("AI_FORCE_GAME_TIMEOUTS", "0") == "1":
             return False
-        return action_type in {"speak", "defense_speech"} and self._backend_speed_profile in {"live", "live_slow"}
+        return action_type in {"speak", "defense_speech"} and self._backend_speed_profile in {
+            "live",
+            "live_slow",
+        }
 
     def _record_action_metric(
         self,
@@ -206,7 +229,9 @@ class AIAgent(BaseAgent):
             "game_id": visible_state.game_id,
             "player_id": self.player_id,
             "role_id": self.role_id or self.perceived_role_id or "unknown",
-            "phase": visible_state.phase.value if hasattr(visible_state.phase, "value") else str(visible_state.phase),
+            "phase": visible_state.phase.value
+            if hasattr(visible_state.phase, "value")
+            else str(visible_state.phase),
             "day_number": visible_state.day_number,
             "round_number": visible_state.round_number,
             "action_type": action_type,
@@ -219,7 +244,9 @@ class AIAgent(BaseAgent):
             "fallback_reason": fallback_reason,
             "timeout_budget_ms": int(self._action_timeout_seconds(action_type) * 1000),
             "backend_speed_profile": self._backend_speed_profile,
-            "budget_source": "env_override" if os.getenv("AI_ACTION_TIMEOUT_SECONDS") else "difficulty_preset",
+            "budget_source": "env_override"
+            if os.getenv("AI_ACTION_TIMEOUT_SECONDS")
+            else "difficulty_preset",
         }
         metric.update(extra)
         self.action_metrics.append(metric)
@@ -340,7 +367,9 @@ class AIAgent(BaseAgent):
     def _remember_critical_event(self, event: GameEvent, visible_state: AgentVisibleState) -> None:
         return self._event_observer.remember_critical_event(event, visible_state)
 
-    def _store_private_info_memory(self, info_type: str, summary: str, visible_state: AgentVisibleState) -> None:
+    def _store_private_info_memory(
+        self, info_type: str, summary: str, visible_state: AgentVisibleState
+    ) -> None:
         return self._event_observer.store_private_info_memory(info_type, summary, visible_state)
 
     def _extract_role_ids_from_text(self, text: str) -> list[str]:
@@ -362,13 +391,17 @@ class AIAgent(BaseAgent):
         except Exception:
             return None
 
-    def _store_targeted_private_hints(self, info_type: str, payload: dict[str, Any], visible_state: AgentVisibleState) -> None:
+    def _store_targeted_private_hints(
+        self, info_type: str, payload: dict[str, Any], visible_state: AgentVisibleState
+    ) -> None:
         return self._event_observer.store_targeted_private_hints(info_type, payload, visible_state)
 
     def _get_evil_strategic_summary(self, visible_state: AgentVisibleState) -> str:
         return self._evil_strategy.get_evil_strategic_summary(visible_state)
 
-    def _build_persona_prompt_block(self, action_type: str, visible_state: Optional[AgentVisibleState] = None) -> str:
+    def _build_persona_prompt_block(
+        self, action_type: str, visible_state: Optional[AgentVisibleState] = None
+    ) -> str:
         return self._prompt_factory.build_persona_prompt_block(action_type, visible_state)
 
     async def _reflect(self, visible_state: AgentVisibleState) -> None:
@@ -400,7 +433,10 @@ class AIAgent(BaseAgent):
         # W3-C: 检查记忆深度，必要时触发反思 (针对大局人数动态缩放)
         # refinement_mode 时跳过反思 — 草稿已经生成过，直接用
         refinement_mode = kwargs.get("refinement_mode", False)
-        if not refinement_mode and len(self.working_memory.observations) > self._reflection_threshold:
+        if (
+            not refinement_mode
+            and len(self.working_memory.observations) > self._reflection_threshold
+        ):
             await self._reflect(visible_state)
 
         legal_context = legal_context or AgentActionLegalContext()
@@ -423,7 +459,12 @@ class AIAgent(BaseAgent):
             if slayer_target:
                 target_id, suspicion = slayer_target
                 target_name = self._player_name_from_visible_state(target_id, visible_state)
-                logger.info("[%s] 主动决定发动猎手技能: target=%s suspicion=%.2f", self.name, target_id, suspicion)
+                logger.info(
+                    "[%s] 主动决定发动猎手技能: target=%s suspicion=%.2f",
+                    self.name,
+                    target_id,
+                    suspicion,
+                )
                 self._record_action_metric(
                     visible_state,
                     "slayer_shot",
@@ -435,7 +476,7 @@ class AIAgent(BaseAgent):
                     "target": target_id,
                     "reasoning": f"我是猎手，当前对 {target_name} 的恶魔怀疑度极高（{suspicion:.2f}），决定白天主动开枪。",
                 }
-        
+
         # W3-C: 语义记忆检索 (Task B)
         # refinement_mode 时跳过向量检索 — 省掉 embedding API 调用
         search_query = f"{action_type} {kwargs.get('target', '')}"
@@ -447,7 +488,9 @@ class AIAgent(BaseAgent):
         self._last_retrieval_items = list(retrieved_items)
         retrieved_text = ""
         if retrieved_items:
-            retrieved_text = "\n【相关的历史记忆回溯】\n" + "\n".join([f"- {it['text']}" for it in retrieved_items])
+            retrieved_text = "\n【相关的历史记忆回溯】\n" + "\n".join(
+                [f"- {it['text']}" for it in retrieved_items]
+            )
 
         # W3-C/A3-MEM-3: 严格按 MemoryTier 分块提取记忆
         objective_memories = self.working_memory.get_objective_memory_summaries()
@@ -461,19 +504,34 @@ class AIAgent(BaseAgent):
 
         tier_text_blocks = []
         if objective_memories:
-            tier_text_blocks.append("【绝对客观事实 (OBJECTIVE - 100%可信)】\n" + "\n".join([f"- {m}" for m in objective_memories]))
+            tier_text_blocks.append(
+                "【绝对客观事实 (OBJECTIVE - 100%可信)】\n"
+                + "\n".join([f"- {m}" for m in objective_memories])
+            )
         if high_confidence_memories:
-            tier_text_blocks.append("【高可信度线索 (HIGH_CONFIDENCE - 夜晚结果或私密信息)】\n" + "\n".join([f"- {m}" for m in high_confidence_memories]))
+            tier_text_blocks.append(
+                "【高可信度线索 (HIGH_CONFIDENCE - 夜晚结果或私密信息)】\n"
+                + "\n".join([f"- {m}" for m in high_confidence_memories])
+            )
         if public_memories:
             # 去重：过滤掉与社交图谱自报身份重复的公开记忆
             graph_claims = set()
             for pid, prof in self.social_graph.profiles.items():
                 if prof.current_self_claim:
-                    graph_claims.add(f"{prof.name} 公开跳身份为 {get_role_name(prof.current_self_claim)}")
-            filtered_public = [m for m in public_memories if m not in graph_claims] if graph_claims else public_memories
+                    graph_claims.add(
+                        f"{prof.name} 公开跳身份为 {get_role_name(prof.current_self_claim)}"
+                    )
+            filtered_public = (
+                [m for m in public_memories if m not in graph_claims]
+                if graph_claims
+                else public_memories
+            )
             # 限制公开记忆的条数避免刷屏
-            tier_text_blocks.append("【公开讨论与声明 (PUBLIC - 可能存在欺骗与伪装)】\n" + "\n".join([f"- {m}" for m in filtered_public[-15:]]))
-        
+            tier_text_blocks.append(
+                "【公开讨论与声明 (PUBLIC - 可能存在欺骗与伪装)】\n"
+                + "\n".join([f"- {m}" for m in filtered_public[-15:]])
+            )
+
         tiered_memory_text = "\n\n".join(tier_text_blocks)
         episodic_text = self.episodic_memory.get_summary(max_episodes=8)
         social_text = self.social_graph.get_graph_summary()
@@ -539,9 +597,15 @@ class AIAgent(BaseAgent):
         self._pending_fallback_reason = None
         try:
             from src.llm.base_backend import Message
+
             backend_call = self.backend.generate(
                 system_prompt=system_prompt,
-                messages=[Message(role="user", content=f"请只返回适用于动作 `{action_type}` 的 JSON 决策，不要输出任何额外说明。")],
+                messages=[
+                    Message(
+                        role="user",
+                        content=f"请只返回适用于动作 `{action_type}` 的 JSON 决策，不要输出任何额外说明。",
+                    )
+                ],
                 temperature=self.difficulty_preset.temperature,
             )
             if self._should_wait_without_game_timeout(action_type):
@@ -555,7 +619,7 @@ class AIAgent(BaseAgent):
             decision = self._parse_llm_decision_json(response_text)
             decision = self._normalize_decision(visible_state, legal_context, action_type, decision)
             fallback_reason = self._pending_fallback_reason
-            
+
             # 记录到数据仓库 (Task C)
             if self.data_collector:
                 thought = decision.get("reasoning", "")
@@ -566,10 +630,14 @@ class AIAgent(BaseAgent):
                     round_number=visible_state.round_number,
                     thought=thought,
                     action=decision,
-                    context={"retrieved_text_len": len(retrieved_text) if 'retrieved_text' in locals() else 0},
-                    usage=response.usage
+                    context={
+                        "retrieved_text_len": len(retrieved_text)
+                        if "retrieved_text" in locals()
+                        else 0
+                    },
+                    usage=response.usage,
                 )
-                
+
             if "reasoning" in decision:
                 logger.info(f"[{self.name}] 内部思考: {decision['reasoning']}")
             self._record_action_metric(
@@ -642,7 +710,9 @@ class AIAgent(BaseAgent):
                 )
             else:
                 logger.error("[%s] LLM 调用失败: reason=%s error=%r", self.name, reason, e)
-            decision = self._fallback_decision(visible_state, legal_context, action_type, reason=reason)
+            decision = self._fallback_decision(
+                visible_state, legal_context, action_type, reason=reason
+            )
             self._record_action_metric(
                 visible_state,
                 action_type,
@@ -682,11 +752,17 @@ class AIAgent(BaseAgent):
 
         tier_text_blocks = []
         if objective_memories:
-            tier_text_blocks.append("【绝对客观事实】\n" + "\n".join([f"- {m}" for m in objective_memories]))
+            tier_text_blocks.append(
+                "【绝对客观事实】\n" + "\n".join([f"- {m}" for m in objective_memories])
+            )
         if high_confidence_memories:
-            tier_text_blocks.append("【高可信度线索】\n" + "\n".join([f"- {m}" for m in high_confidence_memories]))
+            tier_text_blocks.append(
+                "【高可信度线索】\n" + "\n".join([f"- {m}" for m in high_confidence_memories])
+            )
         if public_memories:
-            tier_text_blocks.append("【公开讨论与声明】\n" + "\n".join([f"- {m}" for m in public_memories[-10:]]))
+            tier_text_blocks.append(
+                "【公开讨论与声明】\n" + "\n".join([f"- {m}" for m in public_memories[-10:]])
+            )
 
         tiered_memory_text = "\n\n".join(tier_text_blocks) if tier_text_blocks else "暂无记忆。"
         social_text = self.social_graph.get_graph_summary()
@@ -730,6 +806,7 @@ class AIAgent(BaseAgent):
 
         try:
             from src.llm.base_backend import Message
+
             response = await asyncio.wait_for(
                 self.backend.generate(
                     system_prompt=system_prompt,
@@ -765,8 +842,15 @@ class AIAgent(BaseAgent):
             return False
         return action_type in {"nomination_intent", "vote"}
 
-    def _local_low_value_decision(self, visible_state: AgentVisibleState, legal_context: AgentActionLegalContext, action_type: str) -> dict[str, Any]:
-        return self._decision_engine.local_low_value_decision(visible_state, legal_context, action_type)
+    def _local_low_value_decision(
+        self,
+        visible_state: AgentVisibleState,
+        legal_context: AgentActionLegalContext,
+        action_type: str,
+    ) -> dict[str, Any]:
+        return self._decision_engine.local_low_value_decision(
+            visible_state, legal_context, action_type
+        )
 
     async def think(self, prompt: str, visible_state: AgentVisibleState) -> str:
         return await self._memory_controller.think(prompt, visible_state)
@@ -777,7 +861,9 @@ class AIAgent(BaseAgent):
     def build_data_snapshot_summary(self) -> dict[str, Any]:
         return self._memory_controller.build_data_snapshot_summary()
 
-    def _player_name_from_visible_state(self, player_id: str | None, visible_state: AgentVisibleState) -> str:
+    def _player_name_from_visible_state(
+        self, player_id: str | None, visible_state: AgentVisibleState
+    ) -> str:
         if not player_id:
             return "某个目标"
         if visible_state.self_view and player_id == visible_state.self_view.player_id:
@@ -793,10 +879,17 @@ class AIAgent(BaseAgent):
     def _iter_role_terms(self) -> list[tuple[str, str, str]]:
         return self._event_observer._iter_role_terms()
 
-    def _extract_role_statements(self, content: str, speaker_id: str, visible_state: AgentVisibleState) -> list[ParsedRoleStatement]:
+    def _extract_role_statements(
+        self, content: str, speaker_id: str, visible_state: AgentVisibleState
+    ) -> list[ParsedRoleStatement]:
         return self._event_observer.extract_role_statements(content, speaker_id, visible_state)
 
-    def _build_action_context(self, visible_state: AgentVisibleState, legal_context: AgentActionLegalContext, action_type: str) -> str:
+    def _build_action_context(
+        self,
+        visible_state: AgentVisibleState,
+        legal_context: AgentActionLegalContext,
+        action_type: str,
+    ) -> str:
         return self._prompt_factory.build_action_context(visible_state, legal_context, action_type)
 
     def _build_memory_signal_brief(self, visible_state: AgentVisibleState) -> str:
@@ -815,7 +908,9 @@ class AIAgent(BaseAgent):
         me = visible_state.self_view
         if not me or me.perceived_role_id != "empath":
             return ()
-        seat_order = list(visible_state.seat_order or tuple(player.player_id for player in visible_state.players))
+        seat_order = list(
+            visible_state.seat_order or tuple(player.player_id for player in visible_state.players)
+        )
         if me.player_id not in seat_order:
             return ()
         alive_lookup = {player.player_id: player.is_alive for player in visible_state.players}
@@ -848,9 +943,14 @@ class AIAgent(BaseAgent):
         if not summaries:
             return ""
         latest = summaries[-1]
-        neighbor_names = [self._player_name_from_visible_state(pid, visible_state) for pid in self._empath_neighbor_ids(visible_state)]
+        neighbor_names = [
+            self._player_name_from_visible_state(pid, visible_state)
+            for pid in self._empath_neighbor_ids(visible_state)
+        ]
         if neighbor_names:
-            return f"作为共情者，你当前活着的邻座是：{', '.join(neighbor_names)}。最近结果：{latest}"
+            return (
+                f"作为共情者，你当前活着的邻座是：{', '.join(neighbor_names)}。最近结果：{latest}"
+            )
         return f"作为共情者，你最近的结果是：{latest}"
 
     def _chef_signal_summary(self) -> str:
@@ -873,7 +973,9 @@ class AIAgent(BaseAgent):
                     return None
         return None
 
-    def _build_legal_action_context(self, game_state: GameState, visible_state: AgentVisibleState) -> AgentActionLegalContext:
+    def _build_legal_action_context(
+        self, game_state: GameState, visible_state: AgentVisibleState
+    ) -> AgentActionLegalContext:
         from src.engine.rule_engine import RuleEngine
         from src.engine.roles.base_role import get_role_class
 
@@ -891,7 +993,9 @@ class AIAgent(BaseAgent):
             if player.player_id != self.player_id
         ]
         voters_so_far = set(game_state.votes_today.keys())
-        seat_order = visible_state.seat_order or tuple(player.player_id for player in visible_state.players)
+        seat_order = visible_state.seat_order or tuple(
+            player.player_id for player in visible_state.players
+        )
         remaining_voters = [pid for pid in seat_order if pid not in voters_so_far]
         required_targets = 1
         can_target_self = False
@@ -901,7 +1005,10 @@ class AIAgent(BaseAgent):
             if role_cls:
                 role_instance = role_cls()
                 try:
-                    required_targets = max(0, int(role_instance.get_required_targets(game_state, game_state.phase) or 0))
+                    required_targets = max(
+                        0,
+                        int(role_instance.get_required_targets(game_state, game_state.phase) or 0),
+                    )
                 except Exception:
                     required_targets = 1
                 try:
@@ -944,7 +1051,9 @@ class AIAgent(BaseAgent):
             phase=game_state.phase,
             round_number=game_state.round_number,
             day_number=game_state.day_number,
-            self_view=self.private_view if isinstance(self.private_view, PrivatePlayerView) else None,
+            self_view=self.private_view
+            if isinstance(self.private_view, PrivatePlayerView)
+            else None,
             players=tuple(
                 VisiblePlayerInfo(
                     player_id=player.player_id,
@@ -955,13 +1064,16 @@ class AIAgent(BaseAgent):
             ),
             current_nominee=game_state.current_nominee,
             current_nominator=game_state.current_nominator,
-            seat_order=game_state.seat_order or tuple(player.player_id for player in game_state.players),
+            seat_order=game_state.seat_order
+            or tuple(player.player_id for player in game_state.players),
             nominations_today=game_state.nominations_today,
             nominees_today=game_state.nominees_today,
             yes_votes=sum(1 for vote in game_state.votes_today.values() if vote is True),
             voted_player_ids=tuple(game_state.votes_today.keys()),
             public_chat_history=tuple(
-                message for message in game_state.chat_history if self._is_chat_visible_to_self(message)
+                message
+                for message in game_state.chat_history
+                if self._is_chat_visible_to_self(message)
             ),
             visible_event_log=tuple(
                 event for event in game_state.event_log if self._is_event_visible_to_self(event)
@@ -971,74 +1083,84 @@ class AIAgent(BaseAgent):
     def _json_schema_for_action(self, action_type: str) -> str:
         schemas = {
             "speak": (
-                '{\n'
+                "{\n"
                 '  "action": "speak",\n'
                 '  "content": "你的中文发言内容",\n'
                 '  "tone": "calm/passionate/accusatory/defensive",\n'
                 '  "reasoning": "你的内部推理（不公开）",\n'
                 f'  "extracted_claims": [ // 可选：声明身份时提取，格式如 {{"role_id": "mayor", "claim_type": "self_claim", "subject_player_ids": ["{self.player_id}"]}}'
-                '\n  ]\n'
-                '}'
+                "\n  ]\n"
+                "}"
             ),
             "defense_speech": (
-                '{\n'
+                "{\n"
                 '  "action": "speak",\n'
                 '  "content": "你的辩解内容",\n'
                 '  "tone": "calm/passionate/defensive",\n'
                 '  "reasoning": "你的内部推理（不公开）"\n'
-                '}'
+                "}"
             ),
             "vote": (
-                '{\n'
+                "{\n"
                 '  "action": "vote",\n'
                 '  "decision": true/false,\n'
                 '  "reasoning": "你的内部推理（不公开）"\n'
-                '}'
+                "}"
             ),
             "nominate": (
-                '{\n'
+                "{\n"
                 '  "action": "nominate/none",\n'
                 '  "target": "player_id",\n'
                 '  "reasoning": "你的内部推理（不公开）"\n'
-                '}'
+                "}"
             ),
             "nomination_intent": (
-                '{\n'
+                "{\n"
                 '  "action": "nominate/none",\n'
                 '  "target": "player_id",\n'
                 '  "reasoning": "你的内部推理（不公开）"\n'
-                '}'
+                "}"
             ),
             "night_action": (
-                '{\n'
+                "{\n"
                 '  "action": "night_action",\n'
                 '  "target": "player_id 或 [id1, id2]",\n'
                 '  "reasoning": "你的内部推理（不公开）"\n'
-                '}'
+                "}"
             ),
             "slayer_shot": (
-                '{\n'
+                "{\n"
                 '  "action": "slayer_shot",\n'
                 '  "target": "player_id",\n'
                 '  "reasoning": "你的内部推理（不公开）"\n'
-                '}'
+                "}"
             ),
         }
-        return schemas.get(action_type, (
-            '{\n'
-            '  "action": "speak/nominate/vote/night_action/slayer_shot/skip_discussion/none",\n'
-            '  "content": "发言内容（仅 speak 时）",\n'
-            '  "target": "player_id（提名/射击时）",\n'
-            '  "decision": true/false（仅 vote 时）,\n'
-            '  "reasoning": "你的内部推理（不公开）"\n'
-            '}'
-        ))
+        return schemas.get(
+            action_type,
+            (
+                "{\n"
+                '  "action": "speak/nominate/vote/night_action/slayer_shot/skip_discussion/none",\n'
+                '  "content": "发言内容（仅 speak 时）",\n'
+                '  "target": "player_id（提名/射击时）",\n'
+                '  "decision": true/false（仅 vote 时）,\n'
+                '  "reasoning": "你的内部推理（不公开）"\n'
+                "}"
+            ),
+        )
 
     def _build_visible_state_summary(self, visible_state: AgentVisibleState) -> str:
         return self._prompt_factory.build_visible_state_summary(visible_state)
 
-    async def build_evil_night_coordination_message(self, action: dict[str, Any], visible_state: AgentVisibleState, legal_context: AgentActionLegalContext | None = None) -> str:
-        return await self._evil_strategy.build_evil_night_coordination_message(action, visible_state, legal_context)
+    async def build_evil_night_coordination_message(
+        self,
+        action: dict[str, Any],
+        visible_state: AgentVisibleState,
+        legal_context: AgentActionLegalContext | None = None,
+    ) -> str:
+        return await self._evil_strategy.build_evil_night_coordination_message(
+            action, visible_state, legal_context
+        )
 
     async def generate_first_night_coordination(self, visible_state: AgentVisibleState) -> str:
         return await self._evil_strategy.generate_first_night_coordination(visible_state)
@@ -1058,15 +1180,35 @@ class AIAgent(BaseAgent):
             if obs.content:
                 texts.append(obs.content)
         for message in visible_state.public_chat_history[-limit:]:
-            speaker = next((player for player in visible_state.players if player.player_id == message.speaker), None)
+            speaker = next(
+                (player for player in visible_state.players if player.player_id == message.speaker),
+                None,
+            )
             speaker_name = speaker.name if speaker else message.speaker
             target_name = ""
             if message.target_player:
-                target_player = next((player for player in visible_state.players if player.player_id == message.target_player), None)
-                target_name = f" -> {target_player.name}" if target_player else f" -> {message.target_player}"
+                target_player = next(
+                    (
+                        player
+                        for player in visible_state.players
+                        if player.player_id == message.target_player
+                    ),
+                    None,
+                )
+                target_name = (
+                    f" -> {target_player.name}" if target_player else f" -> {message.target_player}"
+                )
             texts.append(f"{speaker_name}{target_name}: {message.content}")
         for event in visible_state.visible_event_log[-limit:]:
-            if event.event_type in {"player_speaks", "nomination_started", "vote_cast", "voting_resolved", "execution_resolved", "player_death", "private_info_delivered"}:
+            if event.event_type in {
+                "player_speaks",
+                "nomination_started",
+                "vote_cast",
+                "voting_resolved",
+                "execution_resolved",
+                "player_death",
+                "private_info_delivered",
+            }:
                 texts.append(self._format_event_to_text(event, visible_state))
         return texts
 
@@ -1097,56 +1239,133 @@ class AIAgent(BaseAgent):
     def _target_signal_score(self, target_id: str, visible_state: AgentVisibleState) -> float:
         return self._decision_engine.target_signal_score(target_id, visible_state)
 
-    def _select_nomination_target(self, visible_state: AgentVisibleState, legal_context: AgentActionLegalContext, intent_mode: bool = False) -> tuple[str, float, float] | None:
-        return self._decision_engine.select_nomination_target(visible_state, legal_context, intent_mode)
+    def _select_nomination_target(
+        self,
+        visible_state: AgentVisibleState,
+        legal_context: AgentActionLegalContext,
+        intent_mode: bool = False,
+    ) -> tuple[str, float, float] | None:
+        return self._decision_engine.select_nomination_target(
+            visible_state, legal_context, intent_mode
+        )
 
-    def _nomination_candidate_band(self, legal_targets: list[str], visible_state: AgentVisibleState, tolerance: float = 0.04) -> tuple[list[str], float]:
-        return self._decision_engine.nomination_candidate_band(legal_targets, visible_state, tolerance)
+    def _nomination_candidate_band(
+        self, legal_targets: list[str], visible_state: AgentVisibleState, tolerance: float = 0.04
+    ) -> tuple[list[str], float]:
+        return self._decision_engine.nomination_candidate_band(
+            legal_targets, visible_state, tolerance
+        )
 
-    def _choose_nomination_target_from_band(self, legal_targets: list[str], visible_state: AgentVisibleState, action_type: str, salt: str, tolerance: float = 0.04) -> tuple[str | None, float]:
-        return self._decision_engine.choose_nomination_target_from_band(legal_targets, visible_state, action_type, salt, tolerance)
+    def _choose_nomination_target_from_band(
+        self,
+        legal_targets: list[str],
+        visible_state: AgentVisibleState,
+        action_type: str,
+        salt: str,
+        tolerance: float = 0.04,
+    ) -> tuple[str | None, float]:
+        return self._decision_engine.choose_nomination_target_from_band(
+            legal_targets, visible_state, action_type, salt, tolerance
+        )
 
-    def _select_night_targets(self, visible_state: AgentVisibleState, legal_context: AgentActionLegalContext) -> list[str]:
+    def _select_night_targets(
+        self, visible_state: AgentVisibleState, legal_context: AgentActionLegalContext
+    ) -> list[str]:
         return self._decision_engine.select_night_targets(visible_state, legal_context)
 
     def _known_evil_teammate_ids(self, visible_state: AgentVisibleState) -> set[str]:
         return self._decision_engine.known_evil_teammate_ids(visible_state)
 
-    def _poisoner_priority_for_target(self, target_id: str, visible_state: AgentVisibleState) -> float:
+    def _poisoner_priority_for_target(
+        self, target_id: str, visible_state: AgentVisibleState
+    ) -> float:
         return self._decision_engine.poisoner_priority_for_target(target_id, visible_state)
 
-    def _rank_poisoner_targets(self, ordered_targets: list[str], visible_state: AgentVisibleState) -> list[str]:
+    def _rank_poisoner_targets(
+        self, ordered_targets: list[str], visible_state: AgentVisibleState
+    ) -> list[str]:
         return self._decision_engine._rank_poisoner_targets(ordered_targets, visible_state)
 
     def _coerce_target_values(self, raw_target: Any) -> list[str]:
         return self._decision_engine.coerce_target_values(raw_target)
 
-    def _select_vote_decision(self, visible_state: AgentVisibleState, legal_context: AgentActionLegalContext, model_vote: bool | None = None) -> tuple[bool, float, float]:
+    def _select_vote_decision(
+        self,
+        visible_state: AgentVisibleState,
+        legal_context: AgentActionLegalContext,
+        model_vote: bool | None = None,
+    ) -> tuple[bool, float, float]:
         return self._decision_engine.select_vote_decision(visible_state, legal_context, model_vote)
 
-    def _can_attempt_slayer_shot(self, visible_state: AgentVisibleState, legal_context: AgentActionLegalContext, action_type: str) -> bool:
-        return self._decision_engine.can_attempt_slayer_shot(visible_state, legal_context, action_type)
+    def _can_attempt_slayer_shot(
+        self,
+        visible_state: AgentVisibleState,
+        legal_context: AgentActionLegalContext,
+        action_type: str,
+    ) -> bool:
+        return self._decision_engine.can_attempt_slayer_shot(
+            visible_state, legal_context, action_type
+        )
 
-    def _select_slayer_shot_target(self, visible_state: AgentVisibleState) -> tuple[str, float] | None:
+    def _select_slayer_shot_target(
+        self, visible_state: AgentVisibleState
+    ) -> tuple[str, float] | None:
         return self._decision_engine.select_slayer_shot_target(visible_state)
 
-    def _reasoning_evidence_candidates(self, target_id: str | None, visible_state: AgentVisibleState) -> list[str]:
+    def _reasoning_evidence_candidates(
+        self, target_id: str | None, visible_state: AgentVisibleState
+    ) -> list[str]:
         return self._decision_engine.reasoning_evidence_candidates(target_id, visible_state)
 
-    def _best_reasoning_evidence(self, target_id: str | None, visible_state: AgentVisibleState) -> str:
+    def _best_reasoning_evidence(
+        self, target_id: str | None, visible_state: AgentVisibleState
+    ) -> str:
         return self._decision_engine.best_reasoning_evidence(target_id, visible_state)
 
-    def _augment_reasoning_with_evidence(self, reasoning: str, *, action_type: str, target_id: str | None, visible_state: AgentVisibleState, suspicion: float | None = None, threshold: float | None = None) -> str:
-        return self._decision_engine.augment_reasoning_with_evidence(reasoning, action_type=action_type, target_id=target_id, visible_state=visible_state, suspicion=suspicion, threshold=threshold)
+    def _augment_reasoning_with_evidence(
+        self,
+        reasoning: str,
+        *,
+        action_type: str,
+        target_id: str | None,
+        visible_state: AgentVisibleState,
+        suspicion: float | None = None,
+        threshold: float | None = None,
+    ) -> str:
+        return self._decision_engine.augment_reasoning_with_evidence(
+            reasoning,
+            action_type=action_type,
+            target_id=target_id,
+            visible_state=visible_state,
+            suspicion=suspicion,
+            threshold=threshold,
+        )
 
-    def _stable_choice(self, options: list[str], round_number: int, day_number: int, action_type: str, salt: str = "") -> str:
-        return self._decision_engine.stable_choice(options, round_number, day_number, action_type, salt)
+    def _stable_choice(
+        self,
+        options: list[str],
+        round_number: int,
+        day_number: int,
+        action_type: str,
+        salt: str = "",
+    ) -> str:
+        return self._decision_engine.stable_choice(
+            options, round_number, day_number, action_type, salt
+        )
 
     def _persona_vote_bias(self, visible_state: AgentVisibleState) -> bool:
         return self._decision_engine.persona_vote_bias(visible_state)
 
-    def _persona_fallback_speech(self, action_type: str, reason: str, visible_state: AgentVisibleState, legal_context: AgentActionLegalContext) -> dict[str, Any]:
-        return self._decision_engine.persona_fallback_speech(action_type, reason, visible_state, legal_context)
+    def _persona_fallback_speech(
+        self,
+        action_type: str,
+        reason: str,
+        visible_state: AgentVisibleState,
+        legal_context: AgentActionLegalContext,
+    ) -> dict[str, Any]:
+        return self._decision_engine.persona_fallback_speech(
+            action_type, reason, visible_state, legal_context
+        )
 
     def _find_most_suspicious_player(self, visible_state: AgentVisibleState) -> str | None:
         return self._decision_engine.find_most_suspicious_player(visible_state)
@@ -1157,7 +1376,9 @@ class AIAgent(BaseAgent):
     def _mentioned_visible_names(self, summary: str, visible_state: AgentVisibleState) -> list[str]:
         return self._speech_sanitizer._mentioned_visible_names(summary, visible_state)
 
-    def _private_info_public_paraphrase(self, summary: str, visible_state: AgentVisibleState) -> str:
+    def _private_info_public_paraphrase(
+        self, summary: str, visible_state: AgentVisibleState
+    ) -> str:
         return self._speech_sanitizer._private_info_public_paraphrase(summary, visible_state)
 
     def _public_speech_anchor_line(self, visible_state: AgentVisibleState) -> str:
@@ -1169,13 +1390,17 @@ class AIAgent(BaseAgent):
     def _hidden_memory_summaries_for_public_filter(self) -> list[str]:
         return self._speech_sanitizer._hidden_memory_summaries_for_public_filter()
 
-    def _sanitize_public_speech_content(self, content: str, visible_state: AgentVisibleState) -> str:
+    def _sanitize_public_speech_content(
+        self, content: str, visible_state: AgentVisibleState
+    ) -> str:
         return self._speech_sanitizer.sanitize_public_speech_content(content, visible_state)
 
     def _deception_budget_prompt(self, visible_state: AgentVisibleState) -> str:
         return self._prompt_factory.deception_budget_prompt(visible_state)
 
-    def _track_own_claims_from_decision(self, decision: dict[str, Any], visible_state: AgentVisibleState) -> None:
+    def _track_own_claims_from_decision(
+        self, decision: dict[str, Any], visible_state: AgentVisibleState
+    ) -> None:
         return self._decision_engine.track_own_claims_from_decision(decision, visible_state)
 
     def _stabilize_speech_content_with_memory(
@@ -1184,10 +1409,28 @@ class AIAgent(BaseAgent):
         visible_state: AgentVisibleState,
         action_type: str,
     ) -> str:
-        return self._speech_sanitizer.stabilize_speech_content_with_memory(content, visible_state, action_type)
+        return self._speech_sanitizer.stabilize_speech_content_with_memory(
+            content, visible_state, action_type
+        )
 
-    def _normalize_decision(self, visible_state: AgentVisibleState, legal_context: AgentActionLegalContext, action_type: str, decision: dict[str, Any]) -> dict[str, Any]:
-        return self._decision_engine.normalize_decision(visible_state, legal_context, action_type, decision)
+    def _normalize_decision(
+        self,
+        visible_state: AgentVisibleState,
+        legal_context: AgentActionLegalContext,
+        action_type: str,
+        decision: dict[str, Any],
+    ) -> dict[str, Any]:
+        return self._decision_engine.normalize_decision(
+            visible_state, legal_context, action_type, decision
+        )
 
-    def _fallback_decision(self, visible_state: AgentVisibleState, legal_context: AgentActionLegalContext, action_type: str, reason: str) -> dict[str, Any]:
-        return self._decision_engine.fallback_decision(visible_state, legal_context, action_type, reason)
+    def _fallback_decision(
+        self,
+        visible_state: AgentVisibleState,
+        legal_context: AgentActionLegalContext,
+        action_type: str,
+        reason: str,
+    ) -> dict[str, Any]:
+        return self._decision_engine.fallback_decision(
+            visible_state, legal_context, action_type, reason
+        )

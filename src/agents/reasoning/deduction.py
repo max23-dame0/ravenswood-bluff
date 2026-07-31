@@ -36,7 +36,7 @@ class DeductionEngine:
         全盘分析当前局势，返回内省思考结果
         """
         system_prompt = self._build_system_prompt(me, persona_desc)
-        
+
         # 组装上下文
         context = []
         context.append(f"【当前阶段】 第{game_state.round_number}轮 {game_state.phase.value}")
@@ -44,9 +44,9 @@ class DeductionEngine:
         context.append("\n" + episodic_summary)
         context.append("\n" + social_graph_summary)
         context.append("\n" + working_memory.get_recent_context(limit=15))
-        
+
         context_str = "\n".join(context)
-        
+
         user_prompt = (
             f"基于以上信息，请进行内部推理。\n"
             f"{context_str}\n\n"
@@ -56,9 +56,9 @@ class DeductionEngine:
             f"3. 你的下一步策略是什么？\n\n"
             f"请用第一人称简洁地输出一段内心独白。"
         )
-        
+
         messages = [Message(role="user", content=user_prompt)]
-        
+
         try:
             # 推理阶段可以使用温度较高，允许发散
             resp = await self.backend.generate(system_prompt, messages, temperature=0.7)

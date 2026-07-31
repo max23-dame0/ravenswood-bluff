@@ -205,21 +205,39 @@ def derive_balance_signals(
     recent_judgements: list[dict[str, Any]] | None = None,
 ) -> StorytellerBalanceSignal:
     recent_judgements = list(recent_judgements or [])
-    good_alive = sum(1 for player in state.get_alive_players() if (player.current_team or player.team) == Team.GOOD)
-    evil_alive = sum(1 for player in state.get_alive_players() if (player.current_team or player.team) == Team.EVIL)
+    good_alive = sum(
+        1
+        for player in state.get_alive_players()
+        if (player.current_team or player.team) == Team.GOOD
+    )
+    evil_alive = sum(
+        1
+        for player in state.get_alive_players()
+        if (player.current_team or player.team) == Team.EVIL
+    )
     alive_total = good_alive + evil_alive
     nomination_history = state.payload.get("nomination_history", [])
     recent_no_nomination = [
-        item for item in nomination_history[-2:]
-        if item.get("kind") == "no_nomination"
+        item for item in nomination_history[-2:] if item.get("kind") == "no_nomination"
     ]
-    execution_count = sum(1 for event in state.event_log if event.event_type == "execution_resolved" and (event.payload.get("executed") or event.target))
-    private_info_delivery_count = sum(1 for event in state.event_log if event.event_type == "private_info_delivered")
-    night_action_resolution_count = sum(1 for event in state.event_log if event.event_type == "night_action_resolved")
-    no_nomination_count = sum(1 for item in nomination_history if item.get("kind") == "no_nomination")
-    early_end_pressure = (state.day_number <= 2 and (alive_total <= 4 or abs(good_alive - evil_alive) >= 2)) or (
-        len(recent_no_nomination) >= 2 and alive_total <= 4
+    execution_count = sum(
+        1
+        for event in state.event_log
+        if event.event_type == "execution_resolved"
+        and (event.payload.get("executed") or event.target)
     )
+    private_info_delivery_count = sum(
+        1 for event in state.event_log if event.event_type == "private_info_delivered"
+    )
+    night_action_resolution_count = sum(
+        1 for event in state.event_log if event.event_type == "night_action_resolved"
+    )
+    no_nomination_count = sum(
+        1 for item in nomination_history if item.get("kind") == "no_nomination"
+    )
+    early_end_pressure = (
+        state.day_number <= 2 and (alive_total <= 4 or abs(good_alive - evil_alive) >= 2)
+    ) or (len(recent_no_nomination) >= 2 and alive_total <= 4)
     suppressed_info_count = sum(
         1
         for entry in recent_judgements
@@ -228,12 +246,14 @@ def derive_balance_signals(
     distorted_info_count = sum(
         1
         for entry in recent_judgements
-        if entry.get("category") == "night_info" and entry.get("distortion_strategy") not in {None, "", "none"}
+        if entry.get("category") == "night_info"
+        and entry.get("distortion_strategy") not in {None, "", "none"}
     )
     legacy_fallback_count = sum(
         1
         for entry in recent_judgements
-        if "legacy_fallback" in str(entry.get("adjudication_path") or entry.get("contract_mode") or "")
+        if "legacy_fallback"
+        in str(entry.get("adjudication_path") or entry.get("contract_mode") or "")
     )
     human_storyteller_step_count = sum(
         1 for entry in recent_judgements if entry.get("category") == "human_step"
@@ -407,18 +427,14 @@ def _match_recent_judgements_for_event(
     same_round_same_phase = [
         entry
         for entry in recent_judgements
-            if entry.get("round_number") == event.round_number
-            and _phase_to_value(entry.get("phase")) == phase_value
+        if entry.get("round_number") == event.round_number
+        and _phase_to_value(entry.get("phase")) == phase_value
     ]
     if event.event_type == "private_info_delivered":
         scoped_exact = _filter_for_event(same_round_same_phase)
         if scoped_exact:
             return scoped_exact[-4:]
-        scoped = [
-            entry
-            for entry in same_round_same_phase
-            if entry.get("category") == "night_info"
-        ]
+        scoped = [entry for entry in same_round_same_phase if entry.get("category") == "night_info"]
         if scoped:
             return scoped[-4:]
     if event.event_type in _DAY_EVENT_CATEGORY_MAP:
@@ -480,7 +496,9 @@ def aggregate_storyteller_node_samples(
 
         event_type = sample.event_log_so_far[-1]["event_type"] if sample.event_log_so_far else None
         if event_type:
-            summary["event_type_counts"][event_type] = summary["event_type_counts"].get(event_type, 0) + 1
+            summary["event_type_counts"][event_type] = (
+                summary["event_type_counts"].get(event_type, 0) + 1
+            )
         if event_type == "private_info_delivered":
             summary["private_info_delivery_node_count"] += 1
         elif event_type == "night_action_resolved":
@@ -496,10 +514,14 @@ def aggregate_storyteller_node_samples(
             summary["judgement_entry_count"] += 1
             category = entry.get("category")
             if category:
-                summary["judgement_category_counts"][category] = summary["judgement_category_counts"].get(category, 0) + 1
+                summary["judgement_category_counts"][category] = (
+                    summary["judgement_category_counts"].get(category, 0) + 1
+                )
             bucket = entry.get("bucket")
             if bucket:
-                summary["judgement_bucket_counts"][bucket] = summary["judgement_bucket_counts"].get(bucket, 0) + 1
+                summary["judgement_bucket_counts"][bucket] = (
+                    summary["judgement_bucket_counts"].get(bucket, 0) + 1
+                )
             phase = _phase_to_value(entry.get("phase"))
             if phase:
                 summary["phase_counts"][phase] = summary["phase_counts"].get(phase, 0) + 1
@@ -515,7 +537,9 @@ def aggregate_storyteller_node_samples(
                     summary["distortion_strategy_counts"][str(distortion_strategy)] = (
                         summary["distortion_strategy_counts"].get(str(distortion_strategy), 0) + 1
                     )
-            adjudication_path = str(entry.get("adjudication_path") or entry.get("contract_mode") or "")
+            adjudication_path = str(
+                entry.get("adjudication_path") or entry.get("contract_mode") or ""
+            )
             if adjudication_path:
                 summary["adjudication_path_counts"][adjudication_path] = (
                     summary["adjudication_path_counts"].get(adjudication_path, 0) + 1
@@ -526,13 +550,20 @@ def aggregate_storyteller_node_samples(
                 summary["human_storyteller_step_count"] += 1
             if category == "event_node":
                 summary["event_node_fallback_count"] += 1
-    
+
     # [A3-ST-3] 增加最低门槛统计计算
-    summary["fallback_rate"] = round(summary["legacy_fallback_count"] / (summary["judgement_entry_count"] or 1), 3)
-    summary["distortion_rate"] = round(summary["distorted_info_count"] / (summary["night_info_judgement_count"] or 1), 3)
+    summary["fallback_rate"] = round(
+        summary["legacy_fallback_count"] / (summary["judgement_entry_count"] or 1), 3
+    )
+    summary["distortion_rate"] = round(
+        summary["distorted_info_count"] / (summary["night_info_judgement_count"] or 1), 3
+    )
     # 覆盖率：产出的 night_info judgement 数量 / 实际交付私密信息的节点数量
-    summary["night_info_coverage"] = round(summary["night_info_judgement_count"] / (summary["private_info_delivery_node_count"] or 1), 3)
-    
+    summary["night_info_coverage"] = round(
+        summary["night_info_judgement_count"] / (summary["private_info_delivery_node_count"] or 1),
+        3,
+    )
+
     return summary
 
 
@@ -577,7 +608,9 @@ def build_storyteller_node_samples(
     return samples
 
 
-def export_storyteller_adjudication_sample(sample: StorytellerAdjudicationSample, output_path: str | Path) -> Path:
+def export_storyteller_adjudication_sample(
+    sample: StorytellerAdjudicationSample, output_path: str | Path
+) -> Path:
     path = Path(output_path)
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(sample.model_dump(), ensure_ascii=False, indent=2), encoding="utf-8")

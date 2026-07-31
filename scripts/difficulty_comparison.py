@@ -52,7 +52,9 @@ def check_temperature_spread() -> None:
     _check("standard temperature == 0.7", standard_t == 0.7)
     _check("master temperature == 0.4", master_t == 0.4)
     _check("chaos temperature == 1.0", chaos_t == 1.0)
-    _check("all four temperatures are distinct", len({casual_t, standard_t, master_t, chaos_t}) == 4)
+    _check(
+        "all four temperatures are distinct", len({casual_t, standard_t, master_t, chaos_t}) == 4
+    )
 
 
 # ------------------------------------------------------------------

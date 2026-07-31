@@ -38,9 +38,9 @@ class OpenAIBackend(LLMBackend):
         base_url: Optional[str] = None,
     ) -> None:
         from dotenv import load_dotenv
-        
-        load_dotenv() # Load variables from .env if present
-        
+
+        load_dotenv()  # Load variables from .env if present
+
         self._model = os.getenv("DEFAULT_MODEL") or model
         self._api_key = api_key or os.getenv("OPENAI_API_KEY")
         self._base_url = base_url or os.getenv("OPENAI_BASE_URL")
@@ -59,9 +59,7 @@ class OpenAIBackend(LLMBackend):
             try:
                 from openai import AsyncOpenAI
             except ImportError:
-                raise ImportError(
-                    "openai package is required. Install with: pip install openai"
-                )
+                raise ImportError("openai package is required. Install with: pip install openai")
             kwargs = {}
             if self._api_key:
                 kwargs["api_key"] = self._api_key
@@ -76,9 +74,7 @@ class OpenAIBackend(LLMBackend):
             try:
                 from openai import AsyncOpenAI
             except ImportError:
-                raise ImportError(
-                    "openai package is required. Install with: pip install openai"
-                )
+                raise ImportError("openai package is required. Install with: pip install openai")
             kwargs = {}
             if self._embedding_api_key:
                 kwargs["api_key"] = self._embedding_api_key
@@ -147,7 +143,9 @@ class OpenAIBackend(LLMBackend):
         )
         logger.info(f"Sending LLM request to {self._model} (base_url: {self._base_url})")
         try:
-            response = await client.chat.completions.create(**kwargs, timeout=self._request_timeout_seconds)
+            response = await client.chat.completions.create(
+                **kwargs, timeout=self._request_timeout_seconds
+            )
             logger.info("Received LLM response successfully.")
         except Exception as e:
             game_debug_logger.log_llm_response(
@@ -172,7 +170,9 @@ class OpenAIBackend(LLMBackend):
                 if isinstance(part, dict):
                     parts.append(str(part.get("text") or part.get("content") or ""))
                 else:
-                    parts.append(str(getattr(part, "text", "") or getattr(part, "content", "") or ""))
+                    parts.append(
+                        str(getattr(part, "text", "") or getattr(part, "content", "") or "")
+                    )
             content = "".join(parts).strip()
         if not str(content or "").strip():
             diagnostic_fields = {
@@ -183,7 +183,9 @@ class OpenAIBackend(LLMBackend):
                 "total_tokens": response.usage.total_tokens if response.usage else 0,
                 "tool_call_count": len(message.tool_calls or []),
                 "refusal": str(getattr(message, "refusal", "") or "")[:300],
-                "reasoning_content_preview": str(getattr(message, "reasoning_content", "") or "")[:300],
+                "reasoning_content_preview": str(getattr(message, "reasoning_content", "") or "")[
+                    :300
+                ],
                 "reasoning_preview": str(getattr(message, "reasoning", "") or "")[:300],
             }
             logger.warning("LLM response content is empty: %s", diagnostic_fields)
@@ -216,8 +218,7 @@ class OpenAIBackend(LLMBackend):
             model=response.model,
             content=content,
             tool_calls=[
-                tc.model_dump() if hasattr(tc, "model_dump") else dict(tc)
-                for tc in tool_calls
+                tc.model_dump() if hasattr(tc, "model_dump") else dict(tc) for tc in tool_calls
             ],
             usage=usage,
             finish_reason=getattr(choice, "finish_reason", None),
@@ -257,7 +258,7 @@ class OpenAIBackend(LLMBackend):
 
         if self._embeddings_disabled:
             return []
-        
+
         client = self._get_embedding_client()
         logger.info(
             "Generating embeddings for %s texts using %s (base_url=%s)",
@@ -267,9 +268,7 @@ class OpenAIBackend(LLMBackend):
         )
         try:
             response = await client.embeddings.create(
-                model=self._embedding_model,
-                input=texts,
-                timeout=15.0
+                model=self._embedding_model, input=texts, timeout=15.0
             )
             return [data.embedding for data in response.data]
         except Exception as e:
