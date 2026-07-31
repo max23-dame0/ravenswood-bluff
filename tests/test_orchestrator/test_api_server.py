@@ -1,3 +1,4 @@
+import contextlib
 import importlib
 import json
 import logging
@@ -395,14 +396,10 @@ def test_build_nomination_state_infers_history_from_event_log(monkeypatch):
 async def test_storyteller_log_is_written_without_api_leak(monkeypatch):
     monkeypatch.setenv("BOTC_BACKEND", "mock")
     for handler in list(logging.getLogger("storyteller").handlers):
-        try:
+        with contextlib.suppress(Exception):
             handler.flush()
-        except Exception:
-            pass
-        try:
+        with contextlib.suppress(Exception):
             handler.close()
-        except Exception:
-            pass
         logging.getLogger("storyteller").removeHandler(handler)
 
     test_dir = (
@@ -410,7 +407,7 @@ async def test_storyteller_log_is_written_without_api_leak(monkeypatch):
         / "test_runs"
         / f"_storyteller_test_workspace_{uuid.uuid4().hex[:8]}"
     )
-    test_dir.mkdir(exist_ok=True)
+    test_dir.mkdir(parents=True, exist_ok=True)
     monkeypatch.chdir(test_dir)
     log_path = Path("storyteller_run.log")
 

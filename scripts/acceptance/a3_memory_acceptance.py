@@ -3,12 +3,13 @@
 from __future__ import annotations
 
 import subprocess
+import sys
 from pathlib import Path
 
 
 def run_pytest(*args: str) -> None:
     repo_root = Path(__file__).resolve().parents[2]
-    python = repo_root / ".venv" / "Scripts" / "python.exe"
+    python = sys.executable
     result = subprocess.run(
         [str(python), "-m", "pytest", *args, "-q"],
         cwd=repo_root,
@@ -25,7 +26,7 @@ def run_pytest(*args: str) -> None:
 def run_script(script_name: str) -> None:
     """Run a sibling script; ``script_name`` is relative to the ``scripts/`` root."""
     repo_root = Path(__file__).resolve().parents[2]
-    python = repo_root / ".venv" / "Scripts" / "python.exe"
+    python = sys.executable
     result = subprocess.run(
         [str(python), str(repo_root / "scripts" / script_name)],
         cwd=repo_root,

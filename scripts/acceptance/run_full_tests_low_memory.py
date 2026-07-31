@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import os
 import subprocess
+import sys
 from pathlib import Path
 
 LOW_MEMORY_ENV = {
@@ -31,7 +32,7 @@ def main() -> int:
     args, pytest_args = parser.parse_known_args()
 
     repo_root = Path(__file__).resolve().parents[2]
-    python = repo_root / ".venv" / "Scripts" / "python.exe"
+    python = sys.executable
     env = os.environ.copy()
     env.update(LOW_MEMORY_ENV)
 

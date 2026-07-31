@@ -119,7 +119,18 @@ author: "Ravenswood Bluff"
 - **根因**：`pyproject.toml` 配 `pythonpath=["."]` + `testpaths=["tests"]`，测试文件需以 `tests.` 包路径引用（需 `tests/__init__.py` 已存在）。
 - **修复**：统一用 `from tests.doubles import X`；跑测试用 `pytest tests`（勿脱离项目根目录）。
 
+### T13 · 子进程硬编码 Windows 解释器路径
+- **症状**：本地全绿，GitHub Actions（ubuntu）批量报 `FileNotFoundError: .../.venv/Scripts/python.exe`。
+- **根因**：测试/脚本用 `repo_root / ".venv" / "Scripts" / "python.exe"` 拉子进程，该路径 Windows-only。
+- **修复**：一律用 `sys.executable`（当前解释器），跨平台且自动继承 venv；禁止在 `tests/**`、`scripts/**` 硬编码 `.venv` 路径。
+
+### T14 · 测试产物目录未建父级
+- **症状**：CI 首次运行报 `FileNotFoundError: tests/test_runs/_xxx_workspace`。
+- **根因**：`tests/test_runs/` 已被 `.gitignore`，全新 checkout 不存在；`mkdir(exist_ok=True)` 不会创建父目录。
+- **修复**：所有测试工作目录用 `mkdir(parents=True, exist_ok=True)`；本地可 `rm -rf tests/test_runs` 复现 CI 干净环境。
+
 ## 更新日志
 
 - 2026-07-30: 初版（T1-T9 项目专属 + G1-G8 通用）
 - 2026-07-31: 新增测试专项陷阱 T10-T12（替身重复 / mock-live 差异 / 包导入路径）
+- 2026-07-31: 新增 CI 跨平台陷阱 T13-T14（硬编码 Windows 解释器 / 测试产物目录未建父级）

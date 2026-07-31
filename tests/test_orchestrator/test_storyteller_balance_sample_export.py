@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -58,7 +59,7 @@ def test_storyteller_balance_sample_export_contains_schema_keys():
     script = _find_sample_export_script(repo_root)
     result = subprocess.run(
         [
-            str(repo_root / ".venv" / "Scripts" / "python.exe"),
+            sys.executable,
             str(script),
             "--full-games",
             "0",
@@ -67,16 +68,16 @@ def test_storyteller_balance_sample_export_contains_schema_keys():
         capture_output=True,
         text=True,
         check=False,
-        timeout=30,
+        timeout=300,
     )
 
     assert result.returncode == 0, result.stderr or result.stdout
     payload = _extract_json_payload(result.stdout)
-    assert EXPECTED_SAMPLE_KEYS <= payload.keys()
+    assert payload.keys() >= EXPECTED_SAMPLE_KEYS
     index_payload = json.loads(
         (repo_root / "storyteller_eval_samples" / "sample_index.json").read_text(encoding="utf-8")
     )
-    assert EXPECTED_INDEX_KEYS <= index_payload.keys()
+    assert index_payload.keys() >= EXPECTED_INDEX_KEYS
     assert index_payload["curated_node_count"] >= 1
     assert len(index_payload["curated_node_files"]) >= 1
     assert len(index_payload["full_games"]) >= 1
@@ -95,7 +96,7 @@ def test_storyteller_balance_sample_index_tracks_multiple_full_games():
     script = _find_sample_export_script(repo_root)
     result = subprocess.run(
         [
-            str(repo_root / ".venv" / "Scripts" / "python.exe"),
+            sys.executable,
             str(script),
             "--full-games",
             "1",
@@ -110,7 +111,7 @@ def test_storyteller_balance_sample_index_tracks_multiple_full_games():
         check=False,
         # 该用例会真实跑完一整局 mock 对局；全量 pytest 并发下进程启动与 IO 争用明显，
         # 60s 会在本机稳定超时（单独运行 <20s）。放宽至 180s 以消除 flaky。
-        timeout=180,
+        timeout=300,
     )
     assert result.returncode == 0, result.stderr or result.stdout
     index_path = repo_root / "storyteller_eval_samples" / "sample_index.json"

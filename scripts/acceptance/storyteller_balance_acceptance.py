@@ -4,12 +4,13 @@ from __future__ import annotations
 
 import json
 import subprocess
+import sys
 from pathlib import Path
 
 
 def _run(repo_root: Path, args: list[str]) -> None:
     result = subprocess.run(
-        [str(repo_root / ".venv" / "Scripts" / "python.exe"), *args],
+        [sys.executable, *args],
         cwd=repo_root,
         capture_output=True,
         text=True,

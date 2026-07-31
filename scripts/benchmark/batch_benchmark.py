@@ -1,4 +1,5 @@
 import subprocess
+import sys
 import time
 
 # 配置要测试的人数 (使用真实 Live 后端)
@@ -19,7 +20,7 @@ def run_simulation(players, backend, stop_after):
         f"\n>>> Running simulation: {players} players, backend={backend}, stop_after={stop_after}"
     )
     cmd = [
-        ".\\.venv\\Scripts\\python.exe",
+        sys.executable,
         "simulate_game.py",
         "--player-count",
         str(players),

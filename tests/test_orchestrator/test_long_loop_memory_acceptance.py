@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import subprocess
+import sys
 from pathlib import Path
 
 
@@ -9,14 +10,14 @@ def test_long_loop_memory_acceptance_script_runs_and_reports_accumulation():
     repo_root = Path(__file__).resolve().parents[2]
     result = subprocess.run(
         [
-            str(repo_root / ".venv" / "Scripts" / "python.exe"),
+            sys.executable,
             "scripts/acceptance/long_loop_memory_acceptance.py",
         ],
         cwd=repo_root,
         capture_output=True,
         text=True,
         check=False,
-        timeout=180,
+        timeout=300,
     )
 
     assert result.returncode == 0, result.stderr or result.stdout

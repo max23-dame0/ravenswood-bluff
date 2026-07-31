@@ -13,7 +13,7 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-PYTHON = REPO_ROOT / ".venv" / "Scripts" / "python.exe"
+PYTHON = sys.executable
 REPORT_PATH = REPO_ROOT / "docs" / "alpha-1.0-ai-behavior-sample.md"
 
 

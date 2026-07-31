@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import subprocess
+import sys
 from pathlib import Path
 
 
@@ -11,7 +12,7 @@ def run_script(script_name: str) -> None:
     repo_root = Path(__file__).resolve().parents[2]
     result = subprocess.run(
         [
-            str(repo_root / ".venv" / "Scripts" / "python.exe"),
+            sys.executable,
             str(repo_root / "scripts" / script_name),
         ],
         cwd=repo_root,

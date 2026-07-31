@@ -12,7 +12,7 @@ if str(REPO_ROOT) not in sys.path:
 
 
 def main() -> int:
-    python = REPO_ROOT / ".venv" / "Scripts" / "python.exe"
+    python = sys.executable
     try:
         result = subprocess.run(
             [
@@ -30,7 +30,7 @@ def main() -> int:
             timeout=60,
         )
     except subprocess.TimeoutExpired as exc:
-        raise SystemExit(f"gameover acceptance timed out after {exc.timeout}s")
+        raise SystemExit(f"gameover acceptance timed out after {exc.timeout}s") from exc
     if result.returncode != 0:
         raise SystemExit(result.stderr or result.stdout or "gameover acceptance failed")
     print("gameover acceptance: ok")

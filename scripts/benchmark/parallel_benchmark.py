@@ -1,5 +1,6 @@
 import asyncio
 import re
+import sys
 import time
 
 # 配置：8/9/10人局，各3局
@@ -11,7 +12,7 @@ CONCURRENCY_LIMIT = 3  # 同时运行的对局数，防止触发 API 频率限�
 async def run_single_game(players, game_index):
     print(f"[START] Players={players}, Game {game_index + 1}/3")
     cmd = [
-        ".\\.venv\\Scripts\\python.exe",
+        sys.executable,
         "simulate_game.py",
         "--player-count",
         str(players),

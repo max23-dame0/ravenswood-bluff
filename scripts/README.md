@@ -34,4 +34,5 @@ python scripts/acceptance/role_acceptance.py   # 单个 gate
 python scripts/debug/dump_ai_prompt.py         # 抽取发给 LLM 的真实 prompt
 ```
 
-> Windows：入口脚本内部使用 `.venv\Scripts\python.exe` 调用子脚本，需先创建 venv 并 `pip install -e ".[dev]"`。
+> 入口脚本内部统一使用 `sys.executable`（当前解释器）调用子脚本，跨平台通用：用哪个 python 启动入口，子脚本就用哪个。
+> 请勿再硬编码 `.venv\Scripts\python.exe`（Windows-only，会在 Linux CI 上 `FileNotFoundError`）。

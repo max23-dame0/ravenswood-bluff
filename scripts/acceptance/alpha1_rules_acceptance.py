@@ -3,12 +3,13 @@
 from __future__ import annotations
 
 import subprocess
+import sys
 from pathlib import Path
 
 
 def run_command(*args: str, timeout: int = 120) -> None:
     repo_root = Path(__file__).resolve().parents[2]
-    python = repo_root / ".venv" / "Scripts" / "python.exe"
+    python = sys.executable
     result = subprocess.run(
         [str(python), *args],
         cwd=repo_root,

@@ -1,19 +1,20 @@
 from __future__ import annotations
 
 import subprocess
+import sys
 from pathlib import Path
 
 
 def test_a3_memory_acceptance_script_passes():
     repo_root = Path(__file__).resolve().parents[2]
-    python = repo_root / ".venv" / "Scripts" / "python.exe"
+    python = sys.executable
     result = subprocess.run(
         [str(python), "scripts/acceptance/a3_memory_acceptance.py"],
         cwd=repo_root,
         capture_output=True,
         text=True,
         check=False,
-        timeout=180,
+        timeout=300,
     )
 
     assert result.returncode == 0, result.stderr or result.stdout

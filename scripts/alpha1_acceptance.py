@@ -9,13 +9,14 @@ from __future__ import annotations
 import argparse
 import os
 import subprocess
+import sys
 import time
+from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Sequence
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-PYTHON = REPO_ROOT / ".venv" / "Scripts" / "python.exe"
+PYTHON = sys.executable
 
 
 @dataclass(frozen=True)

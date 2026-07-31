@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import subprocess
+import sys
 from pathlib import Path
 
 
@@ -10,7 +11,7 @@ def main() -> int:
     repo_root = Path(__file__).resolve().parents[2]
     result = subprocess.run(
         [
-            str(repo_root / ".venv" / "Scripts" / "python.exe"),
+            sys.executable,
             "-m",
             "pytest",
             "tests/test_engine/test_high_risk_roles.py",
