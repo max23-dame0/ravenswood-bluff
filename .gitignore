@@ -66,3 +66,6 @@ data/sessions/
 # Debug logs
 data/debug_game_logs/
 .claude/worktrees/
+
+# Agent skills: environment-provided TME starters (not project-authored)
+.codebuddy/skills/tme-*/
