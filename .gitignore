@@ -69,3 +69,12 @@ data/debug_game_logs/
 
 # Agent skills: environment-provided TME starters (not project-authored)
 .codebuddy/skills/tme-*/
+
+# Runtime / local test artifacts (generated locally, never commit)
+data/games.db
+data/*.db
+data/games.records.json
+runtime_game_logs/
+
+# Temporary scratch files at repo root
+/_*.txt
