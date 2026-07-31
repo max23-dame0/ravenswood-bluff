@@ -38,6 +38,7 @@ def _build_state() -> GameState:
         PlayerState(player_id="p3", name="Cathy", role_id="chef", team=Team.GOOD),
     )
     return GameState(
+        game_id="game-base-test",
         players=players,
         phase=GamePhase.DAY_DISCUSSION,
         round_number=1,
@@ -82,6 +83,7 @@ def _build_signal_state() -> GameState:
         ),
     )
     return GameState(
+        game_id="game-signal-test",
         players=players,
         phase=GamePhase.NOMINATION,
         round_number=1,
