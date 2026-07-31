@@ -22,6 +22,8 @@ if str(REPO_ROOT) not in sys.path:
 
 os.environ.setdefault("BOTC_BACKEND", "mock")
 
+import contextlib
+
 from src.agents.ai_agent import AIAgent
 from src.agents.storyteller_agent import StorytellerAgent
 from src.llm.mock_backend import MockBackend
@@ -110,10 +112,8 @@ async def _run_mock_game(player_count: int, discussion_rounds: int = 2) -> dict:
     finally:
         if not loop_task.done():
             loop_task.cancel()
-            try:
+            with contextlib.suppress(asyncio.CancelledError, Exception):
                 await asyncio.sleep(0.01)
-            except (asyncio.CancelledError, Exception):
-                pass
 
     # Collect action metrics from agents
     all_metrics: list[dict] = []
@@ -136,10 +136,7 @@ def _is_low_content(content: str) -> bool:
         return True
     if len(text) < MIN_SPEECH_LENGTH:
         return True
-    for marker in LOW_CONTENT_MARKERS:
-        if text == marker or text == f"{marker}。":
-            return True
-    return False
+    return any(text == marker or text == f"{marker}。" for marker in LOW_CONTENT_MARKERS)
 
 
 def _analyze_quality(result: dict) -> None:
@@ -166,7 +163,7 @@ def _analyze_quality(result: dict) -> None:
     by_round: dict[int, list[str]] = {}
     for e in speak_events:
         by_round.setdefault(e["round"], []).append(e["content"])
-    for rnd, contents in by_round.items():
+    for _rnd, contents in by_round.items():
         counter = Counter(contents)
         for content, count in counter.items():
             if count > 1 and len(content.strip()) > 0:

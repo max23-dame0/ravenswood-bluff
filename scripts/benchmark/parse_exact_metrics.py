@@ -20,7 +20,7 @@ def get_exact_metrics():
         total_actions = 0
         winner = "N/A"
 
-        with open(file_path, "r", encoding="utf-8") as f:
+        with open(file_path, encoding="utf-8") as f:
             for line in f:
                 if not line.strip():
                     continue
@@ -52,7 +52,7 @@ def get_exact_metrics():
         # If tokens were not found directly in event
         if total_tokens == 0:
             last_records = []
-            with open(file_path, "r", encoding="utf-8") as f:
+            with open(file_path, encoding="utf-8") as f:
                 for line in f:
                     try:
                         data = json.loads(line)

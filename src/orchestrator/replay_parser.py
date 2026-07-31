@@ -25,11 +25,11 @@ class ReplayParser:
         snapshot_path = os.path.join(self.export_dir, "snapshots.json")
 
         if os.path.exists(event_path):
-            with open(event_path, "r", encoding="utf-8") as f:
+            with open(event_path, encoding="utf-8") as f:
                 self.events = json.load(f)
 
         if os.path.exists(snapshot_path):
-            with open(snapshot_path, "r", encoding="utf-8") as f:
+            with open(snapshot_path, encoding="utf-8") as f:
                 self.snapshots = json.load(f)
 
     def print_text_replay(self):

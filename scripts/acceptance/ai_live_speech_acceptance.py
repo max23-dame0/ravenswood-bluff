@@ -13,7 +13,7 @@ from __future__ import annotations
 import asyncio
 import os
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -25,6 +25,8 @@ os.environ.setdefault("AI_BACKEND_SPEED_PROFILE", "live")
 os.environ["AI_FORCE_GAME_TIMEOUTS"] = "1"
 os.environ["AI_ACTION_TIMEOUT_SECONDS"] = "8.0"
 os.environ.setdefault("CLAIM_EXTRACTION_TIMEOUT_SECONDS", "0.5")
+
+import contextlib
 
 from src.agents.ai_agent import AIAgent
 from src.agents.storyteller_agent import StorytellerAgent
@@ -114,10 +116,8 @@ async def _run_live_like_game(player_count: int = 5) -> dict:
     finally:
         if not loop_task.done():
             loop_task.cancel()
-            try:
+            with contextlib.suppress(asyncio.CancelledError, _StopGame):
                 await loop_task
-            except (asyncio.CancelledError, _StopGame):
-                pass
         if getattr(orch, "_claim_extraction_tasks", None):
             await asyncio.sleep(0.05)
 
@@ -226,14 +226,14 @@ def _write_evidence(analyses: list[dict]) -> Path:
     evidence_dir = REPO_ROOT / "docs" / "alpha-1.1-evidence"
     evidence_dir.mkdir(parents=True, exist_ok=True)
 
-    ts = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S")
+    ts = datetime.now(UTC).strftime("%Y%m%d-%H%M%S")
     filename = f"m5l_live_speech_{ts}.md"
     filepath = evidence_dir / filename
 
     lines = [
         "# M5-L Live-Like Speech Acceptance Evidence",
         "",
-        f"**Date**: {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M UTC')}",
+        f"**Date**: {datetime.now(UTC).strftime('%Y-%m-%d %H:%M UTC')}",
         "**Backend**: delayed-live-like-mock (7.5s delay)",
         "**Speed profile**: live",
         "**Timeout budget**: 8.0s (env AI_ACTION_TIMEOUT_SECONDS)",

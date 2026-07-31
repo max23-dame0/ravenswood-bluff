@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import json
 import logging
 import os
@@ -72,14 +73,10 @@ class GameDebugLogger:
         with self._lock:
             if self._terminal_handler:
                 for logger_obj in self._attached_loggers:
-                    try:
+                    with contextlib.suppress(Exception):
                         logger_obj.removeHandler(self._terminal_handler)
-                    except Exception:
-                        pass
-                try:
+                with contextlib.suppress(Exception):
                     self._terminal_handler.close()
-                except Exception:
-                    pass
             self._terminal_handler = None
             self._attached_loggers = []
             self._session_dir = None

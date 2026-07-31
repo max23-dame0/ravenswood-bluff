@@ -172,10 +172,12 @@ class InformationBroker:
                 can_target_self = role_instance.can_target_self()
 
                 # Slayer 特殊处理
-                if player.role_id == "slayer":
-                    if game_state.phase in (GamePhase.DAY_DISCUSSION, GamePhase.NOMINATION):
-                        if not SlayerRole.has_used_shot(player):
-                            can_slayer_shot = True
+                if (
+                    player.role_id == "slayer"
+                    and game_state.phase in (GamePhase.DAY_DISCUSSION, GamePhase.NOMINATION)
+                    and not SlayerRole.has_used_shot(player)
+                ):
+                    can_slayer_shot = True
 
         return AgentActionLegalContext(
             legal_nomination_targets=tuple(nomination_targets),

@@ -106,9 +106,12 @@ class DecisionEngine:
                 if agent._role_team_hint(role_id)
             }
 
-            if "可能是" in summary and "恶魔" in summary:
-                score += 0.14 * intel
-            elif "可能是" in summary and mentioned_teams == {Team.EVIL}:
+            if (
+                "可能是" in summary
+                and "恶魔" in summary
+                or "可能是" in summary
+                and mentioned_teams == {Team.EVIL}
+            ):
                 score += 0.14 * intel
             elif "可能是" in summary and mentioned_teams and mentioned_teams <= {Team.GOOD}:
                 score -= 0.06
@@ -168,10 +171,13 @@ class DecisionEngine:
         if agent.team == Team.EVIL.value and confirmed_teammates and intel > 0:
             teammate_names = [n.strip() for n in confirmed_teammates.split("\n") if n.strip()]
             for text in recent_texts:
-                if target.name in text and any(tn in text for tn in teammate_names):
-                    if any(kw in text for kw in ("可疑", "怀疑", "提名", "不对劲")):
-                        score += 0.06 * intel
-                        break
+                if (
+                    target.name in text
+                    and any(tn in text for tn in teammate_names)
+                    and any(kw in text for kw in ("可疑", "怀疑", "提名", "不对劲"))
+                ):
+                    score += 0.06 * intel
+                    break
 
         return max(0.0, min(1.0, score))
 
@@ -538,10 +544,9 @@ class DecisionEngine:
             # 如果已经有很多票了，跟票意愿增加（门槛降低）
             if current_yes >= req_votes / 2:
                 threshold -= 0.05
-        elif social_style == "带节奏":
+        elif social_style == "带节奏" and current_yes < 2:
             # 如果票数还很少，且我是前序位，可能想带节奏，门槛降低
-            if current_yes < 2:
-                threshold -= 0.03
+            threshold -= 0.03
 
         # 决定性一票检测 (Deciding Vote Detection)
         # 如果加上我刚好能处决，门槛微降
@@ -707,9 +712,7 @@ class DecisionEngine:
         if evidence_candidates:
             parts.append(f"依据={evidence_candidates[0]}")
             for extra in evidence_candidates[1:3]:
-                if not extra.startswith("公开信息："):
-                    parts.append(f"补充={extra}")
-                elif (
+                if not extra.startswith("公开信息：") or (
                     action_type in {"nominate", "nomination_intent", "vote"}
                     and "前后不一致" in extra
                 ):

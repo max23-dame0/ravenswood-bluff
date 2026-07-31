@@ -100,7 +100,7 @@ class StorytellerAgent:
         if isinstance(value, (list, tuple, set)):
             return [self._jsonable(item) for item in value]
         if hasattr(value, "value"):
-            return getattr(value, "value")
+            return value.value
         if hasattr(value, "isoformat"):
             try:
                 return value.isoformat()
@@ -1135,9 +1135,8 @@ class StorytellerAgent:
                 flavor = " 正义的锋芒势不可挡。"
             elif advantage < -1.0:
                 flavor = " 邪恶的阴霾挥之不去，小镇似乎命悬一线。"
-        elif game_state.phase == GamePhase.NIGHT:
-            if game_state.day_number >= 3:
-                flavor = " 鲜血染红了月色，这一夜注定不平静。"
+        elif game_state.phase == GamePhase.NIGHT and game_state.day_number >= 3:
+            flavor = " 鲜血染红了月色，这一夜注定不平静。"
 
         narration = (
             phase_names.get(game_state.phase, f"现在进入 {game_state.phase.value} 阶段。") + flavor

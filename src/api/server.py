@@ -9,7 +9,7 @@ import os
 import sys
 from contextlib import asynccontextmanager, suppress
 from datetime import datetime
-from typing import Any, Dict
+from typing import Any
 
 from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
@@ -61,13 +61,13 @@ global_game_loop_task: asyncio.Task | None = None
 global_game_loop_started_at: datetime | None = None
 global_game_loop_game_id: str | None = None
 global_last_loop_exception: dict[str, Any] | None = None
-human_agents: Dict[str, HumanAgent] = {}
+human_agents: dict[str, HumanAgent] = {}
 _game_lock = asyncio.Lock()
 
 
 class ConnectionManager:
     def __init__(self):
-        self.active_connections: Dict[str, WebSocket] = {}
+        self.active_connections: dict[str, WebSocket] = {}
 
     async def connect(self, websocket: WebSocket, player_id: str):
         await websocket.accept()
@@ -357,9 +357,12 @@ def filter_event_log(
             # 自己发出的或发给自己的私有事件
             if e.actor == player_id or e.target == player_id:
                 visible = True
-        elif e.visibility == Visibility.TEAM_EVIL and team == Team.EVIL:
-            visible = True
-        elif e.visibility == Visibility.TEAM_GOOD and team == Team.GOOD:
+        elif (
+            e.visibility == Visibility.TEAM_EVIL
+            and team == Team.EVIL
+            or e.visibility == Visibility.TEAM_GOOD
+            and team == Team.GOOD
+        ):
             visible = True
 
         if visible:
@@ -666,7 +669,7 @@ async def websocket_endpoint(websocket: WebSocket, player_id: str):
 
 
 @app.post("/api/game/setup")
-async def setup_game(data: Dict[str, Any]):
+async def setup_game(data: dict[str, Any]):
     if not global_orchestrator:
         return {"status": "error", "message": "Orchestrator not initialized"}
 
@@ -732,7 +735,7 @@ async def start_game():
 
 
 @app.post("/api/game/reset")
-async def reset_game(data: Dict[str, Any] | None = None):
+async def reset_game(data: dict[str, Any] | None = None):
     global global_orchestrator, human_agents
     logger.info("Resetting game orchestrator and sessions.")
     await stop_game_loop_task()
@@ -821,9 +824,12 @@ async def get_game_state(player_id: str = None):
     }
 
     # 如果当前玩家有挂起的行动请求，包含在内
-    if player_id and orchestrator._pending_night_action:
-        if orchestrator._pending_night_action.get("player_id") == player_id:
-            data["active_action_request"] = orchestrator._pending_night_action
+    if (
+        player_id
+        and orchestrator._pending_night_action
+        and orchestrator._pending_night_action.get("player_id") == player_id
+    ):
+        data["active_action_request"] = orchestrator._pending_night_action
 
     # 收集玩家信息，优先按座位顺序，未排座位的放最后
     players_data = []
@@ -938,12 +944,12 @@ async def storyteller_night_next():
 
 
 @app.post("/api/storyteller/night/resolve")
-async def storyteller_night_resolve(data: Dict[str, Any]):
+async def storyteller_night_resolve(data: dict[str, Any]):
     return {"status": "ok", "payload": data}
 
 
 @app.post("/api/storyteller/info/confirm")
-async def storyteller_info_confirm(data: Dict[str, Any]):
+async def storyteller_info_confirm(data: dict[str, Any]):
     return {"status": "ok", "payload": data}
 
 
@@ -1093,10 +1099,8 @@ async def rematch_game():
         {"type": "game_rematch", "new_game_id": new_game_id}, ensure_ascii=False
     )
     for pid in list(manager.active_connections.keys()):
-        try:
+        with suppress(Exception):
             await manager.send_personal_message(rematch_msg, pid)
-        except Exception:
-            pass
 
     return {"status": "ok", "new_game_id": new_game_id, "player_count": player_count}
 

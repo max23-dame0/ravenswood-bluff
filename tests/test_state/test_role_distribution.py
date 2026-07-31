@@ -26,9 +26,7 @@ def test_distribution_counts():
         assert counts[RoleType.DEMON] == 1
 
         # Verify Minion count
-        if count <= 6:
-            assert counts[RoleType.MINION] == 1
-        elif count <= 9:
+        if count <= 6 or count <= 9:
             assert counts[RoleType.MINION] == 1
         elif count <= 12:
             assert counts[RoleType.MINION] == 2

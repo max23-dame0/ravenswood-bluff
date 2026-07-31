@@ -308,14 +308,15 @@ class EventObserver:
             # [Task D] 自动冻结死者记忆
             if event.target and event.target != agent.player_id:
                 profile = agent.social_graph.get_profile(event.target)
-                if profile and not profile.is_frozen:
+                if (
+                    profile
+                    and not profile.is_frozen
+                    and profile.current_self_claim
+                    and agent.social_graph.claim_conflict_count(event.target) == 0
+                ):
                     # 如果此人有跳身份且没有明显的改口冲突，则冻结
-                    if (
-                        profile.current_self_claim
-                        and agent.social_graph.claim_conflict_count(event.target) == 0
-                    ):
-                        summary_text = f"死者，跳身份为 {get_role_name(profile.current_self_claim)}，生前表现稳定。"
-                        agent.social_graph.freeze_player(event.target, summary_text)
+                    summary_text = f"死者，跳身份为 {get_role_name(profile.current_self_claim)}，生前表现稳定。"
+                    agent.social_graph.freeze_player(event.target, summary_text)
             return
 
         # [GAME-3.3] 角色转移事件（Star-pass）：新恶魔继承身份与 bluffs

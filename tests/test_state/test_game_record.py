@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import contextlib
 import json
 import shutil
 from pathlib import Path
@@ -173,10 +174,8 @@ async def test_game_record_store_recovers_from_disk_io_error(monkeypatch):
         await store.close()
         fallback_path = store._json_fallback_path
         if fallback_path.exists():
-            try:
+            with contextlib.suppress(PermissionError):
                 fallback_path.unlink()
-            except PermissionError:
-                pass
 
 
 @pytest.mark.asyncio

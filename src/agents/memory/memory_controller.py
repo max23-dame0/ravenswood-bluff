@@ -296,9 +296,12 @@ class MemoryController:
             )
         # 提取关键事件标签
         for obs in agent.working_memory.observations:
-            if obs.phase == visible_state.phase and obs.source_event:
-                if obs.source_event.event_type not in episode.key_events:
-                    episode.key_events.append(obs.source_event.event_type)
+            if (
+                obs.phase == visible_state.phase
+                and obs.source_event
+                and obs.source_event.event_type not in episode.key_events
+            ):
+                episode.key_events.append(obs.source_event.event_type)
 
         agent.episodic_memory.add_episode(episode)
         agent.working_memory.clear_transient()
@@ -323,7 +326,7 @@ class MemoryController:
         embedding_status: dict[str, Any] = {}
         if hasattr(agent.backend, "get_embedding_status"):
             try:
-                embedding_status = dict(getattr(agent.backend, "get_embedding_status")())
+                embedding_status = dict(agent.backend.get_embedding_status())
             except Exception:
                 embedding_status = {}
 

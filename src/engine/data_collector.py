@@ -185,7 +185,7 @@ class GameDataCollector:
         file_paths = sorted(dir_path.glob(f"{game_id}_*.jsonl"))
         parse_error_count = 0
         for file_path in file_paths:
-            with open(file_path, "r", encoding="utf-8") as f:
+            with open(file_path, encoding="utf-8") as f:
                 for line in f:
                     if not line.strip():
                         continue

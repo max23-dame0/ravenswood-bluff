@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import logging
 import random
-from typing import Any, Optional
+from typing import Any
 
 from src.engine.roles.base_role import BaseRole, get_all_role_ids, get_role_class, register_role
 from src.state.game_state import (
@@ -36,9 +36,8 @@ def _pick_decoy_pair(game_state: GameState, actor_id: str, target_player_id: str
     others = [p for p in game_state.players if p.player_id not in (actor_id, target_player_id)]
     decoy = random.choice(others) if others else game_state.get_player(target_player_id)
     pair = [target_player_id]
-    if decoy:
-        if decoy.player_id != target_player_id:
-            pair.append(decoy.player_id)
+    if decoy and decoy.player_id != target_player_id:
+        pair.append(decoy.player_id)
     random.shuffle(pair)
     return pair
 
@@ -70,7 +69,7 @@ class WasherwomanRole(BaseRole):
         self,
         game_state: GameState,
         actor: PlayerState,
-    ) -> Optional[dict]:
+    ) -> dict | None:
         """为洗衣妇生成供说书人裁定的原始夜晚信息。"""
         if not _is_first_night(game_state):
             return None
@@ -134,7 +133,7 @@ class WasherwomanRole(BaseRole):
         self,
         game_state: GameState,
         actor: PlayerState,
-    ) -> Optional[dict]:
+    ) -> dict | None:
         return self.build_storyteller_info(game_state, actor)
 
 
@@ -165,7 +164,7 @@ class EmpathRole(BaseRole):
         self,
         game_state: GameState,
         actor: PlayerState,
-        target: Optional[str] = None,
+        target: str | None = None,
         **kwargs: Any,
     ) -> tuple[GameState, list[GameEvent]]:
         return game_state, []
@@ -174,7 +173,7 @@ class EmpathRole(BaseRole):
         self,
         game_state: GameState,
         actor: PlayerState,
-    ) -> Optional[dict]:
+    ) -> dict | None:
         seat_order = game_state.seat_order
         if not seat_order or actor.player_id not in seat_order:
             return None
@@ -221,7 +220,7 @@ class EmpathRole(BaseRole):
         self,
         game_state: GameState,
         actor: PlayerState,
-    ) -> Optional[dict]:
+    ) -> dict | None:
         return self.build_storyteller_info(game_state, actor)
 
 
@@ -249,11 +248,11 @@ class UndertakerRole(BaseRole):
         )
 
     def execute_ability(
-        self, game_state: GameState, actor: PlayerState, target: Optional[str] = None, **kwargs: Any
+        self, game_state: GameState, actor: PlayerState, target: str | None = None, **kwargs: Any
     ) -> tuple[GameState, list[GameEvent]]:
         return game_state, []
 
-    def build_storyteller_info(self, game_state: GameState, actor: PlayerState) -> Optional[dict]:
+    def build_storyteller_info(self, game_state: GameState, actor: PlayerState) -> dict | None:
         # 死亡玩家能力不生效
         if not actor.is_alive:
             return None
@@ -301,7 +300,7 @@ class UndertakerRole(BaseRole):
             ],
         }
 
-    def get_night_info(self, game_state: GameState, actor: PlayerState) -> Optional[dict]:
+    def get_night_info(self, game_state: GameState, actor: PlayerState) -> dict | None:
         return self.build_storyteller_info(game_state, actor)
 
 
@@ -328,7 +327,7 @@ class ChefRole(BaseRole):
             ),
         )
 
-    def build_storyteller_info(self, game_state: GameState, actor: PlayerState) -> Optional[dict]:
+    def build_storyteller_info(self, game_state: GameState, actor: PlayerState) -> dict | None:
         if not _is_first_night(game_state):
             return None
 
@@ -581,7 +580,7 @@ class FortuneTellerRole(BaseRole):
         self,
         game_state: GameState,
         actor: PlayerState,
-        target: Optional[str | list[str]] = None,
+        target: str | list[str] | None = None,
         **kwargs: Any,
     ) -> tuple[GameState, list[GameEvent]]:
         # 预言家由于选两个，这里处理嵌套列表、列表或逗号分隔字符串
@@ -625,7 +624,7 @@ class FortuneTellerRole(BaseRole):
         )
         return game_state.with_event(event), [event]
 
-    def build_storyteller_info(self, game_state: GameState, actor: PlayerState) -> Optional[dict]:
+    def build_storyteller_info(self, game_state: GameState, actor: PlayerState) -> dict | None:
         # 注意：预言家通常需要主动选择两个目标。在 Orchestrator 中应先请求 act
         # 这里为了模拟/AI决策，如果 action 中没有提供 target，我们需要通过某种方式获取
         # 实际全自动化运行时，这部分由 AIAgent.act 返回，Orchestrator 传入 execute_ability
@@ -672,7 +671,7 @@ class FortuneTellerRole(BaseRole):
 
         return {"type": "fortune_teller_info", "players": targets, "has_demon": has_demon}
 
-    def get_night_info(self, game_state: GameState, actor: PlayerState) -> Optional[dict]:
+    def get_night_info(self, game_state: GameState, actor: PlayerState) -> dict | None:
         return self.build_storyteller_info(game_state, actor)
 
 
@@ -918,8 +917,8 @@ class MayorRole(BaseRole):
         cls,
         game_state: GameState,
         mayor_player_id: str,
-        killer_id: Optional[str] = None,
-    ) -> Optional[str]:
+        killer_id: str | None = None,
+    ) -> str | None:
         for player in game_state.get_alive_players():
             if player.player_id in {mayor_player_id, killer_id}:
                 continue
