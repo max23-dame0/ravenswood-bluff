@@ -1,6 +1,6 @@
-import os
-import json
 import glob
+import json
+import os
 
 
 def get_exact_metrics():

@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import asyncio
 import importlib
-from pathlib import Path
 import sys
+from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 if str(REPO_ROOT) not in sys.path:

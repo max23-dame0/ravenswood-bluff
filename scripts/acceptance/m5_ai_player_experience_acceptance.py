@@ -9,7 +9,6 @@ import sys
 from pathlib import Path
 from typing import Any
 
-
 REPO_ROOT = Path(__file__).resolve().parents[2]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
@@ -132,6 +131,7 @@ def _build_report(metrics: dict[str, Any]) -> str:
 
 async def _fallback_probe_metrics() -> dict[str, Any]:
     from scripts.acceptance.ai_evaluation import InvalidJSONBackend
+
     from src.agents.ai_agent import AIAgent, Persona
     from src.state.game_state import GamePhase, GameState, PlayerState, Team
 

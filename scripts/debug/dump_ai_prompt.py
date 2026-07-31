@@ -1,12 +1,12 @@
 import asyncio
-import sys
 import os
+import sys
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
 
-from src.state.game_state import GameState, PlayerState, GamePhase
 from src.agents.ai_agent import AIAgent, Persona
 from src.agents.memory.working_memory import Observation
+from src.state.game_state import GamePhase, GameState, PlayerState
 
 
 class MockBackend:
@@ -15,8 +15,7 @@ class MockBackend:
 
     async def generate(self, messages, **kwargs):
         self.captured_prompt = messages[0].content if messages else ""
-        from src.llm.base_backend import LLMResponse
-        from src.llm.base_backend import Message
+        from src.llm.base_backend import LLMResponse, Message
 
         return LLMResponse(
             message=Message(role="assistant", content='{"action": "none"}'), usage={}

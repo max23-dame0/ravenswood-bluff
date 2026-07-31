@@ -14,7 +14,6 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Sequence
 
-
 REPO_ROOT = Path(__file__).resolve().parents[1]
 PYTHON = REPO_ROOT / ".venv" / "Scripts" / "python.exe"
 

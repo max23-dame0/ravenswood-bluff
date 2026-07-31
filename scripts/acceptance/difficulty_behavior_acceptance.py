@@ -15,11 +15,10 @@ if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 from src.agents.ai_agent import AIAgent, Persona
-from src.agents.decision.decision_noise import DecisionNoise, _NOISE_MAGNITUDE, _BOLD_MOVE_PROB
+from src.agents.decision.decision_noise import _BOLD_MOVE_PROB, _NOISE_MAGNITUDE, DecisionNoise
 from src.agents.difficulty_presets import PRESETS
 from src.llm.base_backend import LLMBackend, LLMResponse, Message
 from src.state.game_state import Team
-
 
 _pass_count = 0
 _fail_count = 0
@@ -316,6 +315,7 @@ def check_nomination_intelligence_differences() -> None:
     # 7c. Evil protection scaling: master evil protects teammates more than casual evil
     # Use a mock visible_state with a target that is a confirmed evil teammate
     from unittest.mock import MagicMock
+
     from src.agents.memory.social_graph import PlayerProfile
 
     for d in ("casual", "master"):

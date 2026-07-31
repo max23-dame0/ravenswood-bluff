@@ -16,7 +16,7 @@ if str(REPO_ROOT) not in sys.path:
 
 from src.agents.ai_agent import AIAgent, Persona
 from src.llm.mock_backend import MockBackend
-from src.state.game_state import GameState, PlayerState, GamePhase, Team
+from src.state.game_state import GamePhase, GameState, PlayerState, Team
 
 # 配置日志
 logging.basicConfig(level=logging.INFO)

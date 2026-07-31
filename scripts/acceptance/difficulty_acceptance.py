@@ -18,7 +18,6 @@ from src.agents.difficulty_presets import (
 from src.llm.mock_backend import MockBackend
 from src.state.game_state import DifficultyLevel, GameConfig
 
-
 _pass_count = 0
 _fail_count = 0
 

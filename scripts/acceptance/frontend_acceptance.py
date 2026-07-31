@@ -13,8 +13,8 @@ import importlib
 import os
 import sys
 import time
-from typing import Any
 from pathlib import Path
+from typing import Any
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 if str(REPO_ROOT) not in sys.path:

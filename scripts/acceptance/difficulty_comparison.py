@@ -14,10 +14,9 @@ if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 from src.agents.ai_agent import AIAgent, Persona
-from src.agents.decision.decision_noise import DecisionNoise, _NOISE_MAGNITUDE
+from src.agents.decision.decision_noise import _NOISE_MAGNITUDE, DecisionNoise
 from src.agents.difficulty_presets import PRESETS, get_preset
 from src.llm.mock_backend import MockBackend
-
 
 _pass_count = 0
 _fail_count = 0

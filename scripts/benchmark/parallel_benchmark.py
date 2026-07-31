@@ -1,6 +1,6 @@
 import asyncio
-import time
 import re
+import time
 
 # 配置：8/9/10人局，各3局
 PLAYER_COUNTS = [8, 9, 10]

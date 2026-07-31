@@ -7,7 +7,6 @@ import os
 import subprocess
 from pathlib import Path
 
-
 LOW_MEMORY_ENV = {
     "OMP_NUM_THREADS": "1",
     "OPENBLAS_NUM_THREADS": "1",
