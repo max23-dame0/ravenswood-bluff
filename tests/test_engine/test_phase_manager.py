@@ -1,6 +1,7 @@
 """Phase 1 测试 — 阶段状态机"""
 
 import pytest
+
 from src.engine.phase_manager import PhaseManager
 from src.state.game_state import GamePhase
 

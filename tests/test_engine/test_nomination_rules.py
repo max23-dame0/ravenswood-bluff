@@ -1,8 +1,9 @@
 """Phase 1 测试 — 规则引擎 & 提名投票系统"""
 
 import pytest
-from src.engine.rule_engine import RuleEngine
+
 from src.engine.nomination import NominationManager
+from src.engine.rule_engine import RuleEngine
 from src.state.game_state import ExecutionCandidate, GamePhase, GameState, PlayerState, Team
 
 

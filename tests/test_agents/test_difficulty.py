@@ -13,7 +13,6 @@ from src.agents.difficulty_presets import (
 from src.llm.base_backend import LLMBackend, LLMResponse, Message
 from src.state.game_state import DifficultyLevel, GameConfig, Team
 
-
 # ============================================================
 # DifficultyLevel enum
 # ============================================================

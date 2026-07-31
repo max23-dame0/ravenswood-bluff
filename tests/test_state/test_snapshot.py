@@ -1,8 +1,9 @@
 """Phase 0 测试 — 状态快照"""
 
 import json
-from src.state.snapshot import SnapshotManager
+
 from src.state.game_state import GamePhase, GameState, PlayerState, Team
+from src.state.snapshot import SnapshotManager
 
 
 def make_state(**kwargs) -> GameState:

@@ -1,6 +1,5 @@
 from pathlib import Path
 
-
 INDEX_HTML = Path("public/index.html").read_text(encoding="utf-8")
 
 

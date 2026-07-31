@@ -8,6 +8,7 @@ from types import SimpleNamespace
 
 import pytest
 from fastapi.testclient import TestClient
+
 from src.api.server import build_nomination_state
 from src.state.game_state import GameState, PlayerState, Team
 

@@ -8,10 +8,9 @@ from pathlib import Path
 
 import pytest
 
-from src.agents.base_agent import BaseAgent
 from src.agents import storyteller_agent as storyteller_module
+from src.agents.base_agent import BaseAgent
 from src.content.trouble_brewing_night_order import build_night_order_tie_groups
-from src.llm.mock_backend import MockBackend
 from src.engine.roles.base_role import get_role_class
 from src.engine.roles.minions import SpyRole
 from src.engine.roles.townsfolk import (
@@ -23,6 +22,7 @@ from src.engine.roles.townsfolk import (
     UndertakerRole,
     WasherwomanRole,
 )
+from src.llm.mock_backend import MockBackend
 from src.orchestrator.game_loop import GameOrchestrator
 from src.state.game_state import (
     GameConfig,

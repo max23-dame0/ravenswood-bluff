@@ -1,6 +1,7 @@
 """Phase 0 测试 — 事件总线"""
 
 import pytest
+
 from src.orchestrator.event_bus import EventBus
 from src.state.game_state import GameEvent, GamePhase
 

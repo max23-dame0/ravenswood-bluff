@@ -7,8 +7,9 @@ test files don't need to duplicate setup boilerplate.
 
 from __future__ import annotations
 
-import pytest
 from typing import Any, Optional
+
+import pytest
 
 from src.agents.ai_agent import AIAgent, Persona
 from src.agents.base_agent import BaseAgent
@@ -28,11 +29,9 @@ from src.state.game_state import (
     Visibility,
 )
 
-
 # ---------------------------------------------------------------------------
 # Test doubles (single source of truth → tests/doubles.py)
 # ---------------------------------------------------------------------------
-
 from tests.doubles import (
     CapturingBackend,
     DummyAgent,
@@ -40,7 +39,6 @@ from tests.doubles import (
     DummyStoryteller,
     ScriptedAgent,
 )
-
 
 # ---------------------------------------------------------------------------
 # Shared helpers

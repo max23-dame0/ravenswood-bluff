@@ -6,7 +6,7 @@ import pytest
 
 from src.agents.ai_agent import AIAgent, Persona
 from src.llm.base_backend import LLMBackend, LLMResponse, Message
-from src.state.game_state import ChatMessage, GameEvent, GameState, GamePhase, PlayerState, Team
+from src.state.game_state import ChatMessage, GameEvent, GamePhase, GameState, PlayerState, Team
 
 
 class CapturingBackend(LLMBackend):

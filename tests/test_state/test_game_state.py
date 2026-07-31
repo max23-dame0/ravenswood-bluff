@@ -1,6 +1,7 @@
 """Phase 0 测试 — 核心数据模型"""
 
 import pytest
+
 from src.state.game_state import (
     Ability,
     AbilityTrigger,
@@ -12,14 +13,13 @@ from src.state.game_state import (
     GameState,
     PlayerState,
     PlayerStatus,
+    PrivatePlayerView,
     RoleDefinition,
     RoleType,
     ScriptConfig,
     Team,
     Visibility,
-    PrivatePlayerView,
 )
-
 
 # ============================================================
 # PlayerState Tests

@@ -1,9 +1,10 @@
 """Phase 2 测试 - 记忆系统与社交图谱"""
 
 import json
-from src.agents.memory.working_memory import WorkingMemory, Observation
-from src.agents.memory.episodic_memory import EpisodicMemory, Episode
+
+from src.agents.memory.episodic_memory import Episode, EpisodicMemory
 from src.agents.memory.social_graph import SocialGraph
+from src.agents.memory.working_memory import Observation, WorkingMemory
 from src.state.game_state import GamePhase
 
 

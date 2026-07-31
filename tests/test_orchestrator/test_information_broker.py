@@ -1,9 +1,10 @@
 """Phase 3 测试 - 信息代理"""
 
 import pytest
-from src.orchestrator.information_broker import InformationBroker
-from src.state.game_state import GameState, PlayerState, GameEvent, GamePhase, Team, Visibility
+
 from src.agents.base_agent import BaseAgent
+from src.orchestrator.information_broker import InformationBroker
+from src.state.game_state import GameEvent, GamePhase, GameState, PlayerState, Team, Visibility
 
 
 class DummyAgent(BaseAgent):

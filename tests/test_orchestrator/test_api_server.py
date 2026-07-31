@@ -1,12 +1,13 @@
+import importlib
 import json
 import logging
-import importlib
 import time
 import uuid
 from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
+
 from src.state.game_state import GameEvent, GamePhase, GameState, PlayerState, Team
 
 

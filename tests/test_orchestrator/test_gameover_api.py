@@ -67,8 +67,8 @@ def test_settlement_endpoint_returns_report_when_game_over(monkeypatch):
 @pytest.mark.asyncio
 async def test_history_endpoints_read_persisted_games(monkeypatch):
     monkeypatch.setenv("BOTC_BACKEND", "mock")
-    import src.state.game_record as game_record_module
     import src.api.server as server_module
+    import src.state.game_record as game_record_module
 
     db_uri = _memory_db_uri("api_game_record_test")
     original_init = game_record_module.GameRecordStore.__init__
@@ -167,9 +167,9 @@ async def test_history_endpoints_read_persisted_games(monkeypatch):
 @pytest.mark.asyncio
 async def test_export_endpoint_returns_history_traces_and_judgement_summary(monkeypatch):
     monkeypatch.setenv("BOTC_BACKEND", "mock")
-    import src.state.game_record as game_record_module
-    import src.engine.data_collector as data_collector_module
     import src.api.server as server_module
+    import src.engine.data_collector as data_collector_module
+    import src.state.game_record as game_record_module
 
     db_uri = _memory_db_uri("api_game_export_test")
     original_init = game_record_module.GameRecordStore.__init__

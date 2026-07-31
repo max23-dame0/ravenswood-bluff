@@ -2,14 +2,15 @@
 
 from __future__ import annotations
 
-import pytest
 import random as py_random
 
-import src.engine.scripts as scripts_module
+import pytest
+
 import src.engine.roles.demons  # noqa: F401
 import src.engine.roles.minions  # noqa: F401
 import src.engine.roles.outsiders  # noqa: F401
 import src.engine.roles.townsfolk  # noqa: F401
+import src.engine.scripts as scripts_module
 from src.engine.roles.base_role import get_role_class
 from src.engine.rule_engine import RuleEngine
 from src.state.game_state import GameEvent, GamePhase, GameState, PlayerState, Team, Visibility
@@ -537,8 +538,9 @@ def test_slayer_kills_demon_triggers_good_victory() -> None:
 
 
 def test_baron_setup_modifies_outsider_count() -> None:
-    from src.engine.scripts import TROUBLE_BREWING, distribute_roles
     import random
+
+    from src.engine.scripts import TROUBLE_BREWING, distribute_roles
 
     # 模拟强制选中男爵
     random.seed(42)  # Maybe deterministic?

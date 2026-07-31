@@ -6,7 +6,6 @@ from pathlib import Path
 
 import pytest
 
-
 EXPECTED_SAMPLE_KEYS = {
     "game_id",
     "script_id",

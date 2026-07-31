@@ -4,8 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from src.agents.decision.decision_noise import BoldMoveResult, DecisionNoise, _NOISE_MAGNITUDE
-
+from src.agents.decision.decision_noise import _NOISE_MAGNITUDE, BoldMoveResult, DecisionNoise
 
 # ============================================================
 # Magnitude ordering

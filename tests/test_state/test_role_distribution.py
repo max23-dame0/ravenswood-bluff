@@ -1,5 +1,5 @@
-from src.engine.scripts import distribute_roles, TROUBLE_BREWING
 from src.engine.roles.base_role import get_role_class
+from src.engine.scripts import TROUBLE_BREWING, distribute_roles
 from src.state.game_state import RoleType
 
 

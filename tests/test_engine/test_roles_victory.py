@@ -1,9 +1,8 @@
 """Phase 1 测试 — 角色系统与胜负判定"""
 
-from src.engine.roles.base_role import get_role_class, get_all_role_ids
+from src.engine.roles.base_role import get_all_role_ids, get_role_class
 
 # ensure roles are registered
-
 from src.engine.victory_checker import VictoryChecker
 from src.state.game_state import GamePhase, GameState, PlayerState, PlayerStatus, Team
 

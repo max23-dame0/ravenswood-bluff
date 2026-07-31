@@ -1,6 +1,5 @@
 from pathlib import Path
 
-
 STORYTELLER_HTML = Path("public/storyteller.html").read_text(encoding="utf-8")
 
 

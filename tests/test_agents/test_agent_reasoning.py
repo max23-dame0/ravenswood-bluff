@@ -2,12 +2,12 @@
 
 import pytest
 
+import src.engine.roles.townsfolk  # noqa: F401
 from src.agents.ai_agent import AIAgent, Persona
-from src.agents.reasoning.deduction import DeductionEngine
 from src.agents.dialogue.dialogue_manager import DialogueManager
 from src.agents.memory.social_graph import SocialGraph
 from src.agents.memory.working_memory import Observation, WorkingMemory
-import src.engine.roles.townsfolk  # noqa: F401
+from src.agents.reasoning.deduction import DeductionEngine
 from src.llm.base_backend import LLMBackend, LLMResponse, Message
 from src.state.game_state import (
     ChatMessage,

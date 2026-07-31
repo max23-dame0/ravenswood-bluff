@@ -2,11 +2,11 @@
 
 import pytest
 
-from src.agents.storyteller_agent import StorytellerAgent
-from src.orchestrator.game_loop import GameOrchestrator
-from src.state.game_state import GameConfig, GameState, PlayerState, Team, GamePhase, Visibility
 from src.agents.base_agent import BaseAgent
+from src.agents.storyteller_agent import StorytellerAgent
 from src.llm.mock_backend import MockBackend
+from src.orchestrator.game_loop import GameOrchestrator
+from src.state.game_state import GameConfig, GamePhase, GameState, PlayerState, Team, Visibility
 
 
 # 简单的占位Agent，用于在测试中配合游戏循环

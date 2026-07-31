@@ -1,8 +1,10 @@
 """Phase 4 - 人类代理测试"""
 
-import pytest
 import asyncio
 import json
+
+import pytest
+
 from src.agents.human_agent import HumanAgent
 from src.state.game_state import AgentActionLegalContext, AgentVisibleState, GameEvent, GamePhase
 

@@ -5,8 +5,8 @@ import shutil
 from pathlib import Path
 from uuid import uuid4
 
-import pytest
 import aiosqlite
+import pytest
 
 from src.engine.data_collector import GameDataCollector
 from src.state.game_record import GameRecordStore
