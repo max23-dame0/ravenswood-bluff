@@ -450,13 +450,15 @@ class NominationVotingHandler:
             # 为人类玩家增加强制选择校验
             if player.player_id in human_ids:
 
-                async def human_nomination_loop(v_state, a_type, l_ctx, a_agent):
+                async def human_nomination_loop(
+                    v_state, a_type, l_ctx, a_agent, player_id=player.player_id
+                ):
                     trying_empty = False
                     retry_count = 0
                     while retry_count < self._o.MAX_AGENT_RETRIES:
                         retry_count += 1
                         # 发送请求并等待
-                        self._o._mark_progress(f"human_action:{player.player_id}:nominate")
+                        self._o._mark_progress(f"human_action:{player_id}:nominate")
                         act_res = await a_agent.act(
                             v_state,
                             a_type,
@@ -472,7 +474,7 @@ class NominationVotingHandler:
                         if tgt or act_res.get("action") == "none":
                             return act_res
                         logger.warning(
-                            f"[Nomination] 玩家 {player.player_id} 提交了空提名意图，重试 ({retry_count}/{self._o.MAX_AGENT_RETRIES})。"
+                            f"[Nomination] 玩家 {player_id} 提交了空提名意图，重试 ({retry_count}/{self._o.MAX_AGENT_RETRIES})。"
                         )
                         trying_empty = True
 
@@ -495,12 +497,16 @@ class NominationVotingHandler:
                 self._o._mark_progress(f"ai_action:{player.player_id}:nomination_intent")
 
                 async def _nomination_intent_task(
-                    pid=player.player_id, agt=agent, vs=visible_state, lc=legal_context
+                    pid=player.player_id,
+                    agt=agent,
+                    vs=visible_state,
+                    lc=legal_context,
+                    a_type=action_type,
                 ):
                     return await self._o._timed_act(
                         agt,
                         vs,
-                        action_type,
+                        a_type,
                         legal_context=lc,
                         player_id=pid,
                         phase="nomination",
@@ -750,7 +756,7 @@ class NominationVotingHandler:
                 ai_vote_tasks.append((voter_id, asyncio.create_task(_ai_vote_task(voter_id))))
 
         # 等待所有 AI 投票完成
-        for voter_id, task in ai_vote_tasks:
+        for _voter_id, task in ai_vote_tasks:
             pid, decision = await task
             vote_decisions[pid] = decision
 

@@ -13,7 +13,7 @@ import logging
 import os
 import re
 import time
-from typing import Any, Optional
+from typing import Any
 
 from src.agents.base_agent import BaseAgent
 
@@ -62,7 +62,7 @@ class AIAgent(BaseAgent):
         backend: LLMBackend,
         persona: Persona,
         player_count: int = 10,
-        data_collector: Optional[GameDataCollector] = None,
+        data_collector: GameDataCollector | None = None,
         difficulty: str = "standard",
     ) -> None:
         super().__init__(player_id, name)
@@ -393,7 +393,7 @@ class AIAgent(BaseAgent):
         return self._evil_strategy.get_evil_strategic_summary(visible_state)
 
     def _build_persona_prompt_block(
-        self, action_type: str, visible_state: Optional[AgentVisibleState] = None
+        self, action_type: str, visible_state: AgentVisibleState | None = None
     ) -> str:
         return self._prompt_factory.build_persona_prompt_block(action_type, visible_state)
 
@@ -509,7 +509,7 @@ class AIAgent(BaseAgent):
         if public_memories:
             # 去重：过滤掉与社交图谱自报身份重复的公开记忆
             graph_claims = set()
-            for pid, prof in self.social_graph.profiles.items():
+            for _pid, prof in self.social_graph.profiles.items():
                 if prof.current_self_claim:
                     graph_claims.add(
                         f"{prof.name} 公开跳身份为 {get_role_name(prof.current_self_claim)}"

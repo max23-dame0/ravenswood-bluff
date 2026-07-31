@@ -10,7 +10,6 @@ import json
 import logging
 import os
 import uuid
-from typing import Optional
 
 from src.debug.game_debug_logger import game_debug_logger
 from src.llm.base_backend import (
@@ -34,8 +33,8 @@ class OpenAIBackend(LLMBackend):
     def __init__(
         self,
         model: str = "gpt-4o-mini",
-        api_key: Optional[str] = None,
-        base_url: Optional[str] = None,
+        api_key: str | None = None,
+        base_url: str | None = None,
     ) -> None:
         from dotenv import load_dotenv
 
@@ -51,7 +50,7 @@ class OpenAIBackend(LLMBackend):
         self._client = None
         self._embedding_client = None
         self._embeddings_disabled = False
-        self._embeddings_disable_reason: Optional[str] = None
+        self._embeddings_disable_reason: str | None = None
 
     def _get_client(self):
         """懒加载 OpenAI 客户端"""
@@ -59,7 +58,9 @@ class OpenAIBackend(LLMBackend):
             try:
                 from openai import AsyncOpenAI
             except ImportError:
-                raise ImportError("openai package is required. Install with: pip install openai")
+                raise ImportError(
+                    "openai package is required. Install with: pip install openai"
+                ) from None
             kwargs = {}
             if self._api_key:
                 kwargs["api_key"] = self._api_key
@@ -74,7 +75,9 @@ class OpenAIBackend(LLMBackend):
             try:
                 from openai import AsyncOpenAI
             except ImportError:
-                raise ImportError("openai package is required. Install with: pip install openai")
+                raise ImportError(
+                    "openai package is required. Install with: pip install openai"
+                ) from None
             kwargs = {}
             if self._embedding_api_key:
                 kwargs["api_key"] = self._embedding_api_key
@@ -87,9 +90,9 @@ class OpenAIBackend(LLMBackend):
         self,
         system_prompt: str,
         messages: list[Message],
-        tools: Optional[list[ToolDef]] = None,
+        tools: list[ToolDef] | None = None,
         temperature: float = 0.7,
-        max_tokens: Optional[int] = None,
+        max_tokens: int | None = None,
     ) -> LLMResponse:
         """通过 OpenAI API 生成响应"""
         client = self._get_client()

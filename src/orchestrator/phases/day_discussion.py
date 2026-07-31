@@ -163,7 +163,7 @@ class DayDiscussionHandler:
 
             # Step 4: Process AI speeches sequentially
             # Each AI sees the latest state including human speeches from this round.
-            for idx, p in enumerate(ai_players):
+            for _idx, p in enumerate(ai_players):
                 speak_agent = self._o.broker.agents.get(p.player_id)
                 if not speak_agent:
                     continue

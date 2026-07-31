@@ -107,7 +107,7 @@ class PhaseManager:
             try:
                 target = GamePhase(target)
             except ValueError:
-                raise ValueError(f"无效的阶段名称: {target}")
+                raise ValueError(f"无效的阶段名称: {target}") from None
 
         if not self.can_transition_to(target):
             valid = self.get_valid_transitions()

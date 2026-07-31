@@ -406,7 +406,7 @@ def _sequence_strength(actions: tuple[Any, ...]) -> tuple[int, ...]:
 
 
 def _sequence_is_monotonic(sequence: tuple[int, ...]) -> bool:
-    return all(left <= right for left, right in zip(sequence, sequence[1:]))
+    return all(left <= right for left, right in zip(sequence, sequence[1:], strict=False))
 
 
 async def evaluate_agents() -> dict[str, Any]:

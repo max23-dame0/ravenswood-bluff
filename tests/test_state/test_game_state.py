@@ -1,6 +1,7 @@
 """Phase 0 测试 — 核心数据模型"""
 
 import pytest
+from pydantic import ValidationError
 
 from src.state.game_state import (
     Ability,
@@ -48,7 +49,7 @@ class TestPlayerState:
             role_id="washerwoman",
             team=Team.GOOD,
         )
-        with pytest.raises(Exception):
+        with pytest.raises(ValidationError):
             player.is_alive = False  # type: ignore
 
     def test_with_update(self):
@@ -109,7 +110,7 @@ class TestGameState:
 
     def test_immutability(self):
         state = GameState(players=self._make_players())
-        with pytest.raises(Exception):
+        with pytest.raises(ValidationError):
             state.phase = GamePhase.NIGHT  # type: ignore
 
     def test_get_player(self):

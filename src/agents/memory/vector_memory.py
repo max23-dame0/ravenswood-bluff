@@ -7,7 +7,7 @@
 from __future__ import annotations
 
 import logging
-from typing import Any, Optional
+from typing import Any
 
 try:
     import numpy as np
@@ -43,7 +43,7 @@ class VectorMemory:
         # 初始化 Faiss 索引 (L2 距离)
         if faiss and np is not None:
             self.index = faiss.IndexFlatL2(dimension)
-            self._local_disable_reason: Optional[str] = None
+            self._local_disable_reason: str | None = None
         else:
             self.index = None
             self._local_disable_reason = "missing_numpy_or_faiss"
@@ -63,7 +63,7 @@ class VectorMemory:
             "last_hit_count": 0,
         }
 
-    def _get_runtime_status(self) -> tuple[str, Optional[str], bool]:
+    def _get_runtime_status(self) -> tuple[str, str | None, bool]:
         """返回当前向量检索状态、原因与 embeddings 是否启用。"""
         if not self.index:
             return "disabled", self._local_disable_reason, False
@@ -161,7 +161,7 @@ class VectorMemory:
             distances, indices = self.index.search(query_vector, top_k)
 
             results = []
-            for i, idx in enumerate(indices[0]):
+            for _i, idx in enumerate(indices[0]):
                 if idx != -1 and idx < len(self.metadata):
                     results.append(self.metadata[idx])
             self._stats["last_hit_count"] = len(results)

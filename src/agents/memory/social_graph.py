@@ -10,7 +10,6 @@ from __future__ import annotations
 import json
 import logging
 from dataclasses import dataclass, field
-from typing import Optional
 
 logger = logging.getLogger(__name__)
 
@@ -51,7 +50,7 @@ class PlayerProfile:
     # 身份相关声明历史
     claim_history: list[ClaimRecord] = field(default_factory=list)
     # 当前自报的身份 (取代 claimed_role_id)
-    current_self_claim: Optional[str] = None
+    current_self_claim: str | None = None
     # 关于其他玩家的声明: subject_player_id -> list[ClaimRecord]
     claims_about_others: dict[str, list[ClaimRecord]] = field(default_factory=dict)
     # 发言冲突记录
@@ -62,7 +61,7 @@ class PlayerProfile:
     frozen_summary: str = ""
 
     @property
-    def claimed_role_id(self) -> Optional[str]:
+    def claimed_role_id(self) -> str | None:
         """兼容旧读取口径，等价于 current_self_claim。"""
         return self.current_self_claim
 
@@ -92,7 +91,7 @@ class SocialGraph:
         if player_id not in self.profiles and player_id != self.my_player_id:
             self.profiles[player_id] = PlayerProfile(player_id=player_id, name=name)
 
-    def get_profile(self, player_id: str) -> Optional[PlayerProfile]:
+    def get_profile(self, player_id: str) -> PlayerProfile | None:
         return self.profiles.get(player_id)
 
     def update_trust(self, player_id: str, delta: float) -> None:
@@ -245,7 +244,7 @@ class SocialGraph:
         neutral = []
         suspicious = []
 
-        for pid, prof in self.profiles.items():
+        for _pid, prof in self.profiles.items():
             if prof.trust_score >= 0.4:
                 trusted.append(f"{prof.name} (信任+{prof.trust_score:.1f})")
             elif prof.trust_score <= -0.4:
@@ -261,7 +260,7 @@ class SocialGraph:
             summary.append(f"⚪ 你持保留态度的人: {', '.join(neutral)}")
 
         # 加上最近的推理笔记
-        for pid, prof in self.profiles.items():
+        for _pid, prof in self.profiles.items():
             if prof.is_frozen:
                 # 冻结模式：只输出一行摘要
                 status = " (已冻结/由于死亡或身份确认为已知)"

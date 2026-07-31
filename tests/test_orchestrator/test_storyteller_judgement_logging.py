@@ -224,7 +224,7 @@ def _state_for_undertaker() -> GameState:
 @pytest.mark.asyncio
 async def test_storyteller_agent_records_judgement_summary_and_log(monkeypatch):
     workspace = Path(__file__).parent.parent / "test_runs" / "_storyteller_judgement_workspace"
-    workspace.mkdir(exist_ok=True)
+    workspace.mkdir(parents=True, exist_ok=True)
     monkeypatch.chdir(workspace)
     module = importlib.reload(storyteller_module)
     agent = module.StorytellerAgent(MockBackend())
@@ -584,7 +584,7 @@ async def test_storyteller_distorts_spy_book_when_suppressed(monkeypatch):
     assert len(info["book"]) == len(expected_book["book"])
     assert any(
         original["role_id"] != changed["role_id"] or original["team"] != changed["team"]
-        for original, changed in zip(expected_book["book"], info["book"])
+        for original, changed in zip(expected_book["book"], info["book"], strict=False)
     )
     recent = agent.get_recent_judgements(5)
     assert recent[-1]["bucket"] == "night_info.fixed_info.suppressed"
