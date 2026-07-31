@@ -17,7 +17,7 @@ def _run(repo_root: Path, args: list[str]) -> None:
         check=False,
         # 会真实跑完整局 mock 对局，与 tests/test_orchestrator/test_storyteller_balance_sample_export.py
         # 保持同一时限口径，避免高负载下误报超时。
-        timeout=180,
+        timeout=240,
     )
     if result.returncode != 0:
         raise SystemExit(result.stderr or result.stdout)

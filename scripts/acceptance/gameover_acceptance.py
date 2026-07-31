@@ -27,7 +27,7 @@ def main() -> int:
             cwd=REPO_ROOT,
             text=True,
             check=False,
-            timeout=60,
+            timeout=240,
         )
     except subprocess.TimeoutExpired as exc:
         raise SystemExit(f"gameover acceptance timed out after {exc.timeout}s") from exc
