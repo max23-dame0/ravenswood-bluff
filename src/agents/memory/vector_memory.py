@@ -21,7 +21,7 @@ except ImportError:
     faiss = None
 
 from src.llm.base_backend import LLMBackend
-from src.state.game_state import GameEvent, ChatMessage
+from src.state.game_state import ChatMessage, GameEvent
 
 logger = logging.getLogger(__name__)
 

@@ -7,8 +7,8 @@ import logging
 from typing import TYPE_CHECKING, Any
 
 from src.engine.nomination import NominationManager
-from src.engine.rule_engine import RuleEngine
 from src.engine.roles.base_role import get_role_class
+from src.engine.rule_engine import RuleEngine
 from src.state.game_state import (
     AgentActionLegalContext,
     GameEvent,

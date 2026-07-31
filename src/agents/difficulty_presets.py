@@ -1,9 +1,9 @@
 """Difficulty presets for AI agent behavior."""
 
 from __future__ import annotations
+
 from dataclasses import dataclass, field
 from typing import Any
-
 
 # Default latency budgets (ms) per action type
 _DEFAULT_LATENCY_BUDGET: dict[str, int] = {

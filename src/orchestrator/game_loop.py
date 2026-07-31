@@ -12,11 +12,11 @@ import uuid
 from typing import Any
 
 from src.agents.base_agent import BaseAgent
+from src.debug.game_debug_logger import game_debug_logger
+from src.engine.data_collector import GameDataCollector
 from src.engine.phase_manager import PhaseManager
 from src.engine.roles.base_role import get_role_class
 from src.engine.victory_checker import VictoryChecker
-from src.engine.data_collector import GameDataCollector
-from src.debug.game_debug_logger import game_debug_logger
 from src.orchestrator.agents import AgentManager
 from src.orchestrator.claims import ClaimExtractor
 from src.orchestrator.event_bus import EventBus
@@ -27,6 +27,7 @@ from src.orchestrator.metrics import MetricsCollector
 from src.orchestrator.phases import DayDiscussionHandler, NightPhaseHandler, NominationVotingHandler
 from src.orchestrator.settlement import SettlementBuilder
 from src.state.event_log import EventLog
+from src.state.game_record import GameRecordStore
 from src.state.game_state import (
     AgentActionLegalContext,
     AgentVisibleState,
@@ -42,7 +43,6 @@ from src.state.game_state import (
     Team,
     Visibility,
 )
-from src.state.game_record import GameRecordStore
 from src.state.snapshot import SnapshotManager
 
 logger = logging.getLogger(__name__)

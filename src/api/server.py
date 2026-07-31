@@ -2,29 +2,28 @@
 Web Backend entry point for Ravenswood Bluff
 """
 
+import asyncio
 import json
 import logging
-import asyncio
-import sys
 import os
-from contextlib import asynccontextmanager
-from contextlib import suppress
+import sys
+from contextlib import asynccontextmanager, suppress
 from datetime import datetime
-from typing import Dict, Any
+from typing import Any, Dict
 
 from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
 from fastapi.responses import RedirectResponse
+from fastapi.staticfiles import StaticFiles
 
 from src.agents.human_agent import HumanAgent
 from src.agents.storyteller_agent import StorytellerAgent
-from src.content.trouble_brewing_terms import get_role_term
 from src.content.trouble_brewing_night_order import export_rulebook_night_order
+from src.content.trouble_brewing_terms import get_role_term
 from src.debug.game_debug_logger import game_debug_logger
 from src.orchestrator.game_loop import GameOrchestrator
 from src.state.event_log import Visibility
-from src.state.game_state import GameState, PlayerState, Team, GamePhase
+from src.state.game_state import GamePhase, GameState, PlayerState, Team
 
 
 def _ensure_file_handler(logger_name: str, filename: str) -> logging.FileHandler:
@@ -1020,8 +1019,8 @@ async def get_player_game_history_detail(game_id: str, player_name: str):
 @app.get("/api/game/export/{game_id}")
 async def export_game_assets(game_id: str):
     """[A3-DATA-4] 统一导出单局历史、AI traces 与说书人判决资产。"""
-    from src.state.game_record import GameRecordStore
     from src.engine.data_collector import GameDataCollector
+    from src.state.game_record import GameRecordStore
 
     store = GameRecordStore()
     try:

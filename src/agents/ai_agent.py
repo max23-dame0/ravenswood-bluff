@@ -6,23 +6,34 @@ AI Agent 实现
 
 from __future__ import annotations
 
-import hashlib
 import asyncio
-import logging
+import hashlib
 import json
+import logging
 import os
 import re
 import time
 from typing import Any, Optional
-from src.engine.data_collector import GameDataCollector
+
 from src.agents.base_agent import BaseAgent
-from src.agents.memory.episodic_memory import EpisodicMemory
-from src.agents.memory.social_graph import SocialGraph
-from src.agents.memory.working_memory import WorkingMemory
-from src.agents.memory.vector_memory import VectorMemory
-from src.agents.difficulty_presets import DifficultyPreset, get_preset
+
+# Re-export from extracted modules for backward compatibility
+from src.agents.deception.deception_tracker import DeceptionTracker
+from src.agents.decision.decision_engine import DecisionEngine
 from src.agents.decision.decision_noise import DecisionNoise
+from src.agents.difficulty_presets import DifficultyPreset, get_preset
+from src.agents.memory.episodic_memory import EpisodicMemory
+from src.agents.memory.memory_controller import MemoryController
+from src.agents.memory.social_graph import SocialGraph
+from src.agents.memory.vector_memory import VectorMemory
+from src.agents.memory.working_memory import WorkingMemory
+from src.agents.observation.event_observer import EventObserver
+from src.agents.persona.persona import ParsedRoleStatement, Persona
+from src.agents.prompt.prompt_factory import PromptFactory
+from src.agents.speech.speech_sanitizer import SpeechSanitizer
+from src.agents.strategy.evil_strategy import EvilStrategy
 from src.content.trouble_brewing_terms import get_role_name
+from src.engine.data_collector import GameDataCollector
 from src.llm.base_backend import LLMBackend
 from src.state.game_state import (
     AgentActionLegalContext,
@@ -35,16 +46,6 @@ from src.state.game_state import (
     Visibility,
     VisiblePlayerInfo,
 )
-
-# Re-export from extracted modules for backward compatibility
-from src.agents.deception.deception_tracker import DeceptionTracker
-from src.agents.persona.persona import ParsedRoleStatement, Persona
-from src.agents.prompt.prompt_factory import PromptFactory
-from src.agents.speech.speech_sanitizer import SpeechSanitizer
-from src.agents.decision.decision_engine import DecisionEngine
-from src.agents.observation.event_observer import EventObserver
-from src.agents.strategy.evil_strategy import EvilStrategy
-from src.agents.memory.memory_controller import MemoryController
 
 logger = logging.getLogger(__name__)
 
@@ -968,8 +969,8 @@ class AIAgent(BaseAgent):
     def _build_legal_action_context(
         self, game_state: GameState, visible_state: AgentVisibleState
     ) -> AgentActionLegalContext:
-        from src.engine.rule_engine import RuleEngine
         from src.engine.roles.base_role import get_role_class
+        from src.engine.rule_engine import RuleEngine
 
         nomination_targets: list[str] = []
         for player in game_state.players:

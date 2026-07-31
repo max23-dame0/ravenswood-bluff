@@ -11,7 +11,6 @@ import hashlib
 import random
 from dataclasses import dataclass
 
-
 # Noise magnitude per difficulty level
 _NOISE_MAGNITUDE: dict[str, float] = {
     "casual": 0.12,

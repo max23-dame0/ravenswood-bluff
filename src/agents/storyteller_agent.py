@@ -8,6 +8,7 @@ import os
 import random
 from dataclasses import asdict, dataclass
 from typing import Any
+
 from src.content.trouble_brewing_night_order import (
     build_night_order_tie_groups,
     get_night_order_sort_key,

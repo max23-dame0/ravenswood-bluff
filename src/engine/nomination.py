@@ -10,8 +10,8 @@ from src.state.game_state import (
     GameEvent,
     GamePhase,
     GameState,
-    Visibility,
     RoleType,
+    Visibility,
 )
 
 logger = logging.getLogger(__name__)

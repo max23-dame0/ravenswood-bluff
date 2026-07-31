@@ -6,8 +6,8 @@
 """
 
 import json
-import os
 import logging
+import os
 from typing import Any
 
 logger = logging.getLogger("replay")

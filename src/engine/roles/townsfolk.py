@@ -10,7 +10,7 @@ import logging
 import random
 from typing import Any, Optional
 
-from src.engine.roles.base_role import BaseRole, register_role, get_role_class, get_all_role_ids
+from src.engine.roles.base_role import BaseRole, get_all_role_ids, get_role_class, register_role
 from src.state.game_state import (
     Ability,
     AbilityTrigger,

@@ -51,8 +51,8 @@ class ClaimExtractor:
         await self._o.event_bus.publish(claim_event)
 
     async def _extract_claims_via_llm(self, event: GameEvent) -> list[dict[str, Any]]:
-        from src.llm.openai_backend import OpenAIBackend
         from src.llm.base_backend import Message
+        from src.llm.openai_backend import OpenAIBackend
 
         backend = (
             self._o.default_agent_backend
