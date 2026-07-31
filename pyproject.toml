@@ -20,7 +20,8 @@ dev = [
     "pytest>=7.0",
     "pytest-asyncio>=0.21",
     "pytest-cov>=4.0",
-    "ruff>=0.1",
+    # >=0.5 起 [tool.ruff.lint] / [tool.ruff.format] 配置段稳定可用
+    "ruff>=0.5",
 ]
 
 [build-system]
@@ -34,8 +35,57 @@ include = ["src*"]
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]
+# 根目录入口脚本（simulate_game.py）需可被 tests 直接 import，勿删
 pythonpath = ["."]
+addopts = "-q"
 
+# ---------------------------------------------------------------------------
+# Ruff：lint + format 统一入口
+# 命令：ruff check src tests / ruff format --check src tests
+# ---------------------------------------------------------------------------
 [tool.ruff]
 target-version = "py311"
 line-length = 100
+src = ["src", "tests", "scripts"]
+extend-exclude = [
+    ".venv",
+    "data",
+    "runtime_game_logs",
+    "ref_docs",
+]
+
+[tool.ruff.lint]
+# 阶段一（当前生效）：与既有基线等价的确定性规则集，保证 `ruff check` 零告警起步。
+#   E4 导入格式 / E7 语句规范 / E9 语法错误 / F pyflakes / W 空白与转义
+select = ["E4", "E7", "E9", "F", "W"]
+ignore = [
+    # 行长交由 ruff format 控制；存量长行多为中文 prompt 文案，强制换行会改变字面量
+    "E501",
+]
+# 阶段二（待 Python 环境就绪后逐族启用，见 DECISIONS.md D009）：
+#   "I"   isort 导入排序      —— 可 `ruff check --fix` 自动收敛
+#   "UP"  pyupgrade           —— 存量 `from typing import List/Optional` 共 26 处需先迁移
+#   "B"   flake8-bugbear      —— 存量 `= Path(...)` 默认参数会触发 B008，需先评估
+#   "SIM" flake8-simplify     —— 需人工复核，勿盲目 --fix
+# 启用顺序：先 `ruff check src tests --statistics` 摸底，再逐族开启并单独提交。
+
+[tool.ruff.lint.isort]
+known-first-party = ["src", "tests"]
+combine-as-imports = true
+
+[tool.ruff.lint.per-file-ignores]
+# 共享 fixture / 替身聚合模块：再导出供各测试 import，非死代码（见 DECISIONS.md D008）
+"tests/conftest.py" = ["F401"]
+"tests/__init__.py" = ["F401"]
+"src/**/__init__.py" = ["F401"]
+# 延迟导入是刻意的：必须在 sys.modules 注入假 numpy/faiss 之后才能 import vector_memory（见文件内说明）
+"tests/test_agents/test_vector_memory.py" = ["E402"]
+# 独立执行的脚本统一采用 `sys.path.insert(REPO_ROOT)` 引导后再 import src.*，
+# 该 bootstrap 必须先于业务 import 执行，E402 在此为预期模式而非缺陷。
+"scripts/**/*.py" = ["E402"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+line-ending = "auto"
+skip-magic-trailing-comma = false

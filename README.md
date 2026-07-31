@@ -12,7 +12,7 @@
 ## 核心能力
 
 - **完整主流程**：支持 `SETUP -> FIRST_NIGHT -> DAY_DISCUSSION -> NOMINATION -> VOTING -> EXECUTION -> NIGHT -> GAME_OVER` 主链，覆盖提名、辩解、投票、处决、夜晚行动、结算和 rematch。
-- **《暗流涌动》角色规则**：主体角色能力已实现，并通过 `docs/rule_matrix.md` 和专项验收持续追踪高风险角色边界。
+- **《暗流涌动》角色规则**：主体角色能力已实现，并通过 `docs/reference/rule_matrix.md` 和专项验收持续追踪高风险角色边界。
 - **AI 玩家与真人混合局**：AI 玩家具备结构化记忆、身份声明账本、社交图谱和 persona 差异；真人玩家可通过浏览器参与核心流程。
 - **AI/人类说书人链路**：说书人裁量、私密信息、夜晚步骤和 judgement ledger 可追踪，玩家视角与说书人视角保持信息边界。
 - **复盘与数据资产**：对局历史、AI traces、说书人裁量和导出脚本为内测问题定位提供证据链。
@@ -85,8 +85,8 @@ $env:OPENAI_BASE_URL="https://api.openai.com/v1"
 
 ## 项目架构
 
-- `docs/alpha-1.1-plan.md`：Alpha 1.1 总体开发计划、Milestone 列表与验收标准。
-- `docs/alpha-1.1-plan/`：M5/M6/M7 各阶段具体任务板。
+- `docs/plans/alpha-1.1-plan.md`：Alpha 1.1 总体开发计划、Milestone 列表与验收标准。
+- `docs/plans/alpha-1.1-plan/`：M5/M6/M7 各阶段具体任务板。
 - `docs/alpha-1.1-evidence/`：发布的各项测试与验收证据记录。
 - `VERSION_NOTES.md`：Alpha 1.1 内部测试版本说明。
 - `CHANGELOG.md`：项目版本迭代变更记录。
@@ -117,14 +117,14 @@ $env:OPENAI_BASE_URL="https://api.openai.com/v1"
 推荐先生成问题包：
 
 ```powershell
-.\.venv\Scripts\python.exe scripts\export_all_assets.py <game_id> --output data\exports --log-path storyteller_run.log
+.\.venv\Scripts\python.exe scripts\export\export_all_assets.py <game_id> --output data\exports --log-path storyteller_run.log
 ```
 
 ---
 
 ## 版本记录
 
-此分支所有变动追踪至 [CHANGELOG.md](./CHANGELOG.md)。Alpha 1.1 详细开发设计与路线见 [docs/alpha-1.1-plan.md](./docs/alpha-1.1-plan.md)。
+此分支所有变动追踪至 [CHANGELOG.md](./CHANGELOG.md)。Alpha 1.1 详细开发设计与路线见 [docs/plans/alpha-1.1-plan.md](./docs/plans/alpha-1.1-plan.md)。
 
 
 ## 开源协议

@@ -1,0 +1,25 @@
+# Pre-commit 钩子：本地提交前固化 lint 门禁
+# 安装：pip install pre-commit && pre-commit install
+# 全量自查：pre-commit run --all-files
+repos:
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.5.7
+    hooks:
+      # lint（规则集见 pyproject.toml [tool.ruff.lint]）
+      - id: ruff
+        args: [--no-fix]
+        files: ^(src|tests|scripts)/.*\.py$
+      # 格式化：全仓库已归一（`ruff format --check` 182 文件全部通过），门禁已启用。
+      - id: ruff-format
+        files: ^(src|tests|scripts)/.*\.py$
+
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.6.0
+    hooks:
+      - id: end-of-file-fixer
+        files: ^(src|tests|scripts)/.*\.py$
+      - id: trailing-whitespace
+        files: ^(src|tests|scripts)/.*\.py$
+      - id: check-yaml
+      - id: check-toml
+      - id: check-merge-conflict

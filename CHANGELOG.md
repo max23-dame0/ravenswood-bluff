@@ -75,7 +75,7 @@ Alpha 1.0 是首个正式内测候选版本，目标不是扩大功能面，而�
 
 - Alpha 1.0 仍为内测候选，不承诺生产级稳定。
 - Live 模式耗时、token/调用量基线和浏览器级真人 smoke 记录仍需在 release checklist 中逐项确认。
-- 长局日志与 trace 体积需要按 `docs/alpha-1.0-data-operations.md` 管理。
+- 长局日志与 trace 体积需要按 `docs/guides/alpha-1.0-data-operations.md` 管理。
  
 ## [alpha0.3] - 2026-04-24
  
@@ -108,7 +108,7 @@ Alpha 1.0 是首个正式内测候选版本，目标不是扩大功能面，而�
 本版本作为 Alpha 0.2 阶段的起始线，沉淀并加固了 Alpha 0.1 期间建立的引擎主流程。
 
 ### 🌟 新增特性 (New Features)
-- **完备的长期计划管理体系**：新增 `docs/alpha-0.2-plan/` 目录，涵盖从 AI 玩家智能增强、前端迭代到说书人平衡裁量的详细路线图和任务看板。
+- **完备的长期计划管理体系**：新增 `docs/plans/alpha-0.2-plan/` 目录，涵盖从 AI 玩家智能增强、前端迭代到说书人平衡裁量的详细路线图和任务看板。
 - **说书人平衡裁量与日志框架**：
   - 新增 `storyteller_balance.py` 与专属平衡裁定验收体系。
   - 支持更好的后台日志生成、输出样本记录（`generate_storyteller_balance_samples.py`），优化模拟裁定体验。

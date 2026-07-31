@@ -112,14 +112,12 @@ d:\鸦木布拉夫小镇\
 │   │   ├── storyteller_agent.py  # AI game master (58KB)
 │   │   ├── base_agent.py         # Abstract base class
 │   │   ├── human_agent.py        # WebSocket proxy for human players
-│   │   ├── persona_registry.py   # 9 archetype definitions
-│   │   ├── difficulty_presets.py # CASUAL/STANDARD/MASTER/CHAOS presets
-│   │   ├── decision_noise.py     # Controlled randomness per difficulty
+│   │   ├── difficulty_presets.py # CASUAL/STANDARD/MASTER/CHAOS presets（横切配置，留在包根）
 │   │   ├── deception/            # DeceptionTracker (extracted from ai_agent)
-│   │   ├── persona/              # Persona model (extracted from ai_agent)
+│   │   ├── persona/              # Persona model + persona_registry.py (9 archetypes)
 │   │   ├── prompt/               # PromptFactory (extracted from ai_agent)
 │   │   ├── speech/               # SpeechSanitizer (extracted from ai_agent)
-│   │   ├── decision/             # DecisionEngine + FallbackDispatcher
+│   │   ├── decision/             # DecisionEngine + FallbackDispatcher + decision_noise.py
 │   │   ├── observation/          # EventObserver (extracted from ai_agent)
 │   │   ├── strategy/             # EvilStrategy (extracted from ai_agent)
 │   │   ├── memory/               # 4-layer memory system
@@ -248,7 +246,7 @@ d:\鸦木布拉夫小镇\
 .\.venv\Scripts\python.exe -m pytest tests/test_agents/test_agent_reasoning.py -q
 
 # Low-memory mode (for constrained environments)
-.\.venv\Scripts\python.exe scripts\run_full_tests_low_memory.py
+.\.venv\Scripts\python.exe scripts\acceptance\run_full_tests_low_memory.py
 ```
 
 ### 6.2 Alpha 1.1 Aggregate Acceptance (8 gates)
@@ -270,7 +268,7 @@ d:\鸦木布拉夫小镇\
 
 ### 6.3 Adding a New Acceptance Gate
 
-1. Create `scripts/your_acceptance.py` with a `main() -> int` function (0=pass, 1=fail).
+1. Create `scripts/acceptance/your_acceptance.py` with a `main() -> int` function (0=pass, 1=fail).
 2. Add a `Gate(...)` entry in `scripts/alpha1.1_acceptance.py`.
 3. Use `_script_exists()` for optional gates that may not be implemented yet.
 4. Run `.\.venv\Scripts\python.exe scripts\alpha1.1_acceptance.py` to verify integration.
@@ -403,17 +401,17 @@ def synchronize_role(self, player_state) -> None
 1. Add field to `DifficultyPreset` in `src/agents/difficulty_presets.py`.
 2. Set values for all 4 presets (CASUAL, STANDARD, MASTER, CHAOS).
 3. Use the axis in `ai_agent.py` prompt construction or decision logic.
-4. Update `scripts/difficulty_behavior_acceptance.py` to verify the axis produces behavioral differences.
+4. Update `scripts/acceptance/difficulty_behavior_acceptance.py` to verify the axis produces behavioral differences.
 
 ### Add a new acceptance gate
 
-1. Create `scripts/your_acceptance.py` with `main() -> int`.
-2. Add `Gate("name", ["scripts/your_acceptance.py"], timeout)` in `scripts/alpha1.1_acceptance.py`.
+1. Create `scripts/acceptance/your_acceptance.py` with `main() -> int`.
+2. Add `Gate("name", ["scripts/acceptance/your_acceptance.py"], timeout)` in `scripts/alpha1.1_acceptance.py`.
 3. Run aggregate to verify integration.
 
 ### Debug an AI decision
 
-1. Check `scripts/dump_ai_prompt.py` to extract the exact prompt sent to LLM.
+1. Check `scripts/debug/dump_ai_prompt.py` to extract the exact prompt sent to LLM.
 2. Check `data/exports/` for AI trace files after a game.
 3. Use `GET /api/game/metrics` during a live game for real-time action metrics.
 
@@ -425,14 +423,15 @@ def synchronize_role(self, player_state) -> None
 |----------|----------|---------|
 | This file | `CLAUDE.md` | Agent onboarding guide |
 | Architecture | `architecture.md` | Detailed architecture (33KB) |
-| Current plan | `docs/alpha-1.1-plan.md` | Active development plan |
-| Task boards | `docs/alpha-1.1-plan/task_*.md` | Per-milestone task tracking |
+| Current plan | `docs/plans/alpha-1.1-plan.md` | Active development plan |
+| Task boards | `docs/plans/alpha-1.1-plan/task_*.md` | Per-milestone task tracking |
 | Evidence | `docs/alpha-1.1-evidence/` | Verification evidence files |
-| Verification policy | `docs/alpha-1.1-plan/verification_policy.md` | Evidence levels and Done criteria |
-| Rule matrix | `docs/rule_matrix.md` | Role ability matrix |
+| Verification policy | `docs/plans/alpha-1.1-plan/verification_policy.md` | Evidence levels and Done criteria |
+| Rule matrix | `docs/reference/rule_matrix.md` | Role ability matrix |
 | Changelog | `CHANGELOG.md` | Version history |
+| Doc index | `docs/README.md` | Canonical documentation index (5-element standard) |
 | Release notes | `VERSION_NOTES.md` | Alpha 1.0 release notes |
-| Known issues | `docs/alpha-1.0-known-issues.md` | Known issues tracker |
+| Known issues | `docs/releases/alpha-1.0-known-issues.md` | Known issues tracker |
 
 ---
 
