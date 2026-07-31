@@ -7,7 +7,7 @@ state through the injected ``agent`` reference — never import AIAgent itself.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 from src.content.trouble_brewing_terms import get_role_description, get_role_name
 from src.state.game_state import (
@@ -33,7 +33,7 @@ class PromptFactory:
     def build_persona_prompt_block(
         self,
         action_type: str,
-        visible_state: Optional[AgentVisibleState] = None,
+        visible_state: AgentVisibleState | None = None,
     ) -> str:
         agent = self._agent
         profile = agent.persona_profile or {}

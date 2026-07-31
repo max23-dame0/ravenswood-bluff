@@ -10,7 +10,6 @@ from __future__ import annotations
 import uuid
 from datetime import datetime
 from enum import Enum
-from typing import Optional
 
 from pydantic import BaseModel, Field
 
@@ -143,12 +142,12 @@ class PlayerState(BaseModel):
     name: str
     role_id: str  # 角色ID
     team: Team  # 阵营
-    true_role_id: Optional[str] = None  # 真实身份
-    perceived_role_id: Optional[str] = None  # 玩家自认身份
-    public_claim_role_id: Optional[str] = None  # 公开宣称身份
-    current_team: Optional[Team] = None  # 当前阵营（可被转化）
+    true_role_id: str | None = None  # 真实身份
+    perceived_role_id: str | None = None  # 玩家自认身份
+    public_claim_role_id: str | None = None  # 公开宣称身份
+    current_team: Team | None = None  # 当前阵营（可被转化）
     is_alive: bool = True
-    fake_role: Optional[str] = None  # 虚假身份（用于酒鬼等显示给玩家的假身份）
+    fake_role: str | None = None  # 虚假身份（用于酒鬼等显示给玩家的假身份）
     statuses: tuple[PlayerStatus, ...] = (PlayerStatus.ALIVE,)
     has_used_dead_vote: bool = False  # 死后是否已使用最后一票
     ghost_votes_remaining: int = 1  # 剩余亡魂投票数
@@ -215,8 +214,8 @@ class GameEvent(BaseModel):
     day_number: int = 1
     round_number: int
     trace_id: str = ""
-    actor: Optional[str] = None  # 事件发起者的 player_id
-    target: Optional[str] = None  # 事件目标的 player_id
+    actor: str | None = None  # 事件发起者的 player_id
+    target: str | None = None  # 事件目标的 player_id
     payload: dict = Field(default_factory=dict)
     visibility: Visibility = Visibility.PUBLIC
 
@@ -238,8 +237,8 @@ class ChatMessage(BaseModel):
     phase: GamePhase
     round_number: int
     tone: str = "neutral"  # calm / passionate / accusatory / defensive
-    target_player: Optional[str] = None  # 主要针对的玩家
-    recipient_ids: Optional[tuple[str, ...]] = None  # 私聊对象 (空则全公开)
+    target_player: str | None = None  # 主要针对的玩家
+    recipient_ids: tuple[str, ...] | None = None  # 私聊对象 (空则全公开)
 
 
 class PrivatePlayerView(BaseModel):
@@ -248,7 +247,7 @@ class PrivatePlayerView(BaseModel):
     player_id: str
     name: str
     perceived_role_id: str
-    public_claim_role_id: Optional[str] = None
+    public_claim_role_id: str | None = None
     current_team: Team
     is_alive: bool = True
     ghost_votes_remaining: int = 1
@@ -269,10 +268,10 @@ class AgentVisibleState(BaseModel):
     phase: GamePhase
     round_number: int
     day_number: int
-    self_view: Optional[PrivatePlayerView] = None
+    self_view: PrivatePlayerView | None = None
     players: tuple[VisiblePlayerInfo, ...] = ()
-    current_nominee: Optional[str] = None
-    current_nominator: Optional[str] = None
+    current_nominee: str | None = None
+    current_nominator: str | None = None
     seat_order: tuple[str, ...] = ()
     nominations_today: tuple[str, ...] = ()
     nominees_today: tuple[str, ...] = ()
@@ -334,30 +333,30 @@ class GameState(BaseModel):
     chat_history: tuple[ChatMessage, ...] = ()
 
     # 提名相关
-    current_nominee: Optional[str] = None  # 当前被提名者
-    current_nominator: Optional[str] = None  # 当前提名者
+    current_nominee: str | None = None  # 当前被提名者
+    current_nominator: str | None = None  # 当前提名者
     votes_today: dict = Field(default_factory=dict)  # 今天的投票记录
     nominations_today: tuple[str, ...] = ()  # 今天已提名过的玩家
     nominees_today: tuple[str, ...] = ()  # 今天已被提名过的玩家
     execution_candidates: tuple[ExecutionCandidate, ...] = ()
 
     # 游戏结果
-    winning_team: Optional[Team] = None
+    winning_team: Team | None = None
 
     # 配置与魔典 (Phase 8/9 扩展)
-    config: Optional[GameConfig] = None
-    grimoire: Optional[GrimoireInfo] = None
+    config: GameConfig | None = None
+    grimoire: GrimoireInfo | None = None
     bluffs: tuple[str, ...] = ()  # 给恶魔的伪装角色 (3个)
     payload: dict = Field(default_factory=dict)  # 存储特定角色的中间数据 (如预言家的红鲱鱼)
 
-    def get_player(self, player_id: str) -> Optional[PlayerState]:
+    def get_player(self, player_id: str) -> PlayerState | None:
         """根据 player_id 获取玩家状态"""
         for player in self.players:
             if player.player_id == player_id:
                 return player
         return None
 
-    def get_player_by_name(self, name: str) -> Optional[PlayerState]:
+    def get_player_by_name(self, name: str) -> PlayerState | None:
         """根据名称获取玩家状态"""
         for player in self.players:
             if player.name == name:
@@ -423,11 +422,11 @@ class GameConfig(BaseModel):
     """游戏配置"""
 
     player_count: int
-    script: Optional[ScriptConfig] = None
+    script: ScriptConfig | None = None
     script_id: str = "trouble_brewing"
-    human_client_id: Optional[str] = None
+    human_client_id: str | None = None
     human_mode: str = "none"  # player | storyteller | none
-    storyteller_client_id: Optional[str] = None
+    storyteller_client_id: str | None = None
     human_player_ids: list[str] = Field(default_factory=list)  # 人类玩家ID
     is_human_participant: bool = True  # 人类是否参与游戏 (True: 玩家, False: 旁观)
     storyteller_mode: str = "auto"  # "auto" 自动说书人 / "human" 人类说书人
@@ -436,10 +435,8 @@ class GameConfig(BaseModel):
     backend_mode: str = "auto"
     audit_mode: bool = False
     discussion_rounds: int = 3  # 每天讨论轮数
-    ai_discussion_message_limit: Optional[int] = (
-        None  # 有真人玩家时，每轮最多允许多少条 AI 白天发言
-    )
-    max_nomination_rounds: Optional[int] = None
+    ai_discussion_message_limit: int | None = None  # 有真人玩家时，每轮最多允许多少条 AI 白天发言
+    max_nomination_rounds: int | None = None
     turn_timeout: int = 300  # 人类玩家行动超时（秒）
     difficulty: DifficultyLevel = DifficultyLevel.STANDARD
 
@@ -455,12 +452,12 @@ class PlayerGrimoireInfo(BaseModel):
     player_id: str
     name: str
     role_id: str
-    true_role_id: Optional[str] = None
-    perceived_role_id: Optional[str] = None
-    public_claim_role_id: Optional[str] = None
-    fake_role: Optional[str] = None
+    true_role_id: str | None = None
+    perceived_role_id: str | None = None
+    public_claim_role_id: str | None = None
+    fake_role: str | None = None
     team: Team
-    current_team: Optional[Team] = None
+    current_team: Team | None = None
     is_alive: bool
     is_poisoned: bool
     is_drunk: bool

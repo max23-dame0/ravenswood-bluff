@@ -718,7 +718,7 @@ class GameOrchestrator:
         if tasks:
             try:
                 await asyncio.wait_for(asyncio.gather(*tasks, return_exceptions=True), timeout=10.0)
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 logger.warning("[archive] phase memory archiving timed out after 10s")
 
     # --------------- 结算报告 ---------------

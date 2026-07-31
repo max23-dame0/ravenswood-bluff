@@ -10,7 +10,6 @@ import json
 import os
 import random
 import re
-from typing import Optional
 
 from src.llm.base_backend import (
     LLMBackend,
@@ -41,7 +40,7 @@ class MockBackend(LLMBackend):
                 seen.append(match)
         return seen
 
-    def _extract_action_type(self, text: str) -> Optional[str]:
+    def _extract_action_type(self, text: str) -> str | None:
         match = re.search(r"当前需要执行的动作类型[:：]\s*([a-z_]+)", text.lower())
         return match.group(1) if match else None
 
@@ -49,9 +48,9 @@ class MockBackend(LLMBackend):
         self,
         system_prompt: str,
         messages: list[Message],
-        tools: Optional[list[ToolDef]] = None,
+        tools: list[ToolDef] | None = None,
         temperature: float = 0.7,
-        max_tokens: Optional[int] = None,
+        max_tokens: int | None = None,
     ) -> LLMResponse:
 
         # W3-C: 优先使用预设回复

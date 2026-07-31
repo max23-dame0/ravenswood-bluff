@@ -7,7 +7,7 @@
 from __future__ import annotations
 
 import logging
-from typing import Any, Optional
+from typing import Any
 
 from src.engine.roles.base_role import BaseRole, get_role_class, register_role
 from src.state.game_state import (
@@ -50,7 +50,7 @@ class ImpRole(BaseRole):
             ),
         )
 
-    def _find_scarlet_woman(self, game_state: GameState) -> Optional[PlayerState]:
+    def _find_scarlet_woman(self, game_state: GameState) -> PlayerState | None:
         """寻找当前存活且满足接管条件的绯红女郎。"""
         role_cls = get_role_class("scarlet_woman")
         if not role_cls:
@@ -64,7 +64,7 @@ class ImpRole(BaseRole):
 
     def _find_minion_replacement(
         self, game_state: GameState, exclude_player_id: str
-    ) -> Optional[PlayerState]:
+    ) -> PlayerState | None:
         """在没有绯红女郎时，选择一个存活爪牙接管。"""
         for player in game_state.get_alive_players():
             if player.player_id == exclude_player_id:
@@ -80,7 +80,7 @@ class ImpRole(BaseRole):
         self,
         game_state: GameState,
         actor: PlayerState,
-        target: Optional[str] = None,
+        target: str | None = None,
         **kwargs: Any,
     ) -> tuple[GameState, list[GameEvent]]:
         if not target:

@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import logging
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING, Any, Optional
+from typing import TYPE_CHECKING, Any
 
 from src.state.game_state import (
     AbilityTrigger,
@@ -28,7 +28,7 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 # 全局角色注册表
-_ROLE_REGISTRY: dict[str, type["BaseRole"]] = {}
+_ROLE_REGISTRY: dict[str, type[BaseRole]] = {}
 
 
 def register_role(role_id: str):
@@ -42,7 +42,7 @@ def register_role(role_id: str):
     return decorator
 
 
-def get_role_class(role_id: str) -> Optional[type["BaseRole"]]:
+def get_role_class(role_id: str) -> type[BaseRole] | None:
     """根据角色ID获取角色类"""
     return _ROLE_REGISTRY.get(role_id)
 
@@ -77,7 +77,7 @@ class BaseRole(ABC):
         self,
         game_state: GameState,
         actor: PlayerState,
-        target: Optional[str] = None,
+        target: str | None = None,
         **kwargs: Any,
     ) -> tuple[GameState, list[GameEvent]]:
         """
@@ -154,7 +154,7 @@ class BaseRole(ABC):
         self,
         game_state: GameState,
         actor: PlayerState,
-    ) -> Optional[dict]:
+    ) -> dict | None:
         """
         构建供说书人裁定的原始信息载荷。
 
@@ -166,7 +166,7 @@ class BaseRole(ABC):
         self,
         game_state: GameState,
         actor: PlayerState,
-    ) -> Optional[dict]:
+    ) -> dict | None:
         """
         获取夜晚信息（兼容旧接口）。
 

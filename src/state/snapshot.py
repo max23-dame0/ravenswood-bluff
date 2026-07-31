@@ -8,7 +8,6 @@ from __future__ import annotations
 
 import json
 from datetime import datetime
-from typing import Optional
 
 from pydantic import BaseModel, Field
 
@@ -46,14 +45,14 @@ class SnapshotManager:
         self._counter += 1
         return snapshot
 
-    def get_snapshot(self, snapshot_id: int) -> Optional[StateSnapshot]:
+    def get_snapshot(self, snapshot_id: int) -> StateSnapshot | None:
         """根据 ID 获取快照"""
         for s in self._snapshots:
             if s.snapshot_id == snapshot_id:
                 return s
         return None
 
-    def get_latest(self) -> Optional[StateSnapshot]:
+    def get_latest(self) -> StateSnapshot | None:
         """获取最新快照"""
         return self._snapshots[-1] if self._snapshots else None
 

@@ -8,7 +8,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import StrEnum
-from typing import Optional
 
 from pydantic import BaseModel
 
@@ -24,8 +23,8 @@ class Observation(BaseModel):
 
     observation_id: str
     content: str
-    source_event: Optional[GameEvent] = None
-    source_message: Optional[ChatMessage] = None
+    source_event: GameEvent | None = None
+    source_message: ChatMessage | None = None
     phase: GamePhase
     round_number: int
 

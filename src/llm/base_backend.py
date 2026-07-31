@@ -7,7 +7,6 @@ LLM 后端抽象接口
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import Optional
 
 from pydantic import BaseModel, Field
 
@@ -17,9 +16,9 @@ class Message(BaseModel):
 
     role: str  # "system" / "user" / "assistant" / "tool"
     content: str
-    name: Optional[str] = None
-    tool_call_id: Optional[str] = None
-    tool_calls: Optional[list[dict]] = None
+    name: str | None = None
+    tool_call_id: str | None = None
+    tool_calls: list[dict] | None = None
 
 
 class ToolDef(BaseModel):
@@ -41,7 +40,7 @@ class ToolCall(BaseModel):
 class LLMResponse(BaseModel):
     """LLM 响应"""
 
-    content: Optional[str] = None  # 文本响应
+    content: str | None = None  # 文本响应
     tool_calls: list[ToolCall] = Field(default_factory=list)
     model: str = ""
     usage: dict = Field(default_factory=dict)  # token 用量
@@ -60,9 +59,9 @@ class LLMBackend(ABC):
         self,
         system_prompt: str,
         messages: list[Message],
-        tools: Optional[list[ToolDef]] = None,
+        tools: list[ToolDef] | None = None,
         temperature: float = 0.7,
-        max_tokens: Optional[int] = None,
+        max_tokens: int | None = None,
     ) -> LLMResponse:
         """
         向 LLM 发送请求并获取响应。

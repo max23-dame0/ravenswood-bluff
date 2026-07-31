@@ -51,7 +51,7 @@ class MetricsCollector:
                     act_call,
                     timeout=budget_s,
                 )
-        except asyncio.TimeoutError:
+        except TimeoutError:
             elapsed_ms = (time.perf_counter() - start) * 1000
             fallback_used = True
             fallback_reason = f"orchestrator_hard_timeout:{action_type}"

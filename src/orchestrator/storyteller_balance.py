@@ -96,7 +96,7 @@ def _phase_to_value(phase: GamePhase | str | None) -> str | None:
     if phase is None:
         return None
     if hasattr(phase, "value"):
-        return getattr(phase, "value")
+        return phase.value
     return str(phase)
 
 
@@ -580,7 +580,7 @@ def build_storyteller_node_samples(
     recent_judgements = []
     if storyteller_agent and hasattr(storyteller_agent, "get_recent_judgements"):
         if hasattr(storyteller_agent, "decision_ledger"):
-            recent_judgements = list(getattr(storyteller_agent, "decision_ledger"))
+            recent_judgements = list(storyteller_agent.decision_ledger)
         else:
             recent_judgements = list(storyteller_agent.get_recent_judgements(200))
 

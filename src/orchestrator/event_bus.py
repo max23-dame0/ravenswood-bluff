@@ -9,7 +9,8 @@ from __future__ import annotations
 
 import logging
 from collections import defaultdict, deque
-from typing import Any, Callable, Coroutine
+from collections.abc import Callable, Coroutine
+from typing import Any
 
 from src.state.game_state import GameEvent
 

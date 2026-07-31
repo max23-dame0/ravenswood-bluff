@@ -372,7 +372,7 @@ async def _run_full_game_storyteller_trace(
             backend_mode="mock",
         )
         await asyncio.wait_for(loop_task, timeout=timeout_seconds)
-    except asyncio.TimeoutError:
+    except TimeoutError:
         if not loop_task.done():
             loop_task.cancel()
         with suppress(asyncio.CancelledError):

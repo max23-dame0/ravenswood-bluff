@@ -6,7 +6,7 @@
 
 from __future__ import annotations
 
-from typing import Any, Optional
+from typing import Any
 
 from src.engine.roles.base_role import BaseRole, register_role
 from src.state.game_state import (
@@ -46,7 +46,7 @@ class ButlerRole(BaseRole):
         return game_state.with_update(payload=payload)
 
     @classmethod
-    def get_active_binding(cls, game_state: GameState, butler_id: str) -> Optional[dict[str, Any]]:
+    def get_active_binding(cls, game_state: GameState, butler_id: str) -> dict[str, Any] | None:
         binding = game_state.payload.get(cls.binding_payload_key(), {}).get(butler_id)
         if not binding:
             return None

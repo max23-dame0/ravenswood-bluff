@@ -151,8 +151,8 @@ def make_ai_agent():
     def _factory(
         player_id: str = "p1",
         name: str = "TestAgent",
-        backend: Optional[LLMBackend] = None,
-        persona: Optional[Persona] = None,
+        backend: LLMBackend | None = None,
+        persona: Persona | None = None,
         player_count: int = 10,
         difficulty: str = "standard",
     ) -> AIAgent:
@@ -173,7 +173,7 @@ def make_orchestrator():
     """Factory fixture for creating GameOrchestrator instances with optional storyteller."""
 
     def _factory(
-        state: Optional[GameState] = None,
+        state: GameState | None = None,
         with_storyteller: bool = False,
     ) -> GameOrchestrator:
         if state is None:

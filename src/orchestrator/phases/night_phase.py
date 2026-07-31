@@ -565,7 +565,7 @@ class NightPhaseHandler:
             for p in players_needing_info
         ]
 
-        async def _decide_single(player: "PlayerState") -> tuple["PlayerState", str, dict]:
+        async def _decide_single(player: PlayerState) -> tuple[PlayerState, str, dict]:
             """并发执行单个角色的夜晚信息分发，返回 (player, role_id, info)。"""
             role_id = player.true_role_id or player.role_id
             info = (

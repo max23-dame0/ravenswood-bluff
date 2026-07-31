@@ -5,7 +5,7 @@
 from __future__ import annotations
 
 import logging
-from typing import Any, Optional
+from typing import Any
 
 from src.engine.roles.base_role import BaseRole, register_role
 from src.state.game_state import (
@@ -50,7 +50,7 @@ class PoisonerRole(BaseRole):
         self,
         game_state: GameState,
         actor: PlayerState,
-        target: Optional[str] = None,
+        target: str | None = None,
         **kwargs: Any,
     ) -> tuple[GameState, list[GameEvent]]:
         if not target:
@@ -116,7 +116,7 @@ class SpyRole(BaseRole):
             return Team(game_state.payload[key])
         return super().registers_as_team(game_state, actor)
 
-    def build_storyteller_info(self, game_state: GameState, actor: PlayerState) -> Optional[dict]:
+    def build_storyteller_info(self, game_state: GameState, actor: PlayerState) -> dict | None:
         """间谍每晚查看魔法书：所有玩家的角色和阵营"""
         grimoire = []
         for p in game_state.players:

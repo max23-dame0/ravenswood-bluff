@@ -15,7 +15,7 @@ import shutil
 import sqlite3
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 import aiosqlite
 
@@ -383,7 +383,7 @@ class GameRecordStore:
             record["round_count"],
         )
 
-    async def get_game(self, game_id: str) -> Optional[dict[str, Any]]:
+    async def get_game(self, game_id: str) -> dict[str, Any] | None:
         """获取单局记录"""
         await self.initialize()
         if self._using_json_fallback():
@@ -406,13 +406,13 @@ class GameRecordStore:
 
         return record
 
-    async def export_game_history(self, game_id: str) -> Optional[dict[str, Any]]:
+    async def export_game_history(self, game_id: str) -> dict[str, Any] | None:
         """[A3-DATA-4] 导出完整对局历史数据（提供统一的导出接口命名）。"""
         return await self.get_game(game_id)
 
     async def export_storyteller_judgements(
         self, game_id: str, storyteller_agent: Any
-    ) -> Optional[dict[str, Any]]:
+    ) -> dict[str, Any] | None:
         """[A3-DATA-4] 导出与 game_id 对齐的说书人判决数据。"""
         history = await self.get_game(game_id)
         if history is None:
@@ -464,7 +464,7 @@ class GameRecordStore:
 
     async def export_game_assets(
         self, game_id: str, storyteller_agent: Any | None = None
-    ) -> Optional[dict[str, Any]]:
+    ) -> dict[str, Any] | None:
         """[A3-DATA-4] 最小统一导出接口：按 game_id 汇总对局历史与说书人判决。"""
         game_history = await self.export_game_history(game_id)
         if game_history is None:
@@ -480,7 +480,7 @@ class GameRecordStore:
 
     async def export_history_detail(
         self, game_id: str, storyteller_agent: Any | None = None
-    ) -> Optional[dict[str, Any]]:
+    ) -> dict[str, Any] | None:
         """[A3-ST-4] 历史详情统一资产：结算详情 + 说书人裁量摘要。"""
         assets = await self.export_game_assets(game_id, storyteller_agent=storyteller_agent)
         if assets is None:
@@ -506,7 +506,7 @@ class GameRecordStore:
 
     async def export_player_history_detail(
         self, game_id: str, player_name: str | None = None
-    ) -> Optional[dict[str, Any]]:
+    ) -> dict[str, Any] | None:
         """[A3-ST-4] 玩家视角历史详情：保留公开结算信息，剔除幕后身份与说书人裁量。"""
         history = await self.export_game_history(game_id)
         if history is None:

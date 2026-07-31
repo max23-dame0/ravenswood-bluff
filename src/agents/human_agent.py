@@ -10,7 +10,8 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
-from typing import Any, Callable, Optional
+from collections.abc import Callable
+from typing import Any
 
 from src.agents.base_agent import BaseAgent
 from src.state.game_state import AgentActionLegalContext, AgentVisibleState, GameEvent
@@ -30,7 +31,7 @@ class HumanAgent(BaseAgent):
         player_id: str,
         name: str,
         send_message_callback: Callable,
-        chat_callback: Optional[Callable] = None,
+        chat_callback: Callable | None = None,
     ):
         """
         Args:

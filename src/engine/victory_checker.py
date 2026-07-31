@@ -6,8 +6,6 @@
 
 from __future__ import annotations
 
-from typing import Optional
-
 from src.state.game_state import GameState, RoleType, Team
 
 
@@ -15,7 +13,7 @@ class VictoryChecker:
     """胜负判定器"""
 
     @staticmethod
-    def check_victory(game_state: GameState) -> Optional[Team]:
+    def check_victory(game_state: GameState) -> Team | None:
         """
         检查游戏是否结束。
 

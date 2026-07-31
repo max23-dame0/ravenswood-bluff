@@ -7,7 +7,7 @@ Agent 基类
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import Any, Optional
+from typing import Any
 
 from src.state.game_state import (
     AgentActionLegalContext,
@@ -31,11 +31,11 @@ class BaseAgent(ABC):
         self.name = name
 
         # 这些属性在游戏开始时(SETUP)会通过 update_state 被注入
-        self.role_id: Optional[str] = None
-        self.team: Optional[str] = None
-        self.perceived_role_id: Optional[str] = None
-        self.private_view: Optional[PrivatePlayerView] = None
-        self.persona_signature: Optional[str] = None
+        self.role_id: str | None = None
+        self.team: str | None = None
+        self.perceived_role_id: str | None = None
+        self.private_view: PrivatePlayerView | None = None
+        self.persona_signature: str | None = None
         self.persona_profile: dict[str, Any] = {}
 
     @abstractmethod

@@ -5,7 +5,6 @@
 """
 
 from dataclasses import dataclass
-from typing import Dict
 
 
 @dataclass
@@ -30,7 +29,7 @@ class Archetype:
 
 
 # 预设原型定义
-ARCHETYPES: Dict[str, Archetype] = {
+ARCHETYPES: dict[str, Archetype] = {
     "logic": Archetype(
         name="冷静逻辑型",
         description="你是一个注重逻辑一致性和事实证据的玩家。你话不多，但每一句都试图推导真相。",
