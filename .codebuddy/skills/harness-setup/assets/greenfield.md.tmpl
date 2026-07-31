@@ -1,0 +1,43 @@
+# {{PROJECT_NAME}} — 空项目需求澄清与脚手架计划
+
+> 本文件由 harness-setup 在 Greenfield（空项目）模式下生成，记录需求澄清结论与测试框架脚手架方案。
+> 角色：项目蓝图（人 / Agent 共建），**非业务代码**。
+> 最后更新：{{DATE}}
+> 过期条件：项目骨架稳定、真实业务用例大量补充后，本蓝图可降级为历史参考。
+
+## 1. 需求澄清结论
+
+| 模块 | 结论 |
+|------|------|
+| 项目目标 | {{PROJECT_GOAL}} |
+| 语言/技术栈 | {{TECH_STACK}} |
+| 模块结构 | {{MODULE_STRUCTURE}} |
+| 测试框架 | {{TEST_FRAMEWORK}} |
+| 关键状态/术语 | {{STATE_ENUMS}}（待开发补充） |
+| 编码规范 | {{CODING_STANDARDS}} |
+| CI/质量门 | {{CI_POLICY}} |
+
+> 需求摘要：{{REQUIREMENT_SUMMARY}}
+
+## 2. 测试框架脚手架方案
+
+技术栈：{{TECH_STACK}} → 测试框架：{{TEST_FRAMEWORK}}
+
+### 将创建的最小脚手架
+
+- 依赖声明：{{DEP_FILE}}（含 dev 依赖：{{TEST_DEPS}}）
+- 测试目录：{{TEST_DIR}}/
+- Smoke 测试：{{SMOKE_TEST_FILE}}（仅断言框架可运行，**不含业务用例**）
+- 对应 `AGENTS.md` 的 `{{TEST_CMD}}` 命令：{{TEST_CMD}}
+
+### 红线
+
+- ❌ 不写任何业务功能代码，只验证"框架能跑"
+- ❌ 不执行 `git commit` / 不运行测试命令（由 coding agent 后续执行）
+- ✅ 这是本 Skill「不碰依赖文件」边界的唯一例外（空项目必须装好"水电总闸"）
+
+## 3. 后续开发衔接
+
+1. coding agent 按本蓝图编写业务代码，并补充真实单元/集成用例。
+2. 说"更新 harness"可让 Skill 同步新增的测试依赖与命令（扩张检测）。
+3. 开发中出现原澄清未覆盖的边界，Agent 可增量澄清并追加到 `DECISIONS.md` / `MEMORY.md`。

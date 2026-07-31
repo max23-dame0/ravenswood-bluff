@@ -1,0 +1,17 @@
+# OS junk
+.DS_Store
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Editor / IDE
+.idea/
+.vscode/*
+!.vscode/extensions.json
+*.swp
+
+# Project-local data (not part of the skill)
+.codebuddy/
+
+# Logs
+*.log
