@@ -4,12 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from src.agents.decision_noise import (
-    BoldMoveResult,
-    DecisionNoise,
-    _NOISE_MAGNITUDE,
-    _BOLD_MOVE_PROB,
-)
+from src.agents.decision.decision_noise import BoldMoveResult, DecisionNoise, _NOISE_MAGNITUDE
 
 
 # ============================================================

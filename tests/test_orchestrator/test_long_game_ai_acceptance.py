@@ -8,7 +8,10 @@ from pathlib import Path
 def test_long_game_ai_acceptance_script_runs_and_reports_metrics():
     repo_root = Path(__file__).resolve().parents[2]
     result = subprocess.run(
-        [str(repo_root / ".venv" / "Scripts" / "python.exe"), "scripts/long_game_ai_acceptance.py"],
+        [
+            str(repo_root / ".venv" / "Scripts" / "python.exe"),
+            "scripts/acceptance/long_game_ai_acceptance.py",
+        ],
         cwd=repo_root,
         capture_output=True,
         text=True,

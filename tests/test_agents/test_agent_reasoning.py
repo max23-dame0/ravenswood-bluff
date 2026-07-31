@@ -1,7 +1,6 @@
 """Phase 2 测试 - Agent AI 与 推理、对话测试"""
 
 import pytest
-from unittest.mock import AsyncMock, patch
 
 from src.agents.ai_agent import AIAgent, Persona
 from src.agents.reasoning.deduction import DeductionEngine
@@ -19,21 +18,7 @@ from src.state.game_state import (
     Team,
     Visibility,
 )
-
-
-class DummyBackend(LLMBackend):
-    async def generate(self, system_prompt: str, messages: list[Message], **kwargs) -> LLMResponse:
-        return LLMResponse(content="这是一个假象的LLM回复", tool_calls=[])
-
-    def get_model_name(self) -> str:
-        return "dummy-model"
-
-    async def get_embeddings(self, texts: list[str]) -> list[list[float]]:
-        vectors: list[list[float]] = []
-        for text in texts:
-            base = float(len(text) or 1)
-            vectors.append([base] * 1536)
-        return vectors
+from tests.doubles import DummyBackend
 
 
 class BrokenDecisionBackend(DummyBackend):

@@ -10,7 +10,7 @@ def test_long_loop_memory_acceptance_script_runs_and_reports_accumulation():
     result = subprocess.run(
         [
             str(repo_root / ".venv" / "Scripts" / "python.exe"),
-            "scripts/long_loop_memory_acceptance.py",
+            "scripts/acceptance/long_loop_memory_acceptance.py",
         ],
         cwd=repo_root,
         capture_output=True,

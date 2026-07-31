@@ -1,7 +1,6 @@
 import pytest
 
 from src.agents.ai_agent import AIAgent, Persona
-from src.llm.base_backend import LLMBackend, LLMResponse, Message
 from src.state.game_state import (
     ChatMessage,
     GameEvent,
@@ -11,17 +10,7 @@ from src.state.game_state import (
     Team,
     Visibility,
 )
-
-
-class DummyBackend(LLMBackend):
-    async def generate(self, system_prompt: str, messages: list[Message], **kwargs) -> LLMResponse:
-        return LLMResponse(content="{}", tool_calls=[])
-
-    def get_model_name(self) -> str:
-        return "dummy"
-
-    async def get_embeddings(self, texts: list[str]) -> list[list[float]]:
-        return [[0.0] * 1536 for _ in texts]
+from tests.doubles import DummyBackend
 
 
 def _agent_ctx(agent: AIAgent, state: GameState):
@@ -32,7 +21,7 @@ def _agent_ctx(agent: AIAgent, state: GameState):
 
 @pytest.mark.asyncio
 async def test_empath_info_survives_phase_archive_and_enters_context():
-    agent = AIAgent("p2", "Empath", DummyBackend(), Persona("谨慎信息位", "平稳"))
+    agent = AIAgent("p2", "Empath", DummyBackend(content="{}"), Persona("谨慎信息位", "平稳"))
     state = GameState(
         phase=GamePhase.NIGHT,
         round_number=2,
@@ -70,7 +59,7 @@ async def test_empath_info_survives_phase_archive_and_enters_context():
 
 @pytest.mark.asyncio
 async def test_chef_info_can_create_verifiable_scoring_difference():
-    agent = AIAgent("p1", "Chef", DummyBackend(), Persona("谨慎信息位", "平稳"))
+    agent = AIAgent("p1", "Chef", DummyBackend(content="{}"), Persona("谨慎信息位", "平稳"))
     state = GameState(
         phase=GamePhase.DAY_DISCUSSION,
         round_number=2,
@@ -113,7 +102,7 @@ async def test_chef_info_can_create_verifiable_scoring_difference():
 
 @pytest.mark.asyncio
 async def test_high_confidence_numeric_info_is_not_overwritten_by_public_noise():
-    agent = AIAgent("p2", "Empath", DummyBackend(), Persona("谨慎信息位", "平稳"))
+    agent = AIAgent("p2", "Empath", DummyBackend(content="{}"), Persona("谨慎信息位", "平稳"))
     state = GameState(
         phase=GamePhase.DAY_DISCUSSION,
         round_number=2,

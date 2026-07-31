@@ -275,7 +275,7 @@ async def test_game_record_store_exports_history_detail_with_storyteller_judgeme
 
 @pytest.mark.asyncio
 async def test_export_all_assets_writes_issue_package():
-    from scripts.export_all_assets import export_all_assets
+    from scripts.export.export_all_assets import export_all_assets
 
     game_id = "issue-package-game"
     work_dir = _export_package_dir("issue_package")

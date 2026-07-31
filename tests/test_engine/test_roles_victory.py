@@ -1,12 +1,8 @@
 """Phase 1 测试 — 角色系统与胜负判定"""
 
-import pytest
 from src.engine.roles.base_role import get_role_class, get_all_role_ids
 
 # ensure roles are registered
-import src.engine.roles.townsfolk
-import src.engine.roles.demons
-import src.engine.roles.minions
 
 from src.engine.victory_checker import VictoryChecker
 from src.state.game_state import GamePhase, GameState, PlayerState, PlayerStatus, Team

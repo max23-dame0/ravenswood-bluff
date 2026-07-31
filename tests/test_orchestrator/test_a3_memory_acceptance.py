@@ -8,7 +8,7 @@ def test_a3_memory_acceptance_script_passes():
     repo_root = Path(__file__).resolve().parents[2]
     python = repo_root / ".venv" / "Scripts" / "python.exe"
     result = subprocess.run(
-        [str(python), "scripts/a3_memory_acceptance.py"],
+        [str(python), "scripts/acceptance/a3_memory_acceptance.py"],
         cwd=repo_root,
         capture_output=True,
         text=True,

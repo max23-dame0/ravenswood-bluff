@@ -7,7 +7,10 @@ from pathlib import Path
 def test_storyteller_acceptance_script_runs_cleanly():
     repo_root = Path(__file__).resolve().parents[2]
     result = subprocess.run(
-        [str(repo_root / ".venv" / "Scripts" / "python.exe"), "scripts/storyteller_acceptance.py"],
+        [
+            str(repo_root / ".venv" / "Scripts" / "python.exe"),
+            "scripts/acceptance/storyteller_acceptance.py",
+        ],
         cwd=repo_root,
         capture_output=True,
         text=True,

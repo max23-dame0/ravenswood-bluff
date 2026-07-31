@@ -1,7 +1,6 @@
 """Phase 0 测试 — 状态快照"""
 
 import json
-import pytest
 from src.state.snapshot import SnapshotManager
 from src.state.game_state import GamePhase, GameState, PlayerState, Team
 

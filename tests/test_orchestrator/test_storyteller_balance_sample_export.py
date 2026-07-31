@@ -35,10 +35,10 @@ EXPECTED_INDEX_KEYS = {
 
 def _find_sample_export_script(repo_root: Path) -> Path:
     candidates = [
-        repo_root / "scripts" / "storyteller_balance_sample_export.py",
-        repo_root / "scripts" / "storyteller_balance_export.py",
-        repo_root / "scripts" / "storyteller_sample_export.py",
-        repo_root / "scripts" / "storyteller_eval_samples.py",
+        repo_root / "scripts" / "export" / "storyteller_balance_sample_export.py",
+        repo_root / "scripts" / "export" / "storyteller_balance_export.py",
+        repo_root / "scripts" / "export" / "storyteller_sample_export.py",
+        repo_root / "scripts" / "export" / "storyteller_eval_samples.py",
     ]
     for candidate in candidates:
         if candidate.exists():
@@ -109,7 +109,9 @@ def test_storyteller_balance_sample_index_tracks_multiple_full_games():
         capture_output=True,
         text=True,
         check=False,
-        timeout=60,
+        # 该用例会真实跑完一整局 mock 对局；全量 pytest 并发下进程启动与 IO 争用明显，
+        # 60s 会在本机稳定超时（单独运行 <20s）。放宽至 180s 以消除 flaky。
+        timeout=180,
     )
     assert result.returncode == 0, result.stderr or result.stdout
     index_path = repo_root / "storyteller_eval_samples" / "sample_index.json"

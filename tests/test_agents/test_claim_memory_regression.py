@@ -1,19 +1,8 @@
 import pytest
 
 from src.agents.ai_agent import AIAgent, Persona
-from src.llm.base_backend import LLMBackend, LLMResponse, Message
 from src.state.game_state import GameEvent, GamePhase, GameState, PlayerState, Team, Visibility
-
-
-class DummyBackend(LLMBackend):
-    async def generate(self, system_prompt: str, messages: list[Message], **kwargs) -> LLMResponse:
-        return LLMResponse(content="{}", tool_calls=[])
-
-    def get_model_name(self) -> str:
-        return "dummy"
-
-    async def get_embeddings(self, texts: list[str]) -> list[list[float]]:
-        return [[0.0] * 1536 for _ in texts]
+from tests.doubles import DummyBackend
 
 
 def _agent_ctx(agent: AIAgent, state: GameState):
@@ -24,7 +13,7 @@ def _agent_ctx(agent: AIAgent, state: GameState):
 
 @pytest.mark.asyncio
 async def test_claim_history_tracks_self_claim_then_denial_across_multiple_days():
-    agent = AIAgent("p1", "Alice", DummyBackend(), Persona("谨慎村民", "平稳"))
+    agent = AIAgent("p1", "Alice", DummyBackend(content="{}"), Persona("谨慎村民", "平稳"))
     state = GameState(
         phase=GamePhase.DAY_DISCUSSION,
         round_number=1,
@@ -70,7 +59,7 @@ async def test_claim_history_tracks_self_claim_then_denial_across_multiple_days(
 
 @pytest.mark.asyncio
 async def test_self_claim_with_named_players_does_not_assign_claimed_role_to_mentioned_players():
-    agent = AIAgent("p1", "Alice", DummyBackend(), Persona("谨慎村民", "平稳"))
+    agent = AIAgent("p1", "Alice", DummyBackend(content="{}"), Persona("谨慎村民", "平稳"))
     state = GameState(
         phase=GamePhase.DAY_DISCUSSION,
         round_number=1,
@@ -105,7 +94,7 @@ async def test_self_claim_with_named_players_does_not_assign_claimed_role_to_men
 
 @pytest.mark.asyncio
 async def test_public_claim_remains_visible_in_summary_after_phase_archive():
-    agent = AIAgent("p1", "Alice", DummyBackend(), Persona("谨慎村民", "平稳"))
+    agent = AIAgent("p1", "Alice", DummyBackend(content="{}"), Persona("谨慎村民", "平稳"))
     state = GameState(
         phase=GamePhase.DAY_DISCUSSION,
         round_number=1,
@@ -139,7 +128,7 @@ async def test_public_claim_remains_visible_in_summary_after_phase_archive():
 async def test_cross_sentence_text_does_not_create_false_relay():
     """Regression: greedy regex must not match across sentence boundaries.
     'P4 说他觉得可疑。P6 跳了陌客' should NOT create P4→陌客 relay."""
-    agent = AIAgent("p1", "Alice", DummyBackend(), Persona("谨慎村民", "平稳"))
+    agent = AIAgent("p1", "Alice", DummyBackend(content="{}"), Persona("谨慎村民", "平稳"))
     state = GameState(
         phase=GamePhase.DAY_DISCUSSION,
         round_number=1,
@@ -180,7 +169,7 @@ async def test_cross_sentence_text_does_not_create_false_relay():
 async def test_single_sentence_relay_still_works():
     """Ensure legitimate single-sentence relay claims still extract correctly.
     Relay claims are stored in the speaker's claims_about_others."""
-    agent = AIAgent("p1", "Alice", DummyBackend(), Persona("谨慎村民", "平稳"))
+    agent = AIAgent("p1", "Alice", DummyBackend(content="{}"), Persona("谨慎村民", "平稳"))
     state = GameState(
         phase=GamePhase.DAY_DISCUSSION,
         round_number=1,
@@ -225,7 +214,7 @@ async def test_single_sentence_relay_still_works():
 async def test_self_claim_with_say_keyword_not_blocked():
     """Regression: '我想说的是，我是陌客' should match as self_claim.
     The (?<!说) lookbehind was too aggressive."""
-    agent = AIAgent("p1", "Alice", DummyBackend(), Persona("谨慎村民", "平稳"))
+    agent = AIAgent("p1", "Alice", DummyBackend(content="{}"), Persona("谨慎村民", "平稳"))
     state = GameState(
         phase=GamePhase.DAY_DISCUSSION,
         round_number=1,
@@ -256,7 +245,7 @@ async def test_self_claim_with_say_keyword_not_blocked():
 @pytest.mark.asyncio
 async def test_relay_note_has_distinctive_prefix():
     """Relay notes in social graph should be prefixed to distinguish from self-claims."""
-    agent = AIAgent("p1", "Alice", DummyBackend(), Persona("谨慎村民", "平稳"))
+    agent = AIAgent("p1", "Alice", DummyBackend(content="{}"), Persona("谨慎村民", "平稳"))
     state = GameState(
         phase=GamePhase.DAY_DISCUSSION,
         round_number=1,
@@ -292,7 +281,7 @@ async def test_relay_note_has_distinctive_prefix():
 @pytest.mark.asyncio
 async def test_cross_sentence_accusation_does_not_false_match():
     """Regression: 'P4 很可疑。P6 像陌客' should NOT accuse P4 of being recluse."""
-    agent = AIAgent("p1", "Alice", DummyBackend(), Persona("谨慎村民", "平稳"))
+    agent = AIAgent("p1", "Alice", DummyBackend(content="{}"), Persona("谨慎村民", "平稳"))
     state = GameState(
         phase=GamePhase.DAY_DISCUSSION,
         round_number=1,
@@ -338,7 +327,7 @@ async def test_defense_speech_discussing_baron_does_not_create_false_self_claim(
     times (relay: "你说3号或者我是男爵", hypothetical: "要是真有男爵",
     denial: "根本没有男爵") but is NOT claiming to be Baron.
     """
-    agent = AIAgent("p1", "Alice", DummyBackend(), Persona("谨慎村民", "平稳"))
+    agent = AIAgent("p1", "Alice", DummyBackend(content="{}"), Persona("谨慎村民", "平稳"))
     state = GameState(
         phase=GamePhase.NOMINATION,
         round_number=1,
@@ -393,7 +382,7 @@ async def test_defense_speech_discussing_baron_does_not_create_false_self_claim(
 async def test_player_speaks_with_relay_context_does_not_create_false_self_claim():
     """Regression: 'Alice 一直说我是男爵' in player_speaks should NOT
     produce a self_claim for baron due to the relay attribution context."""
-    agent = AIAgent("p1", "Alice", DummyBackend(), Persona("谨慎村民", "平稳"))
+    agent = AIAgent("p1", "Alice", DummyBackend(content="{}"), Persona("谨慎村民", "平稳"))
     state = GameState(
         phase=GamePhase.DAY_DISCUSSION,
         round_number=1,

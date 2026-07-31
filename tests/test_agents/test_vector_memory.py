@@ -31,14 +31,17 @@ class _FakeIndexFlatL2:
         return [[0.0] * top_k], [top_indices]
 
 
-sys.modules.setdefault(
-    "numpy",
-    types.SimpleNamespace(array=lambda values: _FakeArray(values)),
-)
-sys.modules.setdefault(
-    "faiss",
-    types.SimpleNamespace(IndexFlatL2=_FakeIndexFlatL2),
-)
+# 注入假 numpy/faiss 模块，使 VectorMemory 在缺少真实依赖时仍可运行（见 D010 设计意图）。
+# 用赋值而非 setdefault，避免被其它已缓存的残缺模块覆盖；随后强制 reload，
+# 让 vector_memory 模块级 `import numpy/faiss` 重新解析到注入的假模块。
+sys.modules["numpy"] = types.SimpleNamespace(array=lambda values: _FakeArray(values))
+sys.modules["faiss"] = types.SimpleNamespace(IndexFlatL2=_FakeIndexFlatL2)
+
+import importlib
+
+import src.agents.memory.vector_memory as _vector_memory_module
+
+importlib.reload(_vector_memory_module)
 
 from src.agents.memory.vector_memory import VectorMemory
 from src.llm.base_backend import LLMBackend, LLMResponse, Message

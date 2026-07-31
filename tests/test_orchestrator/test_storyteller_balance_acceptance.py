@@ -9,7 +9,7 @@ def test_storyteller_balance_acceptance_script_runs() -> None:
     result = subprocess.run(
         [
             str(repo_root / ".venv" / "Scripts" / "python.exe"),
-            str(repo_root / "scripts" / "storyteller_balance_acceptance.py"),
+            str(repo_root / "scripts" / "acceptance" / "storyteller_balance_acceptance.py"),
         ],
         cwd=repo_root,
         capture_output=True,

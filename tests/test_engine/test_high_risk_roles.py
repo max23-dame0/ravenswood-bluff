@@ -250,7 +250,7 @@ def test_mayor_night_kill_redirects_to_another_alive_player() -> None:
 
 
 def test_mayor_redirection_prefers_non_mayor_non_killer_alive_player() -> None:
-    role = get_role_class("imp")()
+    get_role_class("imp")()
     state = GameState(
         phase=GamePhase.NIGHT,
         players=(

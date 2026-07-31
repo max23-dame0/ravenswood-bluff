@@ -1,6 +1,5 @@
 """Phase 0 测试 — 事件日志"""
 
-import pytest
 from src.state.event_log import EventLog
 from src.state.game_state import GameEvent, GamePhase, Visibility
 
