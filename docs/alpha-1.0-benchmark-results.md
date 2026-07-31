@@ -1,3 +1,13 @@
+---
+doc_id: "RPT-002"
+title: "Alpha 1.0 多人数配置基准测试报告"
+category: "report"
+role: "[Delta]"
+status: "published"
+date: "2026-05-03"
+author: "Ravenswood Bluff"
+---
+
 # Alpha 1.0 多人数配置基准测试报告
 
 | Players | Backend | Duration (s) | Actions | Tokens | Avg Token/Action | Fallbacks | Winner |

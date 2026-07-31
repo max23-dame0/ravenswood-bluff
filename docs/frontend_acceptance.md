@@ -1,3 +1,13 @@
+---
+doc_id: "RPT-006"
+title: "Frontend Acceptance Flow"
+category: "report"
+role: "[Delta]"
+status: "published"
+date: "2026-04-29"
+author: "Ravenswood Bluff"
+---
+
 # Frontend Acceptance Flow
 
 This repository now has two layers of acceptance for the player and storyteller UI:

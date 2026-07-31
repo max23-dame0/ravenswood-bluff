@@ -1,90 +1,185 @@
-# 鸦木布拉夫小镇 — 文档目录索引与归属整理
-
-为了方便在不同开发阶段快速检索、维护以及规范文档结构，现将 `docs/` 目录下现存的所有文档归类整理如下。
-
+---
+doc_id: "REF-INDEX"
+title: "鸦木布拉夫小镇 — 文档索引"
+category: "reference"
+role: "[State]"
+status: "published"
+date: "2026-07-31"
+author: "Ravenswood Bluff"
 ---
 
-## 1. 开发计划与任务看板 (Development Plans & Sprints)
-本类别包含各个开发阶段的总体设计方案与具体实施的子任务看板。
+# 鸦木布拉夫小镇 — 文档索引
 
-* **[Alpha 1.2 主开发计划](alpha-1.2-plan.md)**: 本阶段（多人联机与局域网部署）的总体方案与验收标准。
-* **[Alpha 1.2 任务看板目录](alpha-1.2-plan/README.md)**: Alpha 1.2 阶段的详细任务列表目录。
-  * **[M8：多人联机与局域网部署服务](alpha-1.2-plan/task_m8_network_hosting.md)**: 端口绑定、动态 IP 检测、启动脚本与 Docker 部署任务。
-* **[Alpha 1.1 主开发计划](alpha-1.1-plan.md)**: 难度预设、博弈噪声以及 AI 速度/发言质量的总体改造方案。
-* **[Alpha 1.1 任务看板目录](alpha-1.1-plan/README.md)**: Alpha 1.1 阶段任务细分目录。
-  * **[M5：AI 响应速度与流畅体验](alpha-1.1-plan/task_m5_ai_speed_flow.md)**: 响应等待与分层决策优化。
-  * **[M5-R：AI 发言质量回归与并行纠偏](alpha-1.1-plan/task_m5r_ai_speech_quality_repair.md)**: 顺序发言与 fallback 策略重构。
-  * **[M6：难度系统校准与架构补丁](alpha-1.1-plan/task_m6_difficulty_system_refactor.md)**: 难度五轴模型升级与欺诈一致性。
-  * **[M7：验证规范与增量证据](alpha-1.1-plan/task_m7_validation_evidence.md)**: 性能与差异度行为级验收指标。
-  * **[验证规范：证明改进真实存在](alpha-1.1-plan/verification_policy.md)**: 增量行为与自动化基线验证的规范定义。
-* **[Alpha 1.0 主开发计划](alpha-1.0-plan.md)**: 完成首个测试候选版（规则封板、说书人控制台、真人前端内测流）的主开发计划。
-* **[Alpha 1.0 任务看板目录](alpha-1.0-plan/)**: 归档的 1.0 各子任务板（魔典、说书人裁量、AI 情绪等）。
-* **[Alpha 0.3 主开发计划](alpha-0.3-plan.md)**: 包含 AI 说书人内心独白、三层记忆架构（RAG）和猎手/圣女规则实现的主计划。
-* **[Alpha 0.3 任务看板目录](alpha-0.3-plan/)**: 归档的 0.3 各任务模块。
-* **[Alpha 0.2 任务看板目录](alpha-0.2-plan/)**: 归档的早期 0.2 开发路线与看板。
+> 单一语料根：`docs/`（共 66 篇人工文档，均带 frontmatter）。治理规范见 `.codebuddy/skills/doc-governance`。
+> `alpha-1.1-evidence/` 为脚本自动生成的验收证据，豁免 frontmatter，文件名索引见本文件 §7。
 
----
+## 1. 场景查找表
 
-## 2. 发布说明与已知限制 (Release Notes & Checklists)
-记录各版本正式对外发布前的验收检查单、发布日志及已知的问题清单。
+| 我想… | 先看 | 再看 |
+|------|------|------|
+| 了解项目、如何运行与验证 | `README.md`(根) · `AGENTS.md`(根) | `architecture.md`(根) · `CLAUDE.md`(根) |
+| 看当前进度与待办 | `PROGRESS.md`(根) | `DECISIONS.md`(根) · `docs/plans/alpha-1.1-plan.md` |
+| 查某角色能力 / 避坑 | `docs/reference/rule_matrix.md`(ARC-002) · `docs/reference/tech-traps.md`(REF-004) | — |
+| 跟进某版本计划 / 任务 | `docs/plans/alpha-1.1-plan.md`(PLN-003) 及其子目录 | `docs/alpha-1.1-evidence/`（验收证据） |
+| 部署 / 本地联机 | `docs/guides/cloud_deployment_guide.md`(REF-001) · `docs/guides/lan_play_guide.md`(REF-003) | — |
+| 看验收 / 测试报告 | `docs/reviews/validation_report.md`(RPT-007) · `docs/frontend_acceptance.md`(RPT-006) | `docs/alpha-1.0-benchmark-results.md`(RPT-002) |
+| 复盘某局对战 | `docs/reviews/game-analysis/`(RPT-011/012) | — |
+| 查历史移交 / 审查 | review 类文档（`REV-*`） | — |
 
-* **[Alpha 1.0 发布清单](alpha-1.0-release-checklist.md)**: 1.0 阶段的上线门禁与上线测试检查单。
-* **[Alpha 1.0 已知问题](alpha-1.0-known-issues.md)**: 1.0 阶段遗留的问题、限制以及临时变通方案（Workarounds）。
-* **[Alpha 0.3 发布总结](alpha-0.3-release-summary.md)**: 0.3 阶段的交付特性、修复内容和已知局限。
-* **[Alpha 0.2 发布总结](alpha-0.2-release-summary.md)**: 0.2 阶段的合并特性与回归校验记录。
-* **[Alpha 0.1 发布说明](alpha-0.1-release-notes.md)**: 早期 0.1 版本的流程框架发布说明。
+## 2. 目录结构（带角色标签）
 
----
+```
+docs/
+|- README.md               本索引（State）
+|- frontend_acceptance.md          脚本生成，路径固定（scripts/acceptance/frontend_acceptance.py 写入）
+|- alpha-1.0-benchmark-results.md  脚本生成，路径固定（scripts/benchmark/batch_benchmark.py 写入）
+|- alpha-1.1-evidence/     验收证据（脚本写入，免 frontmatter，原地保留）
+|- plans/                  计划与任务板（Delta）
+|   |- alpha-0.2-plan/  alpha-0.3-plan/  alpha-1.0-plan/  alpha-1.1-plan/  alpha-1.2-plan/
+|- releases/               发布说明 / 清单 / 已知问题（Delta）
+|- reviews/                审查、移交、验证报告、对局分析（Delta）
+|   |- game-analysis/
+|- guides/                 部署 / 联机 / 数据运维 / 反馈模板（Cold）
+|- reference/              架构与规范速查：rule_matrix / tech-traps / test-system / harness 分析（State·Cold）
+```
 
-## 3. 技术分析、规则与架构文档 (Architecture & System Design)
-系统整体设计理念、核心机制、重构规划与游戏规则边界定义。
+> **归位规则**：脚本会写入的文档（`frontend_acceptance.md`、`alpha-1.0-benchmark-results.md`、
+> `alpha-1.1-evidence/`）路径已被代码硬编码，**保留在 `docs/` 根**，移动会改变运行时行为。
+> 其余人工文档一律按上表五类归位。
 
-* **[规则判定矩阵 (Rule Matrix)](rule_matrix.md)**: 记录 Troubling Brewing 剧本中高风险角色（如酒鬼、中毒、隐士、间谍等）的行为期望与裁断逻辑。
-* **[测试套件与工程分析 (Harness Engineering)](harness-engineering-analysis.md)**: 全量测试套件的高阶设计分析，涵盖时序、Mock 环境及通信断言。
-* **[项目瘦身计划 (Slimming Plan)](project-slimming-plan.md)**: 项目代码规模瘦身、上帝对象拆解以及重构规划指南。
+## 3. 分类索引
 
----
+### 架构 / 规范（State）
 
-## 4. 测试与质量验收报告 (Verification & Test Reports)
-自动化门禁运行结果报告、数据证据文件与接口通信契约验证。
+| doc_id | 标题 | 角色 | 日期 | 路径 |
+|--------|------|:----:|:----:|------|
+| ARC-001 | [LLM Harness 工程解析报告：鸦木布拉夫小镇](reference/harness-engineering-analysis.md) | [State] | 2026-06-01 | `docs/reference/harness-engineering-analysis.md` |
+| ARC-002 | [BOTC 规则-实现矩阵](reference/rule_matrix.md) | [State] | 2026-04-29 | `docs/reference/rule_matrix.md` |
 
-* **[Alpha 1.1 验收证据目录 (alpha-1.1-evidence/)](alpha-1.1-evidence/)**: 存放自动化验收脚本生成的真实日志、性能指标和证据摘要。
-* **[前端接口契约验证报告](frontend_acceptance.md)**: 前后端 WebSocket 连接、事件模型及 HTTP 契约通信验收记录。
-* **[系统验证报告](validation_report.md)**: 自动化测试套件在特定里程碑的综合通过报告。
+### 计划 / 任务（Delta）
 
----
+| doc_id | 标题 | 角色 | 日期 | 路径 |
+|--------|------|:----:|:----:|------|
+| PLN-001 | [Alpha 0.3 开发计划：AI 记忆进化与对局数据工程 (已封板 - 2026-04-24)](plans/alpha-0.3-plan.md) | [Delta] | 2026-04-25 | `docs/plans/alpha-0.3-plan.md` |
+| PLN-002 | [Alpha 1.0 正式内测发布开发计划](plans/alpha-1.0-plan.md) | [Delta] | 2026-04-29 | `docs/plans/alpha-1.0-plan.md` |
+| PLN-003 | [Alpha 1.1 开发计划：Gameplay & AI Difficulty](plans/alpha-1.1-plan.md) | [Delta] | 2026-06-01 | `docs/plans/alpha-1.1-plan.md` |
+| PLN-004 | [Alpha 1.2 开发计划：Network Hosting & Multiplayer Readiness](plans/alpha-1.2-plan.md) | [Delta] | 2026-06-09 | `docs/plans/alpha-1.2-plan.md` |
+| PLN-005 | [Ravenswood Bluff 项目瘦身与审计计划](plans/project-slimming-plan.md) | [Delta] | 2026-06-01 | `docs/plans/project-slimming-plan.md` |
+| PLN-006 | [Alpha 0.2 专项计划：AI 玩家智能增强](plans/alpha-0.2-plan/ai-player-intelligence-plan.md) | [Delta] | 2026-04-11 | `docs/plans/alpha-0.2-plan/ai-player-intelligence-plan.md` |
+| PLN-007 | [Alpha 0.2 当前开发进度](plans/alpha-0.2-plan/current-status.md) | [Delta] | 2026-04-21 | `docs/plans/alpha-0.2-plan/current-status.md` |
+| PLN-008 | [Alpha 0.2 专项计划：前端界面优化](plans/alpha-0.2-plan/frontend-ui-optimization-plan.md) | [Delta] | 2026-04-11 | `docs/plans/alpha-0.2-plan/frontend-ui-optimization-plan.md` |
+| PLN-009 | [游戏结算与复盘系统开发计划](plans/alpha-0.2-plan/gameover_implementation_plan.md) | [Delta] | 2026-04-21 | `docs/plans/alpha-0.2-plan/gameover_implementation_plan.md` |
+| PLN-010 | [Alpha 0.2 规划总览](plans/alpha-0.2-plan/README.md) | [Delta] | 2026-04-21 | `docs/plans/alpha-0.2-plan/README.md` |
+| PLN-011 | [Alpha 0.2 路线图](plans/alpha-0.2-plan/roadmap.md) | [Delta] | 2026-04-21 | `docs/plans/alpha-0.2-plan/roadmap.md` |
+| PLN-012 | [Alpha 0.2 专项计划：说书人平衡裁量模拟数据与评估](plans/alpha-0.2-plan/storyteller-balance-simulation-plan.md) | [Delta] | 2026-04-11 | `docs/plans/alpha-0.2-plan/storyteller-balance-simulation-plan.md` |
+| PLN-013 | [Alpha 0.2 专项计划：说书人智能优化](plans/alpha-0.2-plan/storyteller-intelligence-plan.md) | [Delta] | 2026-04-11 | `docs/plans/alpha-0.2-plan/storyteller-intelligence-plan.md` |
+| PLN-014 | [Alpha 0.2 Wave 1 任务板](plans/alpha-0.2-plan/wave-1-task-board.md) | [Delta] | 2026-04-11 | `docs/plans/alpha-0.2-plan/wave-1-task-board.md` |
+| PLN-015 | [Alpha 0.2 Wave 2 任务板](plans/alpha-0.2-plan/wave-2-task-board.md) | [Delta] | 2026-04-11 | `docs/plans/alpha-0.2-plan/wave-2-task-board.md` |
+| PLN-016 | [Alpha 0.2 Wave 3 任务板](plans/alpha-0.2-plan/wave-3-task-board.md) | [Delta] | 2026-04-21 | `docs/plans/alpha-0.2-plan/wave-3-task-board.md` |
+| PLN-017 | [Alpha 0.2 Wave 4 任务板](plans/alpha-0.2-plan/wave-4-task-board.md) | [Delta] | 2026-04-21 | `docs/plans/alpha-0.2-plan/wave-4-task-board.md` |
+| PLN-018 | [Alpha 0.3 当前执行摘要（2026-04-22 校正版）](plans/alpha-0.3-plan/execution_summary.md) | [Delta] | 2026-04-25 | `docs/plans/alpha-0.3-plan/execution_summary.md` |
+| PLN-019 | [Alpha 0.3 重制开发总计划](plans/alpha-0.3-plan/full_plan.md) | [Delta] | 2026-04-25 | `docs/plans/alpha-0.3-plan/full_plan.md` |
+| PLN-020 | [Mission: A3-DATA 历史数据保存与训练资产任务板](plans/alpha-0.3-plan/task_data.md) | [Delta] | 2026-04-25 | `docs/plans/alpha-0.3-plan/task_data.md` |
+| PLN-021 | [Mission: A3-GAME 游戏逻辑与交互体验任务板](plans/alpha-0.3-plan/task_game.md) | [Delta] | 2026-04-25 | `docs/plans/alpha-0.3-plan/task_game.md` |
+| PLN-022 | [Mission: A3-ST 说书人优化任务板](plans/alpha-0.3-plan/task_st_ai.md) | [Delta] | 2026-04-25 | `docs/plans/alpha-0.3-plan/task_st_ai.md` |
+| PLN-023 | [Alpha 1.0 任务板目录](plans/alpha-1.0-plan/README.md) | [Delta] | 2026-04-29 | `docs/plans/alpha-1.0-plan/README.md` |
+| PLN-024 | [当前 AI 动作决策 Prompt 结构样例](plans/alpha-1.0-plan/sample_prompt.md) | [Delta] | 2026-04-29 | `docs/plans/alpha-1.0-plan/sample_prompt.md` |
+| PLN-025 | [M1 任务板：规则与流程封板](plans/alpha-1.0-plan/task_m1_rules_flow.md) | [Delta] | 2026-04-29 | `docs/plans/alpha-1.0-plan/task_m1_rules_flow.md` |
+| PLN-026 | [M2 任务板：真人前端内测流](plans/alpha-1.0-plan/task_m2_frontend_human_flow.md) | [Delta] | 2026-04-29 | `docs/plans/alpha-1.0-plan/task_m2_frontend_human_flow.md` |
+| PLN-027 | [M3 任务板：Live Backend 性能与可靠性](plans/alpha-1.0-plan/task_m3_live_backend.md) | [Delta] | 2026-04-29 | `docs/plans/alpha-1.0-plan/task_m3_live_backend.md` |
+| PLN-028 | [M4 任务板：说书人真相源与复盘封板](plans/alpha-1.0-plan/task_m4_storyteller_replay.md) | [Delta] | 2026-04-29 | `docs/plans/alpha-1.0-plan/task_m4_storyteller_replay.md` |
+| PLN-029 | [M5 任务板：AI 玩家内测体验](plans/alpha-1.0-plan/task_m5_ai_player_experience.md) | [Delta] | 2026-04-29 | `docs/plans/alpha-1.0-plan/task_m5_ai_player_experience.md` |
+| PLN-030 | [Alpha 1.1 开发入口](plans/alpha-1.1-plan/README.md) | [Delta] | 2026-06-01 | `docs/plans/alpha-1.1-plan/README.md` |
+| PLN-031 | [M5-R 修复计划：AI 发言质量回归与并行机制纠偏](plans/alpha-1.1-plan/task_m5r_ai_speech_quality_repair.md) | [Delta] | 2026-06-01 | `docs/plans/alpha-1.1-plan/task_m5r_ai_speech_quality_repair.md` |
+| PLN-032 | [M5 任务板：AI 响应速度与流畅体验](plans/alpha-1.1-plan/task_m5_ai_speed_flow.md) | [Delta] | 2026-06-01 | `docs/plans/alpha-1.1-plan/task_m5_ai_speed_flow.md` |
+| PLN-033 | [M6 任务板：难度系统校准与架构补丁](plans/alpha-1.1-plan/task_m6_difficulty_system_refactor.md) | [Delta] | 2026-06-01 | `docs/plans/alpha-1.1-plan/task_m6_difficulty_system_refactor.md` |
+| PLN-034 | [Alpha 1.1 验证规范：证明改进真实存在](plans/alpha-1.1-plan/verification_policy.md) | [Delta] | 2026-06-01 | `docs/plans/alpha-1.1-plan/verification_policy.md` |
+| PLN-035 | [Alpha 1.2 开发入口](plans/alpha-1.2-plan/README.md) | [Delta] | 2026-06-09 | `docs/plans/alpha-1.2-plan/README.md` |
+| PLN-036 | [M8 任务板：多人联机与局域网部署服务](plans/alpha-1.2-plan/task_m8_network_hosting.md) | [Delta] | 2026-06-09 | `docs/plans/alpha-1.2-plan/task_m8_network_hosting.md` |
 
-## 5. 交接与历史遗留 Backlog (Handovers & Remediations)
-跨开发周期、跨大语言模型或不同 AI 助手接力开发时的交接文档和待解决历史债务。
+### 审查 / 移交（Delta）
 
-* **[Gemini 接手整治 Backlog (2026-04-18)](GEMINI_REMEDIATION_BACKLOG.md)**: 早期对于代码质量、并发错误与规则缺陷的全面修复清单。
-* **[Remediation Backlog 摘要](remediation_backlog.md)**: 精简版的待整改缺陷清单。
-* **[Gemini 接手评审报告](GEMINI_HANDOFF_REVIEW_2026-04-18.md)**: 评估现有引擎主循环、记忆系统与前后端通信的交接报告。
-* **[Claude 接手工作交接 (CLAUDE_HANDOFF)](CLAUDE_HANDOFF.md)**: 记录从上一阶段团队向新开发助手的技术上下文交接。
-* **[Alpha 0.2 工作交接报告](HANDOVER_ALPHA_0.2.md)**: 早期 0.2 阶段版本的开发与部署交接指南。
+| doc_id | 标题 | 角色 | 日期 | 路径 |
+|--------|------|:----:|:----:|------|
+| REV-001 | [Project Handoff: Slimming & Modular Refactor (May 2026)](reviews/CLAUDE_HANDOFF.md) | [Delta] | 2026-06-01 | `docs/reviews/CLAUDE_HANDOFF.md` |
+| REV-002 | [Gemini 移交文档复核记录（2026-04-18）](reviews/GEMINI_HANDOFF_REVIEW_2026-04-18.md) | [Delta] | 2026-04-21 | `docs/reviews/GEMINI_HANDOFF_REVIEW_2026-04-18.md` |
+| REV-003 | [Gemini 遗留问题收口清单](reviews/GEMINI_REMEDIATION_BACKLOG.md) | [Delta] | 2026-04-21 | `docs/reviews/GEMINI_REMEDIATION_BACKLOG.md` |
+| REV-004 | [当前遗留问题与并行修复计划](reviews/remediation_backlog.md) | [Delta] | 2026-04-08 | `docs/reviews/remediation_backlog.md` |
+| REV-005 | [Gemini Alpha 0.3 审计记录](plans/alpha-0.3-plan/gemini_audit.md) | [Delta] | 2026-04-25 | `docs/plans/alpha-0.3-plan/gemini_audit.md` |
+| REV-006 | [Alpha 0.2 AI 智能重构移交文档 (Handover Document)](reviews/HANDOVER_ALPHA_0.2.md) | [Delta] | 2026-04-21 | `docs/reviews/HANDOVER_ALPHA_0.2.md` |
 
----
+### 发布（Delta）
 
-## 6. 对局资产与数据操作规范 (Data Management & Testing Samples)
-对局产生的中间数据（Traces、Logs）的读写、清理规范，以及基准测试的行为样本。
+| doc_id | 标题 | 角色 | 日期 | 路径 |
+|--------|------|:----:|:----:|------|
+| REL-001 | [Alpha 0.1 发布说明](releases/alpha-0.1-release-notes.md) | [Delta] | 2026-04-09 | `docs/releases/alpha-0.1-release-notes.md` |
+| REL-002 | [Alpha 0.2 开发总结与发布梳理](releases/alpha-0.2-release-summary.md) | [Delta] | 2026-04-21 | `docs/releases/alpha-0.2-release-summary.md` |
+| REL-003 | [Alpha 0.3 开发总结与发布说明](releases/alpha-0.3-release-summary.md) | [Delta] | 2026-04-25 | `docs/releases/alpha-0.3-release-summary.md` |
+| REL-004 | [Alpha 1.0 Release Checklist](releases/alpha-1.0-release-checklist.md) | [Delta] | 2026-04-29 | `docs/releases/alpha-1.0-release-checklist.md` |
+| REL-005 | [Wave 4 Release Checklist](plans/alpha-0.2-plan/wave-4-release-checklist.md) | [Delta] | 2026-04-21 | `docs/plans/alpha-0.2-plan/wave-4-release-checklist.md` |
+| REL-006 | [M6 任务板：发布工程与内测包](plans/alpha-1.0-plan/task_m6_release_package.md) | [Delta] | 2026-04-29 | `docs/plans/alpha-1.0-plan/task_m6_release_package.md` |
 
-* **[Alpha 1.0 数据操作指南](alpha-1.0-data-operations.md)**: 针对大体积对局日志、Trace 资产的持久化、清理与故障排查包导出指南。
-* **[Alpha 1.0 AI 行为样本](alpha-1.0-ai-behavior-sample.md)**: 各种难度及性格参数下，AI 产生的高真实感公开发言样本对照。
-* **[Alpha 1.0 基准测试结果](alpha-1.0-benchmark-results.md)**: 早期 1.0 后端并发与性能压测基准数据。
-* **[用户反馈模板](alpha-1.0-feedback-template.md)**: 测试玩家在体验对局后反馈问题的统一问卷/文档结构。
+### 报告 / 分析（Delta）
 
----
+| doc_id | 标题 | 角色 | 日期 | 路径 |
+|--------|------|:----:|:----:|------|
+| RPT-001 | [Alpha 1.0 M5 AI 行为样本](reviews/alpha-1.0-ai-behavior-sample.md) | [Delta] | 2026-04-29 | `docs/reviews/alpha-1.0-ai-behavior-sample.md` |
+| RPT-002 | [Alpha 1.0 多人数配置基准测试报告](alpha-1.0-benchmark-results.md) | [Delta] | 2026-05-03 | `docs/alpha-1.0-benchmark-results.md` |
+| RPT-003 | [Alpha 1.0 数据与日志目录说明](guides/alpha-1.0-data-operations.md) | [Delta] | 2026-04-29 | `docs/guides/alpha-1.0-data-operations.md` |
+| RPT-004 | [Alpha 1.0 内测反馈模板](guides/alpha-1.0-feedback-template.md) | [Delta] | 2026-04-29 | `docs/guides/alpha-1.0-feedback-template.md` |
+| RPT-005 | [Alpha 1.0 Known Issues](releases/alpha-1.0-known-issues.md) | [Delta] | 2026-04-29 | `docs/releases/alpha-1.0-known-issues.md` |
+| RPT-006 | [Frontend Acceptance Flow](frontend_acceptance.md) | [Delta] | 2026-04-29 | `docs/frontend_acceptance.md` |
+| RPT-007 | [验证与修复记录](reviews/validation_report.md) | [Delta] | 2026-04-08 | `docs/reviews/validation_report.md` |
+| RPT-008 | [Alpha 0.2 专项计划：自动化验收与测试](plans/alpha-0.2-plan/acceptance-and-testing-plan.md) | [Delta] | 2026-04-11 | `docs/plans/alpha-0.2-plan/acceptance-and-testing-plan.md` |
+| RPT-009 | [Alpha 0.2 专项计划：全部角色业务实现与验证](plans/alpha-0.2-plan/role-implementation-and-validation-plan.md) | [Delta] | 2026-04-11 | `docs/plans/alpha-0.2-plan/role-implementation-and-validation-plan.md` |
+| RPT-010 | [M7 任务板：验证规范与增量证据](plans/alpha-1.1-plan/task_m7_validation_evidence.md) | [Delta] | 2026-06-01 | `docs/plans/alpha-1.1-plan/task_m7_validation_evidence.md` |
+| RPT-011 | [对局分析报告: efa662a3 (8人Live局)](reviews/game-analysis/2026-05-07_efa662a3_8player_live.md) | [Delta] | 2026-06-01 | `docs/reviews/game-analysis/2026-05-07_efa662a3_8player_live.md` |
+| RPT-012 | [对局分析目录](reviews/game-analysis/README.md) | [Delta] | 2026-06-01 | `docs/reviews/game-analysis/README.md` |
 
-## 7. 对局复盘与日志分析 (Game Session Analysis)
-真实或高延迟模拟对局的追溯记录与博弈逻辑演进分析。
+### 参考 / 指南（Cold）
 
-* **[对局分析目录 (game-analysis/)](game-analysis/)**: 存放典型完整对局的深度分析报告，用于定位 AI 博弈合理性与说书人裁量质量。
-  * **[2026-05-07 8人Live对局分析](game-analysis/2026-05-07_efa662a3_8player_live.md)**: 记录在真实延迟或兼容模型下，各轮次 AI 行为、超时 fallback 与 Token 消耗表现。
+| doc_id | 标题 | 角色 | 日期 | 路径 |
+|--------|------|:----:|:----:|------|
+| REF-001 | [《鸦木布拉夫小镇》云端服务器部署指南](guides/cloud_deployment_guide.md) | [Cold] | 2026-06-09 | `docs/guides/cloud_deployment_guide.md` |
+| REF-003 | [《鸦木布拉夫小镇》多人/局域网联机配置指南](guides/lan_play_guide.md) | [Cold] | 2026-06-09 | `docs/guides/lan_play_guide.md` |
+| REF-004 | [技术陷阱速查 (tech-traps)](reference/tech-traps.md) | [Cold] | 2026-07-30 | `docs/reference/tech-traps.md` |
+| REF-005 | [测试系统参考 (test-system)](reference/test-system.md) | [Cold] | 2026-07-31 | `docs/reference/test-system.md` |
 
----
+## 4. ADR 索引
 
-## 8. 部署与联机指引 (Deployment & Multiplayer Guides)
-提供本地、局域网及云端服务器部署和联机游玩的详细配置指引。
+本项目决策集中在根目录 `DECISIONS.md`（轻量决策日志），尚未单列 ADR 目录。涉及架构/约定的重大变更请同步更新 `DECISIONS.md` 与 `.codebuddy/memory/MEMORY.md`。
 
-* **[局域网联机配置指南](lan_play_guide.md)**: Windows 端口开放、局域网 IP 分享与玩家连接步骤说明。
-* **[云端服务器部署指南](cloud_deployment_guide.md)**: 容器云平台（如 Railway）及云服务器 Docker Compose 的部署教程。
+## 5. 模板索引
+
+本仓库暂未内置本地 `templates/` 目录。通用文档模板（六类：决策 / 规范 / 计划 / 报告 / 参考 / 移交）见技能：
+
+`.codebuddy/skills/doc-governance/references/templates/`
+
+新增文档建议直接套用对应模板的 frontmatter 字段（`doc_id / title / category / role / status / date / author`）。
+
+## 6. 主题归口（原 8 类速览）
+
+| 主题 | 对应分类 / 文档 |
+|------|----------------|
+| 设计与架构 | architecture 类（`ARC-*`）、根 `architecture.md` |
+| 版本计划 | planning 类（`PLN-*`），按 `alpha-*` 子目录组织 |
+| 发布说明 | release 类（`REL-*`） |
+| 验收 / 报告 / 分析 | report 类（`RPT-*`）、`game-analysis/` |
+| 审查 / 移交 | review 类（`REV-*`） |
+| 部署 / 指南 / 陷阱 | reference 类（`REF-*`） |
+| 自动生成证据 | `alpha-1.1-evidence/`（27 个验收证据 + README/template 目录脚手架，均豁免 frontmatter；详见本文件 §7） |
+| 本索引 | `docs/README.md` |
+
+## 7. 自动生成验收证据（alpha-1.1-evidence/）
+
+> 该目录由 `scripts/alpha1.1_acceptance.py` 在每次验收门禁运行时**自动生成**，属脚本产物，**豁免 frontmatter**（不纳入人工文档治理）。下表为文件名索引，便于检索；文件内容以脚本产出为准。
+
+| 类别 | 文件（相对路径链接） |
+|------|----------------------|
+| 难度修复 (DIFF-FIX) | [20260503_A11-DIFF-FIX-022_strategy_prompt_team_boundary.md](alpha-1.1-evidence/20260503_A11-DIFF-FIX-022_strategy_prompt_team_boundary.md) · [20260503_A11-DIFF-FIX-022_team_boundary.md](alpha-1.1-evidence/20260503_A11-DIFF-FIX-022_team_boundary.md) · [20260503_A11-DIFF-FIX-023_multi_axis_difficulty_preset.md](alpha-1.1-evidence/20260503_A11-DIFF-FIX-023_multi_axis_difficulty_preset.md) · [20260503_A11-DIFF-FIX-023_multi_axis.md](alpha-1.1-evidence/20260503_A11-DIFF-FIX-023_multi_axis.md) · [20260503_A11-DIFF-FIX-024_standard_baseline.md](alpha-1.1-evidence/20260503_A11-DIFF-FIX-024_standard_baseline.md) · [20260503_A11-DIFF-FIX-025_deception_budget.md](alpha-1.1-evidence/20260503_A11-DIFF-FIX-025_deception_budget.md) · [20260503_A11-DIFF-FIX-026_chaos_guardrails.md](alpha-1.1-evidence/20260503_A11-DIFF-FIX-026_chaos_guardrails.md) |
+| 速度 (SPEED) | [20260503_A11-SPEED-015-016_latency_metrics_and_budget.md](alpha-1.1-evidence/20260503_A11-SPEED-015-016_latency_metrics_and_budget.md) · [20260503_A11-SPEED-019_prompt_compression.md](alpha-1.1-evidence/20260503_A11-SPEED-019_prompt_compression.md) · [20260503_A11-SPEED-020_adaptive_speed.md](alpha-1.1-evidence/20260503_A11-SPEED-020_adaptive_speed.md) · [20260504_A11-SPEED-022_speed_acceptance.md](alpha-1.1-evidence/20260504_A11-SPEED-022_speed_acceptance.md) · [20260505_A11-SPEED-FIX_m5r_regression.md](alpha-1.1-evidence/20260505_A11-SPEED-FIX_m5r_regression.md) |
+| 验证 (VERIFY) | [20260503_A11-VERIFY-029_verification_policy.md](alpha-1.1-evidence/20260503_A11-VERIFY-029_verification_policy.md) · [20260503_A11-VERIFY-030_aggregate_acceptance.md](alpha-1.1-evidence/20260503_A11-VERIFY-030_aggregate_acceptance.md) · [20260503_A11-VERIFY-031_difficulty_behavior.md](alpha-1.1-evidence/20260503_A11-VERIFY-031_difficulty_behavior.md) · [20260503_A11-VERIFY-032_ai_speed.md](alpha-1.1-evidence/20260503_A11-VERIFY-032_ai_speed.md) · [20260503_A11-VERIFY-033_evidence_template.md](alpha-1.1-evidence/20260503_A11-VERIFY-033_evidence_template.md) · [20260503_A11-VERIFY-034_faction_boundary.md](alpha-1.1-evidence/20260503_A11-VERIFY-034_faction_boundary.md) · [20260503_A11-VERIFY-035_release_index.md](alpha-1.1-evidence/20260503_A11-VERIFY-035_release_index.md) · [20260504_A11-VERIFY-035_final_fixes.md](alpha-1.1-evidence/20260504_A11-VERIFY-035_final_fixes.md) |
+| Live 发言 (m5l_live_speech) | [m5l_live_speech_20260506-125852.md](alpha-1.1-evidence/m5l_live_speech_20260506-125852.md) · [m5l_live_speech_20260506-131029.md](alpha-1.1-evidence/m5l_live_speech_20260506-131029.md) · [m5l_live_speech_20260506-131937.md](alpha-1.1-evidence/m5l_live_speech_20260506-131937.md) · [m5l_live_speech_20260507-071702.md](alpha-1.1-evidence/m5l_live_speech_20260507-071702.md) · [m5l_live_speech_20260507-081313.md](alpha-1.1-evidence/m5l_live_speech_20260507-081313.md) · [m5l_live_speech_20260601-115555.md](alpha-1.1-evidence/m5l_live_speech_20260601-115555.md) · [m5l_live_speech_20260609-085322.md](alpha-1.1-evidence/m5l_live_speech_20260609-085322.md) |
+| 目录脚手架 | `README.md`（本目录说明）· `template.md`（证据模板）—— 非验收证据 |
+
+共 27 个验收证据文件（脚本产物，豁免 frontmatter），另含 `README.md` / `template.md` 两项目录脚手架。
