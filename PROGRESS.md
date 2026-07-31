@@ -13,6 +13,7 @@
 | 2 | 按 harness 治理体系整理测试系统 | 治理 | 🟢 代码+文档完成，环境已就绪并已跑通 `pytest tests` + `ruff check tests` | 用户决定是否 commit | 无 |
 | 3 | 代码与文件规范化整理（P0-P5） | 整理 | 🟢 六阶段改动落盘，四条验证命令全部通过（ruff 零告警 + `ruff format --check` 182 文件已归一 + pytest 447 全绿 + 9-gate exit=0） | 用户决定是否按 P0-P5 分阶段 commit + 逐族启用阶段二规则 | 无 |
 | 4 | 文档体系治理收尾（增强 + 健康核对） | 治理 | 🟢 已完成 | 纳入 CI（check_doc_health.py）；用户跑环境后一并 commit | 无 |
+| 5 | 修复 GitHub Actions lint-and-test 全红 | 修复 | 🟢 已提交（6 个 commit，待推送验证） | 推送后看 CI 是否转绿 | 无 |
 
 ## 当前验证状态
 
@@ -25,8 +26,15 @@
 | `python scripts/alpha1.1_acceptance.py`（9 gate） | ✅ exit=0，9/9 全绿 |
 | 文档链接健康（相对链接扫描） | ✅ 与整理前基线一致（23 处失效，均为整理前既有的绝对路径与第三方 skill 文档） |
 | 静态引用审计（脚本路径 / import / REPO_ROOT 深度） | ✅ 无残留旧路径，子目录脚本 `parents[2]` 全覆盖 |
-| git status / 未提交改动 | 环境搭建相关文件（`.venv` 已被 `.gitignore` 忽略）；P0-P5 代码改动共 240 项待提交 |
+| git status / 未提交改动 | ✅ 工作区 clean；本地 6 个 commit 待推送（CI 跨平台修复 + ruff UP/B/SIM 三族） |
 | 当前 blocker | ✅ 无 |
+
+> **CI 跨平台修复（2026-07-31，commit `ad4e974`）**：GitHub Actions（ubuntu runner）报 20 个失败。
+> 根因一（19 个）：测试/脚本硬编码 `repo_root/".venv"/"Scripts"/"python.exe"` 拉子进程，Windows-only
+> → 全部改用 `sys.executable`（35 文件）。根因二（1 个）：`tests/test_runs/` 被 gitignore，CI 全新 checkout
+> 不存在，而 `mkdir(exist_ok=True)` 不建父目录 → 改 `mkdir(parents=True, exist_ok=True)`。
+> 陷阱已固化为 `docs/reference/tech-traps.md` T13/T14。另将验收 subprocess 测试超时统一提到 300s
+> （本机全量并发下 `storyteller_balance`/`alpha3` 曾偶发超时，CI runner 更慢）。
 
 > **P3 二级引用回归修复（2026-07-31 收尾）**：分目录后「叶子 gate 调用兄弟 gate」的路径未同步，导致 9 个测试报
 > `can't open file ...\scripts\<name>.py`。已修 `wave1~4_acceptance.py`、`a3_memory_acceptance.py`（`run_script`
