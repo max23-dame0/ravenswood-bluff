@@ -56,17 +56,19 @@ extend-exclude = [
 
 [tool.ruff.lint]
 # 阶段一（已收敛零告警）：E4 导入格式 / E7 语句规范 / E9 语法错误 / F pyflakes / W 空白与转义
-# 阶段二（逐族启用，见 DECISIONS.md D009）：
-#   "I"   isort 导入排序      —— 已启用（71 项经 --fix 自动收敛）
-select = ["E4", "E7", "E9", "F", "W", "I"]
+# 阶段二（逐族启用，见 DECISIONS.md D009）：全部已启用并收敛至零告警
+#   "I"   isort 导入排序      —— 71 项经 --fix 自动收敛
+#   "UP"  pyupgrade           —— 133 项（Optional[X] → X | None 等）；UP042 单独豁免见下
+#   "B"   flake8-bugbear      —— 22 项，B023/B904 人工修复
+#   "SIM" flake8-simplify     —— 24 项，人工复核后修复
+select = ["E4", "E7", "E9", "F", "W", "I", "UP", "B", "SIM"]
 ignore = [
     # 行长交由 ruff format 控制；存量长行多为中文 prompt 文案，强制换行会改变字面量
     "E501",
+    # UP042: class X(str, Enum) → StrEnum 会改变 str(X.A) 结果（"X.A" → "A"），
+    # 项目多处日志/序列化依赖该行为，禁止自动 --fix
+    "UP042",
 ]
-# 阶段二剩余待启用族：
-#   "UP"  pyupgrade           —— 133 项，其中 UP042(str,Enum)→StrEnum 会改变 str() 行为需单列
-#   "B"   flake8-bugbear      —— 22 项，多数需人工修（B023/B904）
-#   "SIM" flake8-simplify     —— 24 项，需人工复核，勿盲目 --fix
 
 [tool.ruff.lint.isort]
 known-first-party = ["src", "tests"]

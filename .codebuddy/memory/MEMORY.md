@@ -94,6 +94,7 @@ DifficultyLevel: CASUAL / STANDARD / MASTER / CHAOS
 
 - 2026-07-31 文档治理收尾（doc-governance 增强 + 健康核对）：① 清理上轮治理遗留临时脚本（`.codebuddy/tmp_*.ps1/.py` 与 `docs/.gov_body.md`）；② 增强——`docs/README.md` §7 登记 29 个 `alpha-1.1-evidence/` 证据文件名（frontmatter 豁免），新增 `scripts/check_doc_health.py`（frontmatter+死链校验，绝对路径为非致命告警、`--strict` 升级为失败）作 CI 门禁；③ 健康核对——AGENTS/CLAUDE/MEMORY/DECISIONS 路径均有效（`docs/` 已重组为 plans/reference/releases/reviews/，参考文档在 `docs/reference/`）；④ 修复历史文档中的绝对机器路径断链（原指向不存在的 `鸦木布拉夫小镇` 路径，曾被误清空为 `]()`，已用相对路径修复，含 `game_loop.py`/`server.py` 等源码链接与中文描述性文档链接）。
 - 教训（PowerShell 5.1 脚本）：① 读 `.ps1` 按 ANSI 而非 UTF-8，含中文会乱码致解析失败——脚本避免中文或显式写 BOM；② 相对链接改写用「文件深度 + 仓库相对路径」手动计算，勿用 `System.IO.Path.GetRelativePath`（本机 .NET Framework 无此方法会抛 MethodNotFound）；③ 批量改写语料前先备份/可回退，先小规模验证再全量。
+- 2026-07-31 ruff 阶段二全部启用（D009 收官）：`select` = E4/E7/E9/F/W/I/UP/B/SIM；`ignore` = E501 + **UP042**（`str,Enum`→`StrEnum` 改 `str()` 行为，禁自动修）。**flaky 模式（重要）**：`GameState.game_id` 默认 `uuid.uuid4()`；任何用 `GameState()` 构造状态而**未固定 `game_id`** 的测试，其 `AgentVisibleState.game_id` 随机 → `DecisionNoise` 噪声种子随机 → 依赖阈值的决策（如提名）跨运行随机成败。**测试补丁**：构造器必须固定 `game_id`。另：`nomination_voting.py` 的提名循环内定义异步函数若引用循环变量（`player`/`action_type`），须用**默认参在定义时捕获**（`player_id=player.player_id`），否则 asyncio 任务真正运行时取到循环末值（B023 闭包延迟绑定真 bug）。基线：`ruff check src tests scripts` = 0 告警；`pytest tests -q` = 447 passed / 0 failed。
 <!-- AUTO_MEMORY_END -->
 
 ---
