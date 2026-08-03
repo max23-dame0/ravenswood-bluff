@@ -88,6 +88,8 @@ DifficultyLevel: CASUAL / STANDARD / MASTER / CHAOS
 > **管理规则**：随时可追加（日期 + 内容）；超过 50 行自行精简；用户可自然语言控制"记住 X / 忘掉 Y"；不要把已明确的信息重复写入。
 
 <!-- AUTO_MEMORY_START -->
+- 2026-08-03 用户进程管理偏好（铁律）：**不要重复开进程**——同一服务/工具已启动过就不再重复启动；任务完成后及时终止不再需要的进程（python/pytest/uvicorn 等），防止堆积占用 CPU/内存/端口。启动新进程前先确认是否已有同名或同端口进程在运行；结束后核对端口是否释放。跑测试时用一次性 `python -c "subprocess.run(...)"` 阻塞式执行，避免残留后台进程。
+<!-- AI 在此区域之下追加记忆，保留此标记以便定位 -->
 - 2026-07-31 测试系统治理：① 代码去重——`DummyBackend` 等替身统一至 `tests/doubles.py`（唯一源），`conftest.py` re-export，3 个回归/推理测试文件改为 import；`DummyBackend` 加可配置 `content`（默认中文串，回归用 `content="{}"` 保持旧行为）。② 文档——新增 `.codebuddy/rules/tests.md`（测试规则）、`docs/reference/test-system.md`（测试系统参考，含 9 gate 验收）、`docs/reference/tech-traps.md` 增 T10-T12；`AGENTS.md`/`DECISIONS.md`(D007/D008)/`MEMORY.md` 同步接入。详见 `DECISIONS.md` D007(测试策略 MockBackend-first+门禁为发布 blocker)、D008(替身统一)。
 <!-- AI 在此区域之下追加记忆，保留此标记以便定位 -->
 - 2026-07-31 代码与文件规范化整理（P0-P5）完成并验证全绿：① 目录约定见 `DECISIONS.md` D010——根目录只留 `simulate_game.py`；`scripts/` 顶层仅放 4 个入口，其余分 `acceptance/`(27)/`benchmark/`(5)/`export/`(5)/`debug/`(3)，**子目录脚本用 `parents[2]`**；`tests/` 按被测模块分子目录（`test_simulate_game.py` 例外留根）；`docs/` 分 plans/releases/reviews/guides/reference 五类，但**被代码硬编码写入的文档必须留 `docs/` 根**（`frontend_acceptance.md`、`alpha-1.0-benchmark-results.md`、`alpha-1.1-evidence/`）。② **移动脚本的最大坑（D011）**：除聚合入口外，「叶子脚本调用兄弟脚本」的 subprocess 路径也必须同步，本次漏掉造成 9 个测试断链；`run_script(name)` 的 `name` 语义统一为「相对 `scripts/` 根」。③ ruff 阶段一（E4/E7/E9/F/W，ignore E501）已零告警，`scripts/**` 全局豁免 E402（`sys.path` bootstrap 模式）；format 已 100% 归一，pre-commit + CI 均为硬门禁。④ 验证基线：`pytest tests -q` = **447 passed / 0 failed**，`scripts/alpha1.1_acceptance.py` = **exit 0（9/9）**。
