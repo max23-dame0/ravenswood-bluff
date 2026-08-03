@@ -78,3 +78,6 @@ runtime_game_logs/
 
 # Temporary scratch files at repo root
 /_*.txt
+
+# Browser automation (playwright-cli) snapshots
+/.playwright-cli/

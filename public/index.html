@@ -1405,7 +1405,9 @@
         function updateUIStrings() {
             document.getElementById('ui-title').textContent = t('title');
             document.getElementById('ui-players-title').textContent = t('players');
-            document.getElementById('ui-welcome').textContent = t('welcome');
+            // ui-welcome 可能被 logBox.innerHTML='' 清除（会话重置/历史加载），需空值保护
+            const welcomeEl = document.getElementById('ui-welcome');
+            if (welcomeEl) welcomeEl.textContent = t('welcome');
             document.getElementById('action-prompt').textContent = t('panel');
             document.getElementById('skipBtn').textContent = t('end_discussion');
             document.getElementById('submitBtn').textContent = t('submit_action');

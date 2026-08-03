@@ -63,11 +63,13 @@
 
 > **2026-08-03 说明**：2026-07-31 登记的以下改动已全部 commit 并推送到 `origin/main`（工作区 clean）：
 > harness 文件、测试治理、P0-P5 规范化、lint 收敛、P1/P2 上帝对象拆分与 print→logging。
-> 当前无未提交改动。
+> 当前未提交改动见下表。
 
 | 改动 | 状态 | 计划 commit | 关联任务 |
 |------|:--:|------|------|
-| （无未提交改动） | ✅ | — | — |
+| `public/index.html` 结算 overlay BUG 修复（`ui-welcome` 空值保护） | 🟡 已验证待提交 | 与验收证据一并 commit | M5-L live 验收 |
+| `docs/alpha-1.1-evidence/m5l_live_speech_deepseek_20260803.md` 验收报告 | 🟡 已验证待提交 | 同上 | M5-L live 验收 |
+| `.gitignore` 忽略 `.playwright-cli/`（浏览器自动化缓存） | 🟡 已验证待提交 | 同上 | M5-L live 验收 |
 
 ## 整体进度
 
@@ -93,3 +95,4 @@
 | 2026-07-31 | 规范化整理收尾：补修 P3 遗漏的 9 处叶子脚本二级互调路径（D011）+ lint 收敛至零告警 + 两处 timeout 60→180 消除 flaky + 启用 format 硬门禁 | ✅ 四条命令全绿：ruff check 0、`ruff format --check` 182 已归一、pytest 447 passed（连跑两轮）、9-gate exit=0 | 按 P0-P5 分 6 个 commit 提交 240 项改动 | .codebuddy/memory/2026-07-31.md |
 | 2026-07-31 | **P1 上帝对象拆分**：ai_agent/game_loop/storyteller_agent 三 facade 抽取委托模块（行数 1429/842/1369 → 802/497/25），行为零变更；**P2** 生产 print→logging（server.py/replay_parser.py）+ AGENTS.md facade 描述修正；修正测试 `random` 打桩指向 delegation 模块；顺手修 `alpha1.1_acceptance.py` 的 `PYTHON.exists()` 既存 bug（`sys.executable` 是 str，改 `Path(sys.executable)`）以跑通 9-gate | ruff 零告警；`alpha1.1_acceptance.py` 9/9 全绿；wave1/alpha3 隔离运行 exit 0；全量 pytest 仅 1 个 subprocess 验收测试偶发 240s 超时（既存测试隔离脆弱性，非回归） | 用户决定是否按 P1/P2 分阶段 commit | .codebuddy/memory/2026-07-31.md |
 | 2026-08-03 | **CI 三轮修复**：① ruff format 检查失败（facade 拆分引入，3 文件规范化）；② storyteller 日志测试干净环境失败（handler 重绑 workspace，`_bind_storyteller_log_handler`）；③ CI 提速（16 个验收包装测试标 `slow` 排除 + job `timeout-minutes: 25`）；④ `check_doc_health.py` 纳入 CI + 补 `AGENTS_refactor.md` frontmatter | ruff check/format 全过；`-m "not slow"` 快速单测 3.1s RC=0；全量 447 passed；doc health RC=0 | 看 GitHub CI run 是否快速转绿 | .codebuddy/memory/2026-08-03.md |
+| 2026-08-03 | **M5-L 真实 live 真人验收（DeepSeek）**：`.env` 配置 DeepSeek live；playwright-cli 以真人玩家身份跑通 2 局完整 5 人局至 GAME_OVER；speech fallback 6.7% / LLM 成功 93.3% / orchestrator 0 超时（达标）；信息隔离（玩家 grimoire 403 / 邪恶频道对好人不可见）PASS；说书人控制台 PASS；修复结算 overlay i18n 崩溃 BUG（`ui-welcome` 空值保护） | 2 局完整对局验收通过；结算修复后 console 0 errors；验收报告已写入 evidence 目录 | 提交 3 项改动；后续补 8 人局/高难度真人复测 + vote/nomination 预算放宽 | .codebuddy/memory/2026-08-03.md |
