@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import importlib
 import logging
+import os
 from pathlib import Path
 
 import pytest
@@ -68,6 +69,26 @@ def _flush_storyteller_logger() -> None:
     for handler in logging.getLogger("storyteller").handlers:
         if hasattr(handler, "flush"):
             handler.flush()
+
+
+def _bind_storyteller_log_handler(workspace: Path) -> None:
+    """重绑 storyteller 文件 handler 到测试工作区。
+
+    `storyteller_delegation` 在模块导入时（cwd=项目根）执行
+    `_ensure_storyteller_log_handler()`，且 `importlib.reload` 只重载 facade
+    不会重跑该模块级代码，导致 handler 指向导入时 cwd。测试 chdir 后必须
+    显式重建 handler，否则 workspace 下不会生成 `storyteller_run.log`。
+    """
+    expected = os.path.abspath(str(workspace / "storyteller_run.log"))
+    logger = logging.getLogger("storyteller")
+    for handler in list(logger.handlers):
+        if not isinstance(handler, logging.FileHandler):
+            continue
+        if os.path.abspath(getattr(handler, "baseFilename", "")) == expected:
+            continue
+        handler.close()
+        logger.removeHandler(handler)
+    storyteller_delegation._ensure_storyteller_log_handler()
 
 
 def _close_workspace_handlers(workspace: Path) -> None:
@@ -226,6 +247,7 @@ async def test_storyteller_agent_records_judgement_summary_and_log(monkeypatch):
     workspace = Path(__file__).parent.parent / "test_runs" / "_storyteller_judgement_workspace"
     workspace.mkdir(parents=True, exist_ok=True)
     monkeypatch.chdir(workspace)
+    _bind_storyteller_log_handler(workspace)
     module = importlib.reload(storyteller_module)
     agent = module.StorytellerAgent(MockBackend())
 
@@ -276,6 +298,7 @@ async def test_nomination_and_voting_emit_storyteller_judgements(monkeypatch):
     workspace = Path.cwd() / "_storyteller_judgement_workspace"
     workspace.mkdir(exist_ok=True)
     monkeypatch.chdir(workspace)
+    _bind_storyteller_log_handler(workspace)
     module = importlib.reload(storyteller_module)
     storyteller = module.StorytellerAgent(MockBackend())
 
@@ -391,6 +414,7 @@ async def test_fixed_info_roles_flow_through_storyteller_build_contract(
     workspace = Path.cwd() / "_storyteller_judgement_workspace"
     workspace.mkdir(exist_ok=True)
     monkeypatch.chdir(workspace)
+    _bind_storyteller_log_handler(workspace)
     module = importlib.reload(storyteller_module)
     agent = module.StorytellerAgent(MockBackend())
 
@@ -423,6 +447,7 @@ async def test_storyteller_marks_suppressed_fixed_info_as_distorted_bucket(monke
     workspace = Path.cwd() / "_storyteller_judgement_workspace"
     workspace.mkdir(exist_ok=True)
     monkeypatch.chdir(workspace)
+    _bind_storyteller_log_handler(workspace)
     module = importlib.reload(storyteller_module)
     agent = module.StorytellerAgent(MockBackend())
 
@@ -462,6 +487,7 @@ async def test_storyteller_marks_suppressed_investigator_as_consistent_false_inf
     workspace = Path.cwd() / "_storyteller_judgement_workspace"
     workspace.mkdir(exist_ok=True)
     monkeypatch.chdir(workspace)
+    _bind_storyteller_log_handler(workspace)
     module = importlib.reload(storyteller_module)
     agent = module.StorytellerAgent(MockBackend())
 
@@ -511,6 +537,7 @@ async def test_storyteller_distorts_investigator_role_seen_when_suppressed(monke
     workspace = Path.cwd() / "_storyteller_judgement_workspace"
     workspace.mkdir(exist_ok=True)
     monkeypatch.chdir(workspace)
+    _bind_storyteller_log_handler(workspace)
     module = importlib.reload(storyteller_module)
     agent = module.StorytellerAgent(MockBackend())
 
@@ -556,6 +583,7 @@ async def test_storyteller_distorts_spy_book_when_suppressed(monkeypatch):
     workspace = Path.cwd() / "_storyteller_judgement_workspace"
     workspace.mkdir(exist_ok=True)
     monkeypatch.chdir(workspace)
+    _bind_storyteller_log_handler(workspace)
     module = importlib.reload(storyteller_module)
     agent = module.StorytellerAgent(MockBackend())
 
@@ -597,6 +625,7 @@ async def test_storyteller_marks_fortune_teller_as_storyteller_info_contract(mon
     workspace = Path.cwd() / "_storyteller_judgement_workspace"
     workspace.mkdir(exist_ok=True)
     monkeypatch.chdir(workspace)
+    _bind_storyteller_log_handler(workspace)
     module = importlib.reload(storyteller_module)
     agent = module.StorytellerAgent(MockBackend())
 
@@ -619,6 +648,7 @@ async def test_storyteller_distorts_fortune_teller_when_suppressed(monkeypatch):
     workspace = Path.cwd() / "_storyteller_judgement_workspace"
     workspace.mkdir(exist_ok=True)
     monkeypatch.chdir(workspace)
+    _bind_storyteller_log_handler(workspace)
     module = importlib.reload(storyteller_module)
     agent = module.StorytellerAgent(MockBackend())
 
@@ -644,6 +674,7 @@ async def test_storyteller_records_legacy_fallback_path_when_storyteller_info_us
     workspace = Path.cwd() / "_storyteller_judgement_workspace"
     workspace.mkdir(exist_ok=True)
     monkeypatch.chdir(workspace)
+    _bind_storyteller_log_handler(workspace)
     module = importlib.reload(storyteller_module)
     agent = module.StorytellerAgent(MockBackend())
 
@@ -678,6 +709,7 @@ async def test_storyteller_build_night_order_records_canonical_reference_and_tie
     workspace = Path.cwd() / "_storyteller_judgement_workspace"
     workspace.mkdir(exist_ok=True)
     monkeypatch.chdir(workspace)
+    _bind_storyteller_log_handler(workspace)
     module = importlib.reload(storyteller_module)
     agent = module.StorytellerAgent(MockBackend())
 
