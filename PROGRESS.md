@@ -1,6 +1,6 @@
 # PROGRESS — 项目当前进度
 
-> 最后更新：2026-07-31
+> 最后更新：2026-08-03
 > **上班必读**：本文件 + DECISIONS.md
 
 ## 活跃任务看板（WIP 显式登记）
@@ -9,25 +9,26 @@
 
 | # | 任务 | 阶段 | 状态 | 下一步 | 阻塞 |
 |:--:|------|------|:--:|------|------|
-| 1 | 搭建 coding agent harness 环境 | 首次搭建 | 🟢 已落地待提交 | 用户决定是否 commit harness 文件 | 无 |
-| 2 | 按 harness 治理体系整理测试系统 | 治理 | 🟢 代码+文档完成，环境已就绪并已跑通 `pytest tests` + `ruff check tests` | 用户决定是否 commit | 无 |
-| 3 | 代码与文件规范化整理（P0-P5） | 整理 | 🟢 六阶段改动落盘，四条验证命令全部通过（ruff 零告警 + `ruff format --check` 182 文件已归一 + pytest 447 全绿 + 9-gate exit=0） | 用户决定是否按 P0-P5 分阶段 commit + 逐族启用阶段二规则 | 无 |
-| 4 | 文档体系治理收尾（增强 + 健康核对） | 治理 | 🟢 已完成 | 纳入 CI（check_doc_health.py）；用户跑环境后一并 commit | 无 |
-| 5 | 修复 GitHub Actions lint-and-test 全红 | 修复 | 🟢 已提交（6 个 commit，待推送验证） | 推送后看 CI 是否转绿 | 无 |
-| 6 | P1 上帝对象拆分 + P2 日志/文档治理 | 重构+治理 | 🟢 代码完成并验证（ruff 零告警 + alpha1.1 9/9 全绿；全量 pytest 仅 1 个 subprocess 验收测试偶发超时，隔离运行均 exit 0，非回归） | 用户决定是否按 P1/P2 分阶段 commit | 无 |
+| 1 | 搭建 coding agent harness 环境 | 首次搭建 | ✅ 已完成并提交 | — | 无 |
+| 2 | 按 harness 治理体系整理测试系统 | 治理 | ✅ 已完成并提交 | — | 无 |
+| 3 | 代码与文件规范化整理（P0-P5） | 整理 | ✅ 已完成并提交（447 全绿 + ruff 零告警 + 9-gate exit=0） | — | 无 |
+| 4 | 文档体系治理收尾（增强 + 健康核对） | 治理 | ✅ 已完成并提交；`check_doc_health.py` 已纳入 CI（2026-08-03） | — | 无 |
+| 5 | 修复 GitHub Actions lint-and-test 全红 | 修复 | ✅ 已提交推送；CI 三轮修复完成（ruff format / storyteller 日志测试 / CI 提速） | 看 CI 最终转绿 | 无 |
+| 6 | P1 上帝对象拆分 + P2 日志/文档治理 | 重构+治理 | ✅ 已提交推送 | — | 无 |
+| 7 | CI 提速：慢验收测试标 slow + job 超时上限 | 性能 | 🟢 已提交推送（`26df4f4`+`d8bb347`） | 看 CI run 是否快速通过 | 无 |
 
 ## 当前验证状态
 
 | 检查项 | 状态 |
 |------|------|
 | `pip install -e ".[dev]"` | ✅ 已验证（受管 Python 3.13.12 + 项目根 `.venv` + dev 依赖全部安装） |
-| `pytest tests -q`（基线：447 passed / 0 failed） | 🟡 446/447 通过；唯一失败为 `test_wave1_*`/`test_alpha3_acceptance_script_runs_cleanly` 在全量并发下偶发 240s 超时（subprocess 验收脚本），隔离运行均 exit 0、`alpha1.1_acceptance.py` 9/9 全绿 → 属既存测试隔离脆弱性，**非 P1/P2 回归** |
+| `pytest tests -q`（基线：447 passed / 0 failed） | ✅ 447 passed（连跑两轮验证）；`-m "not slow"` 快速单测 3.1s RC=0；slow 验收测试（17 个）单独运行 exit 0 |
 | `ruff check src tests scripts` | ✅ 零告警（阶段一规则集 E4/E7/E9/F/W，忽略 E501；F401/F541 经 `--fix` 收敛，E402 由 `scripts/**` per-file-ignores 覆盖，F841/E712 手工清理） |
 | `ruff format --check src tests scripts` | ✅ 182 文件全部已归一；pre-commit `ruff-format` 钩子已启用，CI 该步骤已移除 `continue-on-error` |
 | `python scripts/alpha1.1_acceptance.py`（9 gate） | ✅ exit=0，9/9 全绿 |
-| 文档链接健康（相对链接扫描） | ✅ 与整理前基线一致（23 处失效，均为整理前既有的绝对路径与第三方 skill 文档） |
+| 文档链接健康（`python scripts/check_doc_health.py`） | ✅ RC=0（68 md 扫描；1 个非致命绝对路径 warning）；已纳入 CI（2026-08-03） |
 | 静态引用审计（脚本路径 / import / REPO_ROOT 深度） | ✅ 无残留旧路径，子目录脚本 `parents[2]` 全覆盖 |
-| git status / 未提交改动 | ✅ 工作区 clean；本地 6 个 commit 待推送（CI 跨平台修复 + ruff UP/B/SIM 三族） |
+| git status / 未提交改动 | ✅ 工作区 clean，与 origin/main 同步 |
 | 当前 blocker | ✅ 无 |
 
 > **CI 跨平台修复（2026-07-31，commit `ad4e974`）**：GitHub Actions（ubuntu runner）报 20 个失败。
@@ -54,25 +55,19 @@
 2. ~~启用 format 门禁~~ ✅ 已完成（pre-commit `ruff-format` 钩子 + CI 移除 `continue-on-error`）。
 3. **按 P0-P5 分阶段 commit**（240 项改动，建议 6 个 commit，commit message 标注阶段号以便单独 `git revert`）。
 4. 逐族启用 ruff 阶段二规则（I → UP → B → SIM），每族先 `--statistics` 摸底再单独提交（见 D009）。
-5. 将 `scripts/check_doc_health.py` 纳入 `.github/workflows/ci.yml`（任务 4 遗留）。
+5. ~~将 `scripts/check_doc_health.py` 纳入 `.github/workflows/ci.yml`（任务 4 遗留）~~ ✅ 已完成（2026-08-03）；顺带补 `docs/releases/v0.8/AGENTS_refactor.md` 缺失 frontmatter 使门禁通过。
 
 ## 未提交改动清单（与 git 强一致）
 
 > 规则：标记 ✅ 完成的任务，其代码**必须已 commit**；仅本地验证未提交的，状态写「🟡 已验证待提交」并登记于此。
 
+> **2026-08-03 说明**：2026-07-31 登记的以下改动已全部 commit 并推送到 `origin/main`（工作区 clean）：
+> harness 文件、测试治理、P0-P5 规范化、lint 收敛、P1/P2 上帝对象拆分与 print→logging。
+> 当前无未提交改动。
+
 | 改动 | 状态 | 计划 commit | 关联任务 |
 |------|:--:|------|------|
-| 新建 harness 文件（AGENTS/MEMORY/PROGRESS/DECISIONS + .codebuddy/rules/* + .codebuddy/harness/*） | 🟡 已验证待提交 | 搭建后由用户决定 | 1 |
-| 测试治理：新增 tests/doubles.py(替身唯一源) + 改 conftest.py 与 3 个测试文件去重；新增 .codebuddy/rules/tests.md、docs/reference/test-system.md、docs/reference/tech-traps.md(T10-T12)；更新 AGENTS/DECISIONS(D007/D008)/MEMORY | 🟡 文档+代码完成，pytest/ruff 因无 Python 环境未运行 | 装环境后由用户决定 | 2 |
-| **P0** 配置补全：pyproject 补 `[tool.ruff.lint]`/`[tool.ruff.format]`/isort/per-file-ignores（含 `scripts/**` 豁免 E402）+ pytest `addopts`；新增 `.pre-commit-config.yaml`（含已启用的 ruff-format 钩子）、`.github/workflows/ci.yml`；ruff 依赖提至 `>=0.5` | 🟡 已验证待提交 | 建议单独 commit | 3 |
-| **P1** 根目录清理：删除 0 引用的 `debug_imports.py`、`read_log.py`；`simulate_game.py` 保留为根级 CLI 入口 | 🟡 已验证待提交 | 建议单独 commit | 3 |
-| **P2** tests 归位：`test_difficulty.py`/`test_decision_noise.py` → `tests/test_agents/`；同步 `scripts/alpha1.1_acceptance.py` gate 路径与 test-system/verification_policy 文档 | 🟡 已验证待提交 | 建议单独 commit | 3 |
-| **P3** scripts 规范化：40 个叶子脚本迁入 `acceptance/`(27)、`benchmark/`(5)、`export/`(5)、`debug/`(3)，3 个聚合入口留顶层；35 个脚本 `parents[1]`→`parents[2]`；同步 3 个聚合脚本硬编码路径 + 14 个测试文件引用 + 跨脚本 import + **9 处叶子脚本二级互调路径**（D011）；新增 `scripts/README.md` | 🟡 已验证待提交 | 建议单独 commit | 3 |
-| **P4** docs 重组：31 项迁入 `plans/`、`releases/`、`reviews/`、`guides/`、`reference/`；脚本写入的 `frontend_acceptance.md`/`alpha-1.0-benchmark-results.md`/`alpha-1.1-evidence/` 保留原位；重写 `docs/README.md` 索引；链接扫描回落至基线 | 🟡 已验证待提交 | 建议单独 commit | 3 |
-| **P5** agents 归属微调：`decision_noise.py`→`decision/`、`persona_registry.py`→`persona/`（10 处 import 已同步，两个子包补 `__all__` 再导出）；`difficulty_presets.py` 作为横切配置留包根 | 🟡 已验证待提交 | 建议单独 commit | 3 |
-| **收尾** lint 收敛（F401/F541 `--fix`、F841/E712 手工）+ 两处 `timeout=60`→`180` 消除 flaky + DECISIONS 补 D011 | 🟡 已验证待提交 | 随 P0/P3 提交 | 3 |
-| **P1** 上帝对象拆分：`ai_agent.py` 1429→802（逻辑下沉 `ai_agent_delegation.py` 706，7 Mixin）、`game_loop.py` 842→497（下沉 `game_loop_delegation.py` 383）、`storyteller_agent.py` 1369→25（下沉 `storyteller_delegation.py` 1369）；同步修正测试 `test_storyteller_judgement_logging.py` 的 `random` 打桩指向 delegation 模块 | 🟡 已验证待提交 | 建议单独 commit（含计划文档 `docs/releases/v0.8/AGENTS_refactor.md` + D006 状态更新） | 6 |
-| **P2** 生产 `print()`→`logging`：`src/api/server.py`（lifespan 横幅改 `logger.info`）、`src/orchestrator/replay_parser.py`（5 处 `print`→`logger.info`）；`AGENTS.md` facade 描述修正为引用 D006 + 计划文档 | 🟡 已验证待提交 | 建议单独 commit | 6 |
+| （无未提交改动） | ✅ | — | — |
 
 ## 整体进度
 
@@ -97,3 +92,4 @@
 | 2026-07-31 | 环境就绪后按 PROGRESS/DECISIONS/handoff 修复：ruff 阶段一零告警（406→0）+ pytest 17→0 全绿 + 9-gate 7/9 稳定；修 data_collector 双装饰器、vector_memory reload、GBK 解码、两处 F821 | pytest 全绿、ruff 零告警；9-gate 2 门禁为预存 flaky（非回归） | 用户决定是否 commit + 逐族启用 ruff 阶段二（I→UP→B→SIM） | .codebuddy/memory/2026-07-31.md |
 | 2026-07-31 | 规范化整理收尾：补修 P3 遗漏的 9 处叶子脚本二级互调路径（D011）+ lint 收敛至零告警 + 两处 timeout 60→180 消除 flaky + 启用 format 硬门禁 | ✅ 四条命令全绿：ruff check 0、`ruff format --check` 182 已归一、pytest 447 passed（连跑两轮）、9-gate exit=0 | 按 P0-P5 分 6 个 commit 提交 240 项改动 | .codebuddy/memory/2026-07-31.md |
 | 2026-07-31 | **P1 上帝对象拆分**：ai_agent/game_loop/storyteller_agent 三 facade 抽取委托模块（行数 1429/842/1369 → 802/497/25），行为零变更；**P2** 生产 print→logging（server.py/replay_parser.py）+ AGENTS.md facade 描述修正；修正测试 `random` 打桩指向 delegation 模块；顺手修 `alpha1.1_acceptance.py` 的 `PYTHON.exists()` 既存 bug（`sys.executable` 是 str，改 `Path(sys.executable)`）以跑通 9-gate | ruff 零告警；`alpha1.1_acceptance.py` 9/9 全绿；wave1/alpha3 隔离运行 exit 0；全量 pytest 仅 1 个 subprocess 验收测试偶发 240s 超时（既存测试隔离脆弱性，非回归） | 用户决定是否按 P1/P2 分阶段 commit | .codebuddy/memory/2026-07-31.md |
+| 2026-08-03 | **CI 三轮修复**：① ruff format 检查失败（facade 拆分引入，3 文件规范化）；② storyteller 日志测试干净环境失败（handler 重绑 workspace，`_bind_storyteller_log_handler`）；③ CI 提速（16 个验收包装测试标 `slow` 排除 + job `timeout-minutes: 25`）；④ `check_doc_health.py` 纳入 CI + 补 `AGENTS_refactor.md` frontmatter | ruff check/format 全过；`-m "not slow"` 快速单测 3.1s RC=0；全量 447 passed；doc health RC=0 | 看 GitHub CI run 是否快速转绿 | .codebuddy/memory/2026-08-03.md |
