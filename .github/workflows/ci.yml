@@ -40,3 +40,8 @@ jobs:
         # 排除 slow 验收包装测试（subprocess 运行完整验收脚本，单测过慢）；
         # 验收覆盖由 scripts/acceptance/*.py 与 alpha1.1 聚合脚本单独执行。
         run: pytest tests -q -m "not slow"
+
+      - name: Doc health
+        # 文档门禁：frontmatter 完整性 + 相对链接健康（scripts/check_doc_health.py）。
+        # 绝对/非便携路径链接为告警（--strict 才升级为失败）。
+        run: python scripts/check_doc_health.py

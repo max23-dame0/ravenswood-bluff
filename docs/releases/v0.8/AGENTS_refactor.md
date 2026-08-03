@@ -1,3 +1,13 @@
+---
+doc_id: "REL-008"
+title: "AIAgent / StorytellerAgent / GameOrchestrator 上帝对象拆分计划"
+category: "release"
+role: "[State]"
+status: "published"
+date: "2026-07-31"
+author: "Ravenswood Bluff"
+---
+
 # AIAgent / StorytellerAgent / GameOrchestrator 上帝对象拆分计划
 
 > **状态**：✅ 已完成（2026-07-31 第二轮落地）
