@@ -54,6 +54,7 @@ def _extract_json_payload(stdout: str) -> dict:
     pytest.fail("sample export script did not emit a JSON object on stdout")
 
 
+@pytest.mark.slow
 def test_storyteller_balance_sample_export_contains_schema_keys():
     repo_root = Path(__file__).resolve().parents[2]
     script = _find_sample_export_script(repo_root)
@@ -91,6 +92,7 @@ def test_storyteller_balance_sample_export_contains_schema_keys():
     assert "event_type_counts" in index_payload["aggregate_balance_summary"]
 
 
+@pytest.mark.slow
 def test_storyteller_balance_sample_index_tracks_multiple_full_games():
     repo_root = Path(__file__).resolve().parents[2]
     script = _find_sample_export_script(repo_root)

@@ -2,7 +2,10 @@ import subprocess
 import sys
 from pathlib import Path
 
+import pytest
 
+
+@pytest.mark.slow
 def test_a3_data_acceptance_script_runs_cleanly():
     repo_root = Path(__file__).resolve().parents[2]
     result = subprocess.run(

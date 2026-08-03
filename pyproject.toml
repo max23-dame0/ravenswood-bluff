@@ -38,6 +38,12 @@ testpaths = ["tests"]
 # 根目录入口脚本（simulate_game.py）需可被 tests 直接 import，勿删
 pythonpath = ["."]
 addopts = "-q"
+# slow：验收脚本包装测试，内部通过 subprocess 运行 scripts/acceptance/*.py，
+# 单测会串行拉起多个子进程（实测最长 59s），CI 的 pytest 步骤默认以
+# `-m "not slow"` 排除，验收由 scripts/acceptance 与 alpha1.1 聚合脚本单独执行。
+markers = [
+    "slow: acceptance 验收脚本包装测试（subprocess 运行完整验收流程，仅单独执行）",
+]
 
 # ---------------------------------------------------------------------------
 # Ruff：lint + format 统一入口

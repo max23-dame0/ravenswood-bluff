@@ -5,7 +5,10 @@ import subprocess
 import sys
 from pathlib import Path
 
+import pytest
 
+
+@pytest.mark.slow
 def test_long_game_ai_acceptance_script_runs_and_reports_metrics():
     repo_root = Path(__file__).resolve().parents[2]
     result = subprocess.run(

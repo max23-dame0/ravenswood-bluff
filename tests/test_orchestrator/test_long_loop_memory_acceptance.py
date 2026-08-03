@@ -5,7 +5,10 @@ import subprocess
 import sys
 from pathlib import Path
 
+import pytest
 
+
+@pytest.mark.slow
 def test_long_loop_memory_acceptance_script_runs_and_reports_accumulation():
     repo_root = Path(__file__).resolve().parents[2]
     result = subprocess.run(

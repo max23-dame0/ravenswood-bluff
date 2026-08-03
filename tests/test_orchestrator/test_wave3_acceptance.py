@@ -4,7 +4,10 @@ import subprocess
 import sys
 from pathlib import Path
 
+import pytest
 
+
+@pytest.mark.slow
 def test_ai_eval_acceptance_script_runs_cleanly():
     repo_root = Path(__file__).resolve().parents[2]
     result = subprocess.run(
@@ -23,6 +26,7 @@ def test_ai_eval_acceptance_script_runs_cleanly():
     assert "ai eval acceptance: ok" in result.stdout
 
 
+@pytest.mark.slow
 def test_wave3_acceptance_script_runs_cleanly():
     repo_root = Path(__file__).resolve().parents[2]
     result = subprocess.run(
