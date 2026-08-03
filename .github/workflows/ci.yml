@@ -39,7 +39,9 @@ jobs:
       - name: Pytest
         # 排除 slow 验收包装测试（subprocess 运行完整验收脚本，单测过慢）；
         # 验收覆盖由 scripts/acceptance/*.py 与 alpha1.1 聚合脚本单独执行。
-        run: pytest tests -q -m "not slow"
+        # faulthandler_timeout=120：任一测试挂起 120s 即 dump 线程栈并中断，
+        # 防止单测偶发挂起拖垮整个 job（本 repo 历史上有 1h58m 卡死先例）。
+        run: pytest tests -q -m "not slow" -o faulthandler_timeout=120
 
       - name: Doc health
         # 文档门禁：frontmatter 完整性 + 相对链接健康（scripts/check_doc_health.py）。
