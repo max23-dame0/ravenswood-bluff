@@ -324,9 +324,7 @@ class MemoryDelegationMixin:
     async def _ingest_visible_event_to_vector_memory(self, event: GameEvent) -> None:
         return await self._event_observer.ingest_visible_event_to_vector_memory(event)
 
-    def _remember_critical_event(
-        self, event: GameEvent, visible_state: AgentVisibleState
-    ) -> None:
+    def _remember_critical_event(self, event: GameEvent, visible_state: AgentVisibleState) -> None:
         return self._event_observer.remember_critical_event(event, visible_state)
 
     def _store_private_info_memory(
@@ -457,9 +455,7 @@ class SpeechDelegationMixin:
     def _evil_coordination_line(self, visible_state: AgentVisibleState) -> str:
         return self._speech_sanitizer._evil_coordination_line(visible_state)
 
-    def _mentioned_visible_names(
-        self, summary: str, visible_state: AgentVisibleState
-    ) -> list[str]:
+    def _mentioned_visible_names(self, summary: str, visible_state: AgentVisibleState) -> list[str]:
         return self._speech_sanitizer._mentioned_visible_names(summary, visible_state)
 
     def _private_info_public_paraphrase(
@@ -621,9 +617,7 @@ class SignalSummaryMixin:
                     None,
                 )
                 target_name = (
-                    f" -> {target_player.name}"
-                    if target_player
-                    else f" -> {message.target_player}"
+                    f" -> {target_player.name}" if target_player else f" -> {message.target_player}"
                 )
             texts.append(f"{speaker_name}{target_name}: {message.content}")
         for event in visible_state.visible_event_log[-limit:]:

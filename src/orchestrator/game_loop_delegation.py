@@ -367,9 +367,7 @@ class GameOrchestratorDelegation:
             nomination_round, max_rounds
         )
 
-    async def _collect_nomination_intents(
-        self, nomination_round: int
-    ) -> dict[str, dict[str, Any]]:
+    async def _collect_nomination_intents(self, nomination_round: int) -> dict[str, dict[str, Any]]:
         return await self.nomination_voting_handler._collect_nomination_intents(nomination_round)
 
     async def _handle_virgin_trigger(

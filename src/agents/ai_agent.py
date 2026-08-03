@@ -280,9 +280,7 @@ class AIAgent(
             raise ValueError("empty_response")
 
         candidates = [text]
-        fence_match = re.search(
-            r"```(?:json)?\s*(.*?)```", text, flags=re.IGNORECASE | re.DOTALL
-        )
+        fence_match = re.search(r"```(?:json)?\s*(.*?)```", text, flags=re.IGNORECASE | re.DOTALL)
         if fence_match:
             candidates.insert(0, fence_match.group(1).strip())
 
