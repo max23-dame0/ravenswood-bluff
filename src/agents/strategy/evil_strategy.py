@@ -227,22 +227,28 @@ class EvilStrategy:
         else:
             quality_hint = "简要说明你的行动和白天配合计划。"
 
-        prompt = (
-            f"你是邪恶阵营成员，正在夜晚频道向队友汇报你的行动计划。\n"
-            f"{chr(10).join(context_parts)}\n"
-            f"{quality_hint}\n"
-            f"用1-2句话，像在私聊中对队友说话一样自然。不要泄露推理过程的细节。"
+        # REV-008 F5 + PLN-039 T4：system 前置全局静态层并保持"稳定身份 + 稳定任务描述"，
+        # 动态内容（目标/战略/队友伪装/最近对话）全部移入 user，使 evil 频道调用命中共享前缀
+        # （修复前 evil_coord 命中率 0%）。
+        from src.agents.prompt.common_rules import build_global_static_layer
+
+        system_prompt = (
+            f"{build_global_static_layer()}\n\n"
+            "【你的身份】你是《血染钟楼》的邪恶阵营成员，正在夜晚频道向队友汇报你的行动计划。\n"
+            "【输出要求】请用1-2句话，像在私聊中对队友说话一样自然。不要泄露推理过程的细节。"
         )
+        user_content = "\n".join(context_parts) + "\n" + quality_hint
 
         # Try LLM, fall back to template
         try:
             from src.llm.base_backend import Message
 
             response = await agent.backend.generate(
-                system_prompt=prompt,
-                messages=[Message(role="user", content="请直接输出邪恶频道的夜晚协调消息。")],
+                system_prompt=system_prompt,
+                messages=[Message(role="user", content=user_content)],
                 temperature=difficulty.temperature,
                 max_tokens=150,
+                thinking="disabled",
             )
             content = (response.content or "").strip()
             if content:
@@ -382,15 +388,19 @@ class EvilStrategy:
                 f"用1句话，像在私聊中对队友说话一样自然。不要泄露任何推理过程。"
             )
 
+        # REV-008 F5：第二处 generate 同样前置全局静态层，使首夜协调调用命中共享前缀。
+        from src.agents.prompt.common_rules import build_global_static_layer
+
         # Try LLM, fall back to template
         try:
             from src.llm.base_backend import Message
 
             response = await agent.backend.generate(
-                system_prompt=prompt,
+                system_prompt=f"{build_global_static_layer()}\n\n{prompt}",
                 messages=[Message(role="user", content="请直接输出邪恶频道的协调消息。")],
                 temperature=agent.difficulty_preset.temperature,
                 max_tokens=200,
+                thinking="disabled",
             )
             content = (response.content or "").strip()
             if content:

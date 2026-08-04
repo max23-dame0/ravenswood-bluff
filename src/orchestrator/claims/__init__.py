@@ -87,7 +87,12 @@ class ClaimExtractor:
 """
         try:
             response = await asyncio.wait_for(
-                backend.generate("", [Message(role="user", content=prompt)]),
+                backend.generate(
+                    "",
+                    [Message(role="user", content=prompt)],
+                    max_tokens=150,
+                    thinking="disabled",
+                ),
                 timeout=float(os.getenv("CLAIM_EXTRACTION_TIMEOUT_SECONDS", "2.0")),
             )
             text = (response.content or "").strip()

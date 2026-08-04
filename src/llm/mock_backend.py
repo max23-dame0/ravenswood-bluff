@@ -51,6 +51,8 @@ class MockBackend(LLMBackend):
         tools: list[ToolDef] | None = None,
         temperature: float = 0.7,
         max_tokens: int | None = None,
+        thinking: str | None = None,
+        reasoning_effort: str | None = None,
     ) -> LLMResponse:
 
         # W3-C: 优先使用预设回复

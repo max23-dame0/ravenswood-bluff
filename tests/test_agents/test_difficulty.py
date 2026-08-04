@@ -522,7 +522,9 @@ class TestAgentDeceptionBudgetPrompt:
     def test_evil_agent_has_consistency_in_persona_block(self):
         agent = _make_agent(team=Team.EVIL.value, difficulty="master")
         agent.deception_tracker.record_self_claim("mayor", day_number=1)
-        block = agent._build_persona_prompt_block("speak")
+        # 缓存命中优化：叙事一致性为动态内容，已后置到 user 末条 build_action_style_block
+        # （不再进入 system persona 块，保证 system 逐 token 稳定）
+        block = agent._build_action_style_block("speak")
         assert "【叙事一致性】" in block
         assert "mayor" in block
 

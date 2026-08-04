@@ -15,6 +15,7 @@ import hashlib
 import json
 import logging
 import os
+import random
 import re
 import time
 from typing import Any
@@ -37,6 +38,7 @@ from src.agents.decision.decision_noise import DecisionNoise
 from src.agents.difficulty_presets import DifficultyPreset, get_preset
 from src.agents.memory.episodic_memory import EpisodicMemory
 from src.agents.memory.memory_controller import MemoryController
+from src.agents.memory.player_profile import PlayerProfileStore
 from src.agents.memory.social_graph import SocialGraph
 from src.agents.memory.vector_memory import VectorMemory
 from src.agents.memory.working_memory import WorkingMemory
@@ -131,6 +133,10 @@ class AIAgent(
         self._event_observer = EventObserver(self)
         self._evil_strategy = EvilStrategy(self)
         self._memory_controller = MemoryController(self)
+        # PLN-038 阶段 E：对局隔离 + 玩家跨局档案
+        self.game_id: str | None = None
+        self._player_profile = PlayerProfileStore(player_id, name)
+        self._long_term_summary: str = ""
         self._refresh_persona_profile()
 
     # 按 action type 的硬时间预算（秒）
@@ -142,6 +148,28 @@ class AIAgent(
         "defense_speech": 2.5,
     }
     _DEFAULT_BUDGET = 3.0
+
+    # 按 action type 的 LLM 思考/输出策略表（PLN-037 P0-4.1）
+    LLM_STRATEGY_BY_ACTION: dict[str, dict[str, Any]] = {
+        "vote": {"thinking": "disabled", "reasoning_effort": None, "max_tokens": 200},
+        "night_action": {"thinking": "disabled", "reasoning_effort": None, "max_tokens": 200},
+        "nominate": {"thinking": "disabled", "reasoning_effort": None, "max_tokens": 200},
+        "nomination_intent": {"thinking": "disabled", "reasoning_effort": None, "max_tokens": 200},
+        "speak": {"thinking": "disabled", "reasoning_effort": "low", "max_tokens": 400},
+        "defense_speech": {"thinking": "disabled", "reasoning_effort": "low", "max_tokens": 400},
+        "reflect": {"thinking": "disabled", "reasoning_effort": None, "max_tokens": 150},
+        "archive": {"thinking": "disabled", "reasoning_effort": None, "max_tokens": 150},
+        "claim": {"thinking": "disabled", "reasoning_effort": None, "max_tokens": 150},
+        "think": {"thinking": "disabled", "reasoning_effort": "low", "max_tokens": 200},
+    }
+
+    @classmethod
+    def _llm_strategy_for_action(cls, action_type: str) -> dict[str, Any]:
+        """返回该动作对应的 LLM 策略；未知动作给保守兜底（不关思考但限 max_tokens）。"""
+        return cls.LLM_STRATEGY_BY_ACTION.get(
+            action_type,
+            {"thinking": None, "reasoning_effort": None, "max_tokens": 400},
+        )
 
     def _action_timeout_seconds(self, action_type: str = "") -> float:
         env_override = os.getenv("AI_ACTION_TIMEOUT_SECONDS")
@@ -248,6 +276,9 @@ class AIAgent(
             "prompt_tokens": int(usage.get("prompt_tokens", 0) or 0),
             "completion_tokens": int(usage.get("completion_tokens", 0) or 0),
             "total_tokens": int(usage.get("total_tokens", 0) or 0),
+            "prompt_cache_hit_tokens": int(usage.get("prompt_cache_hit_tokens", 0) or 0),
+            "prompt_cache_miss_tokens": int(usage.get("prompt_cache_miss_tokens", 0) or 0),
+            "reasoning_tokens": int(usage.get("reasoning_tokens", 0) or 0),
             "latency_ms": latency_ms,
             "fallback_used": fallback_used,
             "fallback_reason": fallback_reason,
@@ -400,6 +431,9 @@ class AIAgent(
         # Sync game_id to decision noise for cross-game seed isolation
         if not self.decision_noise.game_id and visible_state.game_id:
             self.decision_noise.game_id = visible_state.game_id
+        # PLN-038 阶段 E：绑定当前对局 game_id（记忆工具对局隔离）
+        if not self.game_id and visible_state.game_id:
+            self.game_id = visible_state.game_id
 
         # W3-C: 检查记忆深度，必要时触发反思 (针对大局人数动态缩放)
         # refinement_mode 时跳过反思 — 草稿已经生成过，直接用
@@ -447,6 +481,27 @@ class AIAgent(
                     "target": target_id,
                     "reasoning": f"我是猎手，当前对 {target_name} 的恶魔怀疑度极高（{suspicion:.2f}），决定白天主动开枪。",
                 }
+
+        # PLN-037 P0-4.3: 有效草稿直接复用，跳过第二次 LLM（speak 输出减半）
+        cached_speech_draft = str(kwargs.get("cached_speech_draft") or "").strip()
+        if cached_speech_draft and action_type in {"speak", "defense_speech"}:
+            content = self._sanitize_public_speech_content(cached_speech_draft, visible_state)
+            self._record_action_metric(
+                visible_state,
+                action_type,
+                model="draft-reuse",
+                latency_ms=0,
+                fallback_used=False,
+                speech_source="cache_finalized_draft_reuse",
+                tool_used=False,
+            )
+            return {
+                "action": "speak",
+                "content": content,
+                "tone": "calm" if action_type == "speak" else "defensive",
+                "reasoning": "复用预生成草稿（P0-4.3，跳过二次 LLM）。",
+                "speech_source": "cache_finalized_draft_reuse",
+            }
 
         # W3-C: 语义记忆检索 (Task B)
         # refinement_mode 时跳过向量检索 — 省掉 embedding API 调用
@@ -516,68 +571,92 @@ class AIAgent(
         perceived_role = self.perceived_role_id or self.role_id
         action_context = self._build_action_context(visible_state, legal_context, action_type)
         cached_speech_draft = str(kwargs.get("cached_speech_draft") or "").strip()
+        strategic_thought = str(kwargs.get("strategic_thought") or "").strip()
+        if strategic_thought and action_type in {
+            "speak",
+            "defense_speech",
+            "vote",
+            "nominate",
+            "nomination_intent",
+            "night_action",
+        }:
+            action_context = (
+                f"{action_context}\n【内心策略独白】{strategic_thought}\n"
+                "这是你行动前的内心思考，可作为决策参考，但公开发言不得直接引用其中的私密结论。"
+            )
         if cached_speech_draft and action_type in {"speak", "defense_speech"}:
             action_context = (
                 f"{action_context}\n【预思考草稿】{cached_speech_draft}\n"
                 "请基于最新局势修正这份草稿，不要原样照抄，也不要引用你不可公开的信息。"
             )
-        persona_block = self._build_persona_prompt_block(action_type, visible_state)
+        action_style_block = self._build_action_style_block(action_type, visible_state)
 
-        system_prompt = f"""你是一名正在玩《血染钟楼》(Blood on the Clocktower) 的真实玩家。
-你的名字是 {self.name}，你认知的角色是 {perceived_role}，阵营是 {self.team}。
+        # PLN-039 T1/T3：system 双层重组（全局静态层 + Agent 局部静态层）。
+        #   system = 层1(全局绝对静态：公共规则+核心原则+8工具schema+输出格式，跨Agent逐token一致)
+        #          + 层2(Agent局部静态：玩家名单+身份+稳定人格锚点+目标，同Agent整局稳定)
+        #   user1  = 跨局玩家记忆（同局稳定）
+        #   user2  = 全部动态内容（本局记忆/局势/动作格式/动作类型/JSON schema）后置，最大化稳定前缀。
+        # 变化点后置是 DeepSeek 前缀缓存命中的关键：任何变化点都会截断完整前缀缓存。
+        stable_rules = self._build_stable_system_prompt(visible_state)
 
-【核心原则：玩家优先级】
-1. **你是玩家，不是 AI**：表现得像一个人在和朋友社交。会有犹豫、怀疑、幽默或偶尔的强势。
-2. **社交推演**：除了规则和技能，更要关注别人的发言逻辑以及过往行为的一致性。
-3. **保密与欺骗 (CRITICAL)**：
-   - 如果你是邪恶阵营：**绝对不可**在公开频道（speak）中直接承认你的真实身份或泄露队友、真实技能结果。你必须伪装成一个好人。**严禁直接背诵你的私密信息或队友名单**。
-   - 如果你是正义阵营：也要保护好你的关键信息，除非你认为说出来对正义方更有利。
-   - 所有的【高可信度线索】和【绝对客观事实】都是你的私人底牌，**严禁**直接照抄到 content 中。你必须经过拟人化的加工。
-4. **沉浸式对话**：发言要自然，像在群聊或面杀现场。禁止使用"我更信的一条线"、"根据事实记录"等生硬开场。
-5. **拒绝机械复述**：如果场上有公开信息（如死亡、提名），不要单纯复述——这些每个人都知道。关注的是这些信息背后的意义，或者别人没发现的疑点。
-5a. **发言多样性**：每次发言的内容、措辞和角度必须与之前不同。不要重复同一句话或同一种开场白。即使是相似的观点，也要换一种说法来表达。
-6. **长线记忆**：不要只看眼前，要结合你在"往期回忆"和"社交图谱"中记录的线索。
-7. **记忆权重**：【绝对客观事实】与【高可信度线索】是你推演的基石。如果公开说法和高可信信息冲突，请更偏向高可信信息。
+        # 稳定长上下文（跨局玩家记忆，同局内逐 token 稳定）作为 user 首条（D013 约束③）
+        long_term = self._long_term_summary.strip()
+        long_term_block = f"\n【你的跨局玩家记忆（进化）】\n{long_term}\n" if long_term else ""
+        stable_context = long_term_block.strip() or "【跨局记忆】本局新玩家，尚无跨局记忆。"
 
-{persona_block}
-{self._deception_budget_prompt(visible_state)}
-
-【你的记忆与档案】
+        # 逐次变化内容（本局记忆 + 局势 + 动作格式）全部后置为 user 末条，最大化可缓存前缀
+        dynamic_context = f"""【你的记忆与档案】
 {episodic_text}
 
 {social_text}
 
-【你可见的局势摘要】
-{visible_state_text}
-
-当前需要执行的动作类型：{action_type}
-当前动作补充要求：{action_context}
-
-【你的目标】
-{"作为邪恶阵营，隐藏恶魔，混淆视听，剪除正义之士。" if self.team == "evil" else "作为正义阵营，通过逻辑与沟通找出恶魔并处决。"}
-
 【核心分层记忆】
 {tiered_memory_text}
 
-【JSON 格式规范】
-请务必返回如下结构的 JSON，不要包含任何多余文字：
+{self._deception_budget_prompt(visible_state)}
+
+【当前动作风格与战略】
+{action_style_block}
+
+【你可见的局势摘要】
+{visible_state_text}
+
+当前动作补充要求：{action_context}
+
+        【动作与输出格式】
+当前需要执行的动作类型：{action_type}，请只调用与该动作对应的工具；其余工具忽略。
+请优先调用对应工具完成动作；工具不可用或需跳过时可返回如下 JSON（不要包含任何多余文字）：
 {self._json_schema_for_action(action_type)}"""
 
         action_started = time.perf_counter()
         response = None
         self._pending_fallback_reason = None
         try:
+            from src.agents.tools.action_tool_registry import GameActionToolRegistry
             from src.llm.base_backend import Message
 
+            strategy = self._llm_strategy_for_action(action_type)
+            # PLN-039 T2：tools 全量固定传递（8 个工具恒定），消除 tools 参数导致的缓存前缀变化。
+            tool_defs = GameActionToolRegistry.all_tool_defs()
+            # 三层前缀：稳定规则层(system) → 稳定长上下文(user) → 逐次变化短内容(user)
             backend_call = self.backend.generate(
-                system_prompt=system_prompt,
+                system_prompt=stable_rules,
                 messages=[
+                    Message(role="user", content=stable_context),
                     Message(
                         role="user",
-                        content=f"请只返回适用于动作 `{action_type}` 的 JSON 决策，不要输出任何额外说明。",
-                    )
+                        content=(
+                            f"{dynamic_context}\n\n"
+                            "请通过调用工具完成动作。若工具不可用或你决定不行动，"
+                            f"可返回适用于动作 `{action_type}` 的 JSON 决策。"
+                        ),
+                    ),
                 ],
+                tools=tool_defs,
                 temperature=self.difficulty_preset.temperature,
+                max_tokens=strategy.get("max_tokens"),
+                thinking=strategy.get("thinking"),
+                reasoning_effort=strategy.get("reasoning_effort"),
             )
             if self._should_wait_without_game_timeout(action_type):
                 response = await backend_call
@@ -586,6 +665,30 @@ class AIAgent(
                     backend_call,
                     timeout=self._action_timeout_seconds(action_type),
                 )
+            # 工具调用主导路径（PLN-038 阶段 A）
+            tool_decision = GameActionToolRegistry.decision_from_tool_calls(
+                response.tool_calls, action_type
+            )
+            if tool_decision is not None:
+                decision = self._normalize_decision(
+                    visible_state, legal_context, action_type, tool_decision
+                )
+                fallback_reason = self._pending_fallback_reason
+                self._record_action_metric(
+                    visible_state,
+                    action_type,
+                    model=response.model,
+                    usage=response.usage,
+                    latency_ms=int((time.perf_counter() - action_started) * 1000),
+                    fallback_used=bool(fallback_reason),
+                    fallback_reason=fallback_reason,
+                    speech_source="tool_calling"
+                    if action_type in {"speak", "defense_speech"}
+                    else "",
+                    tool_used=True,
+                )
+                return decision
+            # JSON fallback
             response_text = response.content or ""
             decision = self._parse_llm_decision_json(response_text)
             decision = self._normalize_decision(visible_state, legal_context, action_type, decision)
@@ -696,6 +799,233 @@ class AIAgent(
             )
             return decision
 
+    async def act_with_strategy(
+        self,
+        visible_state: AgentVisibleState,
+        action_type: str,
+        legal_context: AgentActionLegalContext | None = None,
+        **kwargs,
+    ) -> dict[str, Any]:
+        """策略先行决策 loop（PLN-038 阶段 B）：think → act。
+
+        与 `act()` 相比：
+        1. 对非简单动作（speak/defense_speech/nominate/night_action）先做一次
+           低预算 `think`（内心独白，见 MemoryController.think），产出策略；
+        2. 若已有 `cached_speech_draft`（草稿校验通过），直接净化复用草稿，
+           **跳过第二次 LLM 调用**（PLN-037 P0-4.3，speak 输出减半）；
+        3. 否则把策略独白注入 `act()` 的 action_context，再发起动作。
+
+        LLM 不可用 / 草稿缺失时行为与 `act()` 完全一致，保证向后兼容。
+        """
+        strategy_loop_used = False
+        cached_draft = str(kwargs.get("cached_speech_draft") or "").strip()
+        refinement_mode = bool(kwargs.get("refinement_mode"))
+
+        # 草稿直接复用：有有效草稿的发言类动作不再二次 LLM
+        if cached_draft and action_type in {"speak", "defense_speech"}:
+            content = self._sanitize_public_speech_content(cached_draft, visible_state)
+            self._record_action_metric(
+                visible_state,
+                action_type,
+                model="draft-reuse",
+                latency_ms=0,
+                fallback_used=False,
+                speech_source="cache_finalized_draft_reuse_no_llm",
+                tool_used=False,
+                strategy_loop_used=False,
+            )
+            return {
+                "action": "speak",
+                "content": content,
+                "tone": "calm" if action_type == "speak" else "defensive",
+                "reasoning": "复用预思考草稿（策略先行 loop，跳过二次 LLM）。",
+                "speech_source": "cache_finalized_draft_reuse_no_llm",
+            }
+
+        # 简单决策直接走 act()，不引入额外 think 成本
+        if action_type in {"vote", "nomination_intent"} or refinement_mode:
+            return await self.act(visible_state, action_type, legal_context=legal_context, **kwargs)
+
+        # 策略先行：低预算 think → act
+        if not self._should_use_local_low_value_action(action_type):
+            think_prompt = f"即将执行动作 {action_type}。请思考当前局势与你的最优策略。"
+            thought = await self.think(think_prompt, visible_state)
+            if thought:
+                kwargs["strategic_thought"] = thought
+                strategy_loop_used = True
+        decision = await self.act(visible_state, action_type, legal_context=legal_context, **kwargs)
+        if strategy_loop_used:
+            decision = dict(decision)
+            decision.setdefault("strategy_loop_used", True)
+        return decision
+
+    # ------------------------------------------------------------------
+    # PLN-038 阶段 E：玩家进化机制（跨局长期记忆）
+    # ------------------------------------------------------------------
+
+    def set_game_context(self, game_id: str) -> None:
+        """绑定当前对局 game_id（记忆工具对局隔离 + 跨局种子隔离）。"""
+        self.game_id = game_id
+        self.decision_noise.game_id = game_id
+
+    def load_player_profile(self) -> None:
+        """开局加载跨局玩家档案：生成『过往经验』摘要供 prompt 注入。
+
+        进化的关键：把以往对局的战绩与经验教训带入本局，
+        让 agent 表现更接近有长期记忆的人类玩家。
+        """
+        self._long_term_summary = self._player_profile.build_long_term_summary(limit=6)
+
+    @property
+    def player_profile(self) -> dict[str, Any]:
+        return self._player_profile.load_profile()
+
+    def finalize_game_lesson(
+        self,
+        *,
+        won: bool,
+        role_id: str | None = None,
+        team: str | None = None,
+        lesson: str = "",
+    ) -> dict[str, Any]:
+        """局末提炼：记录战绩 + 追加一条经验教训（玩家进化落盘）。
+
+        Args:
+            won: 本局是否获胜
+            role_id: 本局真实角色
+            team: 本局阵营（good/evil）
+            lesson: 本局总结出的可复用经验（非私密、不含队友名单）
+        """
+        profile = self._player_profile.record_game_result(won=won, role_id=role_id, team=team)
+        if lesson:
+            self._player_profile.append_lesson(
+                {
+                    "game_id": self.game_id or "",
+                    "won": won,
+                    "role_id": role_id or "",
+                    "team": (team or "").lower(),
+                    "lesson": lesson[:200],
+                }
+            )
+        return {"profile": profile, "lesson_recorded": bool(lesson)}
+
+    # ------------------------------------------------------------------
+    # 拟人化进化：局中反思 / 局后复盘 / 学习他人 / 调整策略
+    # ------------------------------------------------------------------
+
+    def add_in_game_reflection(self, content: str, *, phase: str = "") -> None:
+        """局中反思：把当前阶段的一个决策/判断沉淀为即时经验。
+
+        拟人化：人类玩家对局中会不断自我校正。此方法让 agent 把
+        "刚才这个做法对不对"沉淀下来，供本局后续与未来对局参考。
+        """
+        self._player_profile.add_reflection(
+            {
+                "game_id": self.game_id or "",
+                "phase": phase,
+                "reflection": content[:160],
+            }
+        )
+
+    def finalize_game_review(
+        self,
+        *,
+        won: bool,
+        role_id: str | None = None,
+        team: str | None = None,
+        takeaway: str = "",
+        strategy_delta: dict[str, float] | None = None,
+    ) -> dict[str, Any]:
+        """局后复盘 + 调整策略：沉淀多维复盘并微调行动倾向。
+
+        拟人化核心：人类玩家赢/输都会复盘，据此调整后续打法。
+        此方法：(1) 记录战绩；(2) 落盘复盘要点；(3) 基于胜负/角色
+        微调倾向（如恶魔胜率高→更敢冒险），实现水平增长。
+        """
+        profile = self._player_profile.record_game_result(won=won, role_id=role_id, team=team)
+        if takeaway:
+            self._player_profile.add_game_review(
+                {
+                    "game_id": self.game_id or "",
+                    "won": won,
+                    "role_id": role_id or "",
+                    "team": (team or "").lower(),
+                    "takeaway": takeaway[:160],
+                }
+            )
+        # 调整策略：基于本局结果做倾向微调（默认由战绩反馈推导）
+        deltas = strategy_delta or self._derive_tendency_delta(won=won, team=team)
+        if deltas:
+            self._player_profile.evolve_strategies(
+                {
+                    "game_id": self.game_id or "",
+                    "won": won,
+                    "reason": takeaway[:80] or "根据本局表现调整打法",
+                    "tendency_delta": deltas,
+                }
+            )
+        return {"profile": profile, "reviewed": bool(takeaway), "evolved": bool(deltas)}
+
+    def learn_play_style(self, role_id: str, lesson: str) -> None:
+        """学习他人经验：记录一条从强势玩家打法中学到的经验。
+
+        拟人化：人类玩家会模仿高手的战术。此方法沉淀
+        "某个角色/阵营的打法思路"，供未来对局参考。
+        """
+        self._player_profile.learn_from_others(
+            {
+                "game_id": self.game_id or "",
+                "role_id": role_id or "",
+                "lesson": lesson[:160],
+            }
+        )
+
+    def build_evolved_tendency(self) -> str:
+        """生成当前进化后的行动倾向描述（调整策略的可注入结果）。"""
+        return self._player_profile.build_evolved_tendency_summary()
+
+    def _derive_tendency_delta(self, *, won: bool, team: str | None = None) -> dict[str, float]:
+        """基于本局结果的默认倾向微调（规则驱动，确定性）。
+
+        模拟人类玩家的学习规律：赢了强化当前打法，输了微调方向。
+        """
+        team = (team or "").lower()
+        delta: dict[str, float] = {}
+        if won:
+            # 赢了：强化获胜打法（分阵营），更自信
+            if team == "evil":
+                # 恶魔胜：伪装与节奏 → 强化谨慎（保护信息）+ 主动施压
+                delta = {"caution": 0.02, "aggression": 0.01}
+            else:
+                # 正义胜：推演与沟通 → 强化健谈 + 敢施压
+                delta = {"talkativeness": 0.02, "aggression": 0.01}
+        else:
+            # 输了：朝相反方向微调，尝试不同打法
+            if team == "evil":
+                # 邪恶输：暴露过多 → 更谨慎、更收敛
+                delta = {"caution": 0.02, "risk_taking": -0.01}
+            else:
+                # 正义输：推演不足 → 更积极发言、更敢施压
+                delta = {"talkativeness": 0.02, "aggression": 0.01}
+        # 轻微随机扰动，避免所有玩家收敛到同一打法
+        for k in list(delta):
+            delta[k] = round(delta[k] + random.uniform(-0.005, 0.005), 3)
+        return delta
+
+    def build_long_term_context(self) -> str:
+        """供 system prompt 注入的跨局经验摘要（空则返回空串）。"""
+        return self._long_term_summary
+
+    # ------------------------------------------------------------------
+    # 记忆工具对局隔离辅助
+    # ------------------------------------------------------------------
+
+    def memory_dir(self) -> Any:
+        """当前对局的记忆落盘目录（games/{game_id}/），无 game_id 时回退玩家根目录。"""
+        from src.agents.tools.memory_tools import MemoryTools
+
+        return MemoryTools.game_dir(self.player_id, self.game_id)
+
     async def generate_draft_speech(
         self,
         visible_state: AgentVisibleState,
@@ -713,8 +1043,6 @@ class AIAgent(
         """
         legal_context = legal_context or AgentActionLegalContext()
         self._prime_social_graph_from_state(visible_state)
-
-        perceived_role = self.perceived_role_id or self.role_id
 
         # Tiered memory (fast — pure data access)
         objective_memories = self.working_memory.get_objective_memory_summaries()
@@ -738,35 +1066,31 @@ class AIAgent(
         tiered_memory_text = "\n\n".join(tier_text_blocks) if tier_text_blocks else "暂无记忆。"
         social_text = self.social_graph.get_graph_summary()
         visible_state_text = self._build_visible_state_summary(visible_state)
-        persona_block = self._build_persona_prompt_block("speak", visible_state)
         action_context = self._build_action_context(visible_state, legal_context, "speak")
 
         # Token budget: cap memory sections
         tiered_memory_text = self._cap_memory_section(tiered_memory_text, 600)
         social_text = self._cap_memory_section(social_text, 200)
 
-        system_prompt = f"""你是一名正在玩《血染钟楼》的真实玩家。
-你的名字是 {self.name}，你认知的角色是 {perceived_role}，阵营是 {self.team}。
-你的个性是：{self.persona.description}，表达风格是：{self.persona.speaking_style}。
+        # PLN-039 T3：草稿 system 复用 act() 的稳定 system（层1全局静态 + 层2 Agent 局部静态），
+        # 动态内容（社交图谱/局势摘要/记忆/动作格式）全部移入 user 末条，保证前缀可命中主缓存。
+        system_prompt = self._build_stable_system_prompt(visible_state)
 
-{persona_block}
-{self._deception_budget_prompt(visible_state)}
+        dynamic_draft = f"""【你的记忆与档案】
+{tiered_memory_text}
 
 {social_text}
+
+{self._deception_budget_prompt(visible_state)}
 
 【你可见的局势摘要】
 {visible_state_text}
 
-当前需要执行的动作类型：speak
+当前动作补充要求：{action_context}
 
-{tiered_memory_text}
-
-{action_context}
-
-【你的目标】
-{"作为邪恶阵营，隐藏恶魔，混淆视听，剪除正义之士。" if self.team == "evil" else "作为正义阵营，通过逻辑与沟通找出恶魔并处决。"}
-
-请返回一个 JSON 对象，格式如下：
+【动作与输出格式】
+当前需要执行的动作类型：speak，请只调用与该动作对应的工具；其余工具忽略。
+请只返回一个 speak 动作的 JSON 决策，格式如下：
 {{
   "action": "speak",
   "content": "你作为玩家的公开发言内容（口语化，不要照抄记忆）",
@@ -776,13 +1100,19 @@ class AIAgent(
 只返回 JSON，不要输出任何额外说明。"""
 
         try:
+            from src.agents.tools.action_tool_registry import GameActionToolRegistry
             from src.llm.base_backend import Message
 
+            strategy = self._llm_strategy_for_action("speak")
             response = await asyncio.wait_for(
                 self.backend.generate(
                     system_prompt=system_prompt,
-                    messages=[Message(role="user", content="请只返回 speak 的 JSON 决策。")],
+                    messages=[Message(role="user", content=dynamic_draft)],
+                    tools=GameActionToolRegistry.all_tool_defs(),
                     temperature=self.difficulty_preset.temperature,
+                    max_tokens=strategy.get("max_tokens"),
+                    thinking=strategy.get("thinking"),
+                    reasoning_effort=strategy.get("reasoning_effort"),
                 ),
                 timeout=self._action_timeout_seconds("speak"),
             )

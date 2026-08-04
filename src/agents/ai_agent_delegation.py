@@ -214,10 +214,18 @@ class DecisionDelegationMixin:
 class PromptDelegationMixin:
     """提示词构建委托给 PromptFactory。"""
 
+    def _build_stable_system_prompt(self, visible_state: AgentVisibleState) -> str:
+        return self._prompt_factory.build_stable_system_prompt(visible_state)
+
     def _build_persona_prompt_block(
         self, action_type: str, visible_state: AgentVisibleState | None = None
     ) -> str:
         return self._prompt_factory.build_persona_prompt_block(action_type, visible_state)
+
+    def _build_action_style_block(
+        self, action_type: str, visible_state: AgentVisibleState | None = None
+    ) -> str:
+        return self._prompt_factory.build_action_style_block(action_type, visible_state)
 
     def _build_action_context(
         self,

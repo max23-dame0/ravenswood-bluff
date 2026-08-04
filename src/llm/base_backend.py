@@ -62,6 +62,8 @@ class LLMBackend(ABC):
         tools: list[ToolDef] | None = None,
         temperature: float = 0.7,
         max_tokens: int | None = None,
+        thinking: str | None = None,
+        reasoning_effort: str | None = None,
     ) -> LLMResponse:
         """
         向 LLM 发送请求并获取响应。
@@ -72,6 +74,8 @@ class LLMBackend(ABC):
             tools: 可选的工具定义列表
             temperature: 生成温度
             max_tokens: 可选的最大生成 token 数；None 表示不由本项目设置上限
+            thinking: 思考模式控制（"enabled" / "disabled" / None），None 表示后端默认
+            reasoning_effort: 推理强度（"low" / "high" / "max" / None），None 表示后端默认
 
         Returns:
             LLMResponse: LLM 的响应结果

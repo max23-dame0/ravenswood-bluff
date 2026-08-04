@@ -30,6 +30,30 @@ class PromptFactory:
     # Public entry points (called by AIAgent.act / orchestrator)
     # ------------------------------------------------------------------
 
+    def build_stable_system_prompt(self, visible_state: AgentVisibleState) -> str:
+        """构建 act() 与草稿生成共用的稳定 system（PLN-039 T1/T3）。
+
+        层 1（全局绝对静态，跨 Agent/轮次/动作逐 token 一致）+ 层 2
+        （Agent 局部静态：玩家名单 / 身份 / 稳定人格锚点 / 目标）。
+        动态内容（记忆/局势/动作类型/JSON schema）必须移入 user，勿入本函数。
+        """
+        from src.agents.prompt.common_rules import build_global_static_layer
+
+        agent = self._agent
+        perceived_role = agent.perceived_role_id or agent.role_id
+        players_block = "、".join(f"{p.player_id}({p.name})" for p in visible_state.players)
+        persona_block = self.build_persona_prompt_block("speak", visible_state)
+        return f"""{build_global_static_layer()}
+
+【玩家名单】{players_block}。
+
+【你的身份】你的名字是 {agent.name}，你认知的角色是 {perceived_role}，阵营是 {agent.team}。
+
+{persona_block}
+
+【你的目标】
+{"作为邪恶阵营，隐藏恶魔，混淆视听，剪除正义之士。" if agent.team == "evil" else "作为正义阵营，通过逻辑与沟通找出恶魔并处决。"}"""
+
     def build_persona_prompt_block(
         self,
         action_type: str,
@@ -37,26 +61,14 @@ class PromptFactory:
     ) -> str:
         agent = self._agent
         profile = agent.persona_profile or {}
-        strategy_block = ""
-        if visible_state and action_type in ["night_action", "nomination_intent", "nominate"]:
-            strategy_block = agent._get_evil_strategic_summary(visible_state)
-            if strategy_block:
-                strategy_block = f"\n\n{strategy_block}\n"
-
-        action_hints = {
-            "speak": "口语化发言，直接表达观点或质疑。",
-            "nominate": '你的任务是决定是否提名。如果不确定或不想提名，请果断输出 {"action": "none"} 放弃提名，不要勉强。',
-            "nomination_intent": "你的任务是先判断是否提名。不要像规则机器，先想清楚再说。不确信可直接不提名。",
-            "vote": "你的任务是投票。请从性格角度出发，不一定要投给可疑分最高的人；不要像算分机器一样刻板。",
-            "defense_speech": "你是被提名者。请像真人一样辩解，语气要贴合你的性格。",
-            "night_action": "你在夜晚执行角色能力。请选择符合角色和局势的目标，语气保持自然。",
-            "death_trigger": "你刚刚因为夜晚死亡而触发角色能力。请选择合适目标并自然表达。",
-        }
+        # 注意：动作风格提示、evil 战略摘要、叙事一致性均为动态内容（随 action_type/局势/day 变化），
+        # 必须置于 user 末条 dynamic_context，不可进入 system（否则破坏三层前缀稳定，缓存命中率骤降）。
+        # 动态部分由 build_action_style_block 提供。
         block = f"""【稳定人格锚点】
 - 角色名: {profile.get("role_name", get_role_name(agent.role_id or "unknown"))}
 - 角色说明: {profile.get("role_description", get_role_description(agent.role_id or "unknown"))}
 - 个性提示: {agent.persona.description}
-- 说话风格: {agent.persona.speaking_style}{strategy_block}
+- 说话风格: {agent.persona.speaking_style}
 - 人格签名: {profile.get("signature", agent.persona_signature or "unknown")}
 - 角色气质: {profile.get("role_hint", "保持自然、连贯且像真人。")}
 - 表达锚点: {profile.get("voice_anchor", "先说结论再补理由")}
@@ -66,9 +78,8 @@ class PromptFactory:
 - 社交倾向: {profile.get("social_style", "独立")}
 - 压力方式: {profile.get("assertiveness", "中性")}
 - 行为约束: {profile.get("posture", "保持像真人一样思考")}
-- 当前动作风格: {action_hints.get(action_type, "保持自然、像人类一样反应。")}
 """
-        # Append difficulty modifiers
+        # Append difficulty modifiers（预设稳定，不随 action/day 变化）
         preset = agent.difficulty_preset
         if preset.prompt_modifier:
             block += f"\n【难度风格】{preset.prompt_modifier}"
@@ -76,12 +87,38 @@ class PromptFactory:
             block += f"\n【发言指导】{preset.speech_style_prompt}"
         if agent.team == Team.EVIL.value and preset.evil_strategy_prompt:
             block += f"\n【邪恶策略】{preset.evil_strategy_prompt}"
-            consistency = agent.deception_tracker.get_consistency_guidance()
-            if consistency:
-                block += f"\n【叙事一致性】{consistency}"
         elif agent.team == Team.GOOD.value and preset.good_strategy_prompt:
             block += f"\n【正义策略】{preset.good_strategy_prompt}"
         return block
+
+    def build_action_style_block(
+        self, action_type: str, visible_state: AgentVisibleState | None = None
+    ) -> str:
+        """动态动作风格 + evil 战略 + 叙事一致性。
+
+        这些内容随 action_type / 局势 / day 变化，必须置于 user 末条（dynamic_context），
+        不得进入 system——否则破坏三层前缀稳定，DeepSeek 前缀缓存命中率骤降（实测仅 6-14%）。
+        """
+        agent = self._agent
+        action_hints = {
+            "speak": "口语化发言，直接表达观点或质疑。",
+            "nominate": '你的任务是决定是否提名。如果不确定或不想提名，请果断输出 {"action": "none"} 放弃提名，不要勉强。',
+            "nomination_intent": "你的任务是先判断是否提名。不要像规则机器，先想清楚再说。不确信可直接不提名。",
+            "vote": "你的任务是投票。请从性格角度出发，不一定要投给可疑分最高的人；不要像算分机器一样刻板。",
+            "defense_speech": "你是被提名者。请像真人一样辩解，语气要贴合你的性格。",
+            "night_action": "你在夜晚执行角色能力。请选择符合角色和局势的目标，语气保持自然。",
+            "death_trigger": "你刚刚因为夜晚死亡而触发角色能力。请选择合适目标并自然表达。",
+        }
+        parts: list[str] = [action_hints.get(action_type, "保持自然、像人类一样反应。")]
+        if visible_state and action_type in ["night_action", "nomination_intent", "nominate"]:
+            strategy_block = agent._get_evil_strategic_summary(visible_state)
+            if strategy_block:
+                parts.append(f"【邪恶战略】\n{strategy_block}")
+        if agent.team == Team.EVIL.value:
+            consistency = agent.deception_tracker.get_consistency_guidance()
+            if consistency:
+                parts.append(f"【叙事一致性】\n{consistency}")
+        return "\n\n".join(parts)
 
     def build_action_context(
         self,

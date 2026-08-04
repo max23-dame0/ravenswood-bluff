@@ -996,7 +996,9 @@ async def test_ai_agent_ignores_hidden_events_and_private_chats_in_prompt():
         async def generate(
             self, system_prompt: str, messages: list[Message], **kwargs
         ) -> LLMResponse:
-            self.prompts.append(system_prompt)
+            # 三层前缀重构后上下文分布在 system + user 消息，全量捕获以便断言隔离语义
+            full_prompt = system_prompt + "\n" + "\n".join(m.content for m in messages)
+            self.prompts.append(full_prompt)
             return LLMResponse(
                 content='{"action":"speak","content":"ok","tone":"calm","reasoning":"ok"}',
                 tool_calls=[],
@@ -1620,7 +1622,9 @@ async def test_speak_prompt_prioritizes_high_confidence_over_conflicting_public_
         async def generate(
             self, system_prompt: str, messages: list[Message], **kwargs
         ) -> LLMResponse:
-            self.prompts.append(system_prompt)
+            # 三层前缀重构后上下文分布在 system + user 消息，全量捕获
+            full_prompt = system_prompt + "\n" + "\n".join(m.content for m in messages)
+            self.prompts.append(full_prompt)
             return LLMResponse(
                 content='{"action":"speak","content":"我更信夜里拿到的信息。","tone":"calm","reasoning":"优先引用高可信信息"}',
                 tool_calls=[],

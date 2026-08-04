@@ -13,9 +13,11 @@ class CapturingBackend(LLMBackend):
     def __init__(self, content: str) -> None:
         self.content = content
         self.calls: list[str] = []
+        self.messages_captured: list[list[Message]] = []
 
     async def generate(self, system_prompt: str, messages: list[Message], **kwargs) -> LLMResponse:
         self.calls.append(system_prompt)
+        self.messages_captured.append(messages)
         return LLMResponse(content=self.content, tool_calls=[])
 
     def get_model_name(self) -> str:
@@ -119,8 +121,11 @@ async def test_ai_persona_prompt_includes_stable_role_hint_and_action_guidance()
     assert "谨慎确认信息" in prompt
     assert "短句，先观察再表态" in prompt
     assert "人格签名" in prompt
-    assert "当前动作风格" in prompt
+    # 缓存命中优化：动作风格提示已后置到 user 末条，system 保持逐 token 稳定
+    assert "当前动作风格" not in prompt
     assert "行为约束" in prompt
+    user_msgs = "".join(m.content for m in backend.messages_captured[-1])
+    assert "当前动作风格" in user_msgs
     assert agent.persona_signature
     assert agent.persona_profile["voice_anchor"]
     assert agent.persona_profile["decision_style"]

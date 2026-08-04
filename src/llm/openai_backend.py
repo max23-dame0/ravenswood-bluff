@@ -93,6 +93,8 @@ class OpenAIBackend(LLMBackend):
         tools: list[ToolDef] | None = None,
         temperature: float = 0.7,
         max_tokens: int | None = None,
+        thinking: str | None = None,
+        reasoning_effort: str | None = None,
     ) -> LLMResponse:
         """通过 OpenAI API 生成响应"""
         client = self._get_client()
@@ -115,6 +117,12 @@ class OpenAIBackend(LLMBackend):
         }
         if max_tokens is not None:
             kwargs["max_tokens"] = max_tokens
+
+        # 思考模式 / 推理强度透传（OpenAI 兼容 extra_body）
+        if thinking in {"enabled", "disabled"}:
+            kwargs.setdefault("extra_body", {})["thinking"] = {"type": thinking}
+        if reasoning_effort:
+            kwargs["reasoning_effort"] = reasoning_effort
 
         # 构建工具定义
         if tools:
@@ -191,7 +199,16 @@ class OpenAIBackend(LLMBackend):
                 ],
                 "reasoning_preview": str(getattr(message, "reasoning", "") or "")[:300],
             }
-            logger.warning("LLM response content is empty: %s", diagnostic_fields)
+            # 工具调用路径（finish_reason=tool_calls）content 为空是预期现象：
+            # 动作参数从 tool_calls[].arguments 解析，此时不应作为异常告警（PLN-038 阶段 A）。
+            if getattr(choice, "finish_reason", None) == "tool_calls" and (
+                message.tool_calls or []
+            ):
+                logger.debug(
+                    "LLM response content is empty (tool_calls path): %s", diagnostic_fields
+                )
+            else:
+                logger.warning("LLM response content is empty: %s", diagnostic_fields)
         else:
             diagnostic_fields = {}
 
@@ -216,6 +233,14 @@ class OpenAIBackend(LLMBackend):
             "completion_tokens": response.usage.completion_tokens if response.usage else 0,
             "total_tokens": response.usage.total_tokens if response.usage else 0,
         }
+        if response.usage:
+            cached_hit = getattr(response.usage, "prompt_cache_hit_tokens", None)
+            cached_miss = getattr(response.usage, "prompt_cache_miss_tokens", None)
+            usage["prompt_cache_hit_tokens"] = cached_hit if cached_hit is not None else 0
+            usage["prompt_cache_miss_tokens"] = cached_miss if cached_miss is not None else 0
+            completion_details = getattr(response.usage, "completion_tokens_details", None)
+            reasoning_tokens = getattr(completion_details, "reasoning_tokens", None)
+            usage["reasoning_tokens"] = reasoning_tokens if reasoning_tokens is not None else 0
         game_debug_logger.log_llm_response(
             request_id=request_id,
             model=response.model,

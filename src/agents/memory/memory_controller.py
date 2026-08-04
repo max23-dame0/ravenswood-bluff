@@ -148,8 +148,14 @@ class MemoryController:
             return
 
         recent_context = agent.working_memory.get_recent_context(limit=agent._obs_limit)
-        system_prompt = f"""你是一名正在深入思考《血染钟楼》对局局势的玩家：{agent.name} ({agent.perceived_role_id})。
-你要根据当前的近期记忆，总结出你的【局势总体印象】。
+        # PLN-039 T4：辅助调用前置全局静态层（层1），跨 Agent 共享同一前缀，放大缓存命中。
+        from src.agents.prompt.common_rules import build_global_static_layer
+
+        system_prompt = f"""{build_global_static_layer()}
+
+【你的身份】你的名字是 {agent.name}，你认知的角色是 {agent.perceived_role_id}，阵营是 {agent.team}。
+
+【任务】你是一名正在深入思考《血染钟楼》对局局势的玩家，请根据当前的近期记忆，总结出你的【局势总体印象】。
 
 请输出一段 200 字以内的总结，包含：
 1. 场上谁看起来最可疑，为什么？
@@ -170,6 +176,8 @@ class MemoryController:
                         content=f"这是你的近期记忆，请提炼局势印象：\n\n{recent_context}",
                     )
                 ],
+                max_tokens=agent._llm_strategy_for_action("reflect").get("max_tokens"),
+                thinking="disabled",
             )
             impression = response.content.strip()
             if impression:
@@ -209,8 +217,40 @@ class MemoryController:
     # ------------------------------------------------------------------
 
     async def think(self, prompt: str, visible_state: AgentVisibleState) -> str:
-        """内部思考过程，不产生对外影响，仅存入工作记忆"""
+        """内部思考过程（PLN-038 阶段 B：策略先行 loop 的 think 步骤）。
+
+        一次低预算 LLM 内心独白，产出"当前局势 + 我的策略"，
+        随后由 `act_with_strategy` 注入 `act()`，避免重复生成发言草稿。
+        LLM 不可用时退回规则摘要，保证任何环境都能工作。
+        """
         agent = self._agent
+        try:
+            from src.agents.prompt.common_rules import build_global_static_layer
+            from src.llm.base_backend import Message
+
+            system_prompt = (
+                f"{build_global_static_layer()}\n\n"
+                f"【你的身份】你的名字是 {agent.name}，你认知的角色是"
+                f"{agent.perceived_role_id or agent.role_id}，阵营为{agent.team}。\n\n"
+                "【任务】请进行一段极简的内心独白（≤80 字），仅输出思考文本：\n"
+                "1. 当前最值得注意的局势要点；\n"
+                "2. 你接下来的行动策略（如：发言方向 / 提名目标 / 夜晚目标）。"
+            )
+            strategy = agent._llm_strategy_for_action("think")
+            response = await agent.backend.generate(
+                system_prompt=system_prompt,
+                messages=[Message(role="user", content=prompt)],
+                max_tokens=strategy.get("max_tokens"),
+                thinking=strategy.get("thinking"),
+                reasoning_effort=strategy.get("reasoning_effort"),
+            )
+            thought_process = (response.content or "").strip()
+            if thought_process:
+                agent.working_memory.add_thought(thought_process)
+                return thought_process
+        except Exception as exc:
+            logger.debug("[%s] think LLM 调用失败，使用规则摘要: %s", agent.name, exc)
+
         thought_process = f"思考结果: 针对 '{prompt}' 的总结。"
         agent.working_memory.add_thought(thought_process)
         return thought_process
@@ -257,9 +297,20 @@ class MemoryController:
 {thought_context}
 请总结核心进展和当前对谁最怀疑。"""
 
+                # PLN-039 T4 增强：archive 前置全局静态层，使跨 Agent 共享前缀可命中缓存。
+                from src.agents.prompt.common_rules import build_global_static_layer
+
+                archive_system = (
+                    f"{build_global_static_layer()}\n\n"
+                    f"【你的身份】你的名字是 {agent.name}，你认知的角色是"
+                    f"{agent.perceived_role_id or agent.role_id}，阵营是 {agent.team}。\n\n"
+                    "【任务】你是一个逻辑严密的血染钟楼玩家。请对以下当前阶段记忆进行精炼的阶段归纳。"
+                )
                 response = await agent.backend.generate(
-                    system_prompt="你是一个逻辑严密的血染钟楼玩家。请提供精炼的阶段归纳。",
+                    system_prompt=archive_system,
                     messages=[Message(role="user", content=distill_prompt)],
+                    max_tokens=agent._llm_strategy_for_action("archive").get("max_tokens"),
+                    thinking="disabled",
                 )
                 summary = response.content.strip() or "阶段总结完成"
             except Exception as e:

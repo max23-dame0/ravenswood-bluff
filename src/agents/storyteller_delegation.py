@@ -176,7 +176,7 @@ class StorytellerAgentDelegation:
         return tuple(self.decision_ledger[-limit:])
 
     async def analyze_game_situation(self, game_state: GameState) -> str:
-        """[A3-ST-6] 分析当前对局局势，记录说书人的“内心独白”。"""
+        """[A3-ST-6] 分析当前对局局势，记录说书人的"内心独白"。"""
         if not self.backend:
             return "说书人正在维持平衡。"
 
@@ -205,27 +205,35 @@ class StorytellerAgentDelegation:
             )
         )
 
-        prompt = f"""你是一名《血染钟楼》的说书人（上帝视角）。
-当前核心局势：
+        # PLN-039 T4：说书人 system 保持"稳定身份 + 稳定任务描述"，动态局势移入 user，
+        # 避免动态 system 污染缓存前缀；并前置全局静态层，使跨 Agent 共享前缀可命中缓存。
+        from src.agents.prompt.common_rules import build_global_static_layer
+
+        system_prompt = f"""{build_global_static_layer()}
+
+【你的身份】你是一名《血染钟楼》的说书人（上帝视角）。
+作为说书人，你的核心目标是让对局悬念迭起、充满戏剧性。如果某一方优势过大，你需要考虑在规则允许的范围内（如利用中毒、醉酒、信息技能的模糊地带）暗中帮助劣势方。
+
+请以第一人称写一段简短的"说书人内心独白"（控制在100字以内），需包含：
+1. 你对当前场上哪名玩家或哪个阵营处境最危险的敏锐洞察。
+2. 你的下一步隐秘计划（例如：打算如何通过假信息、或者报幕氛围来扰乱优势方的判断，维持脆弱的平衡）。
+
+请直接输出这段极具掌控力与反派魅力的独白，不要有任何客套话。"""
+        user_content = f"""当前核心局势：
 - 阶段：{context["phase"]} (Day {context["day_number"]}, Round {context["round_number"]})
 - 人数：正义 {context["alive_good"]} 存活 / 邪恶 {context["alive_evil"]} 存活
 - 系统客观评估：{advantage_text} (平衡分值: {advantage:.2f})
 - 近期关键裁量记录：{context["recent_judgements"]}
 
-作为说书人，你的核心目标是让对局悬念迭起、充满戏剧性。如果某一方优势过大，你需要考虑在规则允许的范围内（如利用中毒、醉酒、信息技能的模糊地带）暗中帮助劣势方。
-
-请以第一人称写一段简短的“说书人内心独白”（控制在100字以内），需包含：
-1. 你对当前场上哪名玩家或哪个阵营处境最危险的敏锐洞察。
-2. 你的下一步隐秘计划（例如：打算如何通过假信息、或者报幕氛围来扰乱优势方的判断，维持脆弱的平衡）。
-
-        请直接输出这段极具掌控力与反派魅力的独白，不要有任何客套话。"""
+请生成当前阶段的说书人内心独白。"""
         try:
             from src.llm.base_backend import Message
 
             response = await self.backend.generate(
-                prompt,
-                [Message(role="user", content="请生成当前阶段的说书人内心独白。")],
+                system_prompt,
+                [Message(role="user", content=user_content)],
                 max_tokens=200,
+                thinking="disabled",
             )
             thinking = (
                 response.content.strip() if response and response.content else "维持当前平衡。"
@@ -777,7 +785,7 @@ class StorytellerAgentDelegation:
             elif advantage < -1.0:
                 # 坏人优势，尽量给真信息（即使中毒也可能给真的，或者给个比较温和的假信息）
                 # 这里我们保持原样，因为 _distort_fixed_info 只在能力被抑制时调用。
-                # 如果要“尽量给真信息”，我们可以选择不翻转。
+                # 如果要"尽量给真信息"，我们可以选择不翻转。
                 return distorted, "empath_mercy_truth.help_good"
 
             distorted["evil_count"] = 1 if actual_count == 0 else 0
@@ -854,33 +862,32 @@ class StorytellerAgentDelegation:
     async def _apply_suppression_to_info_async(
         self, context: StorytellerDecisionContext, role_id: str, info: dict, player_id: str
     ) -> tuple[dict, str]:
-        """异步版本的抑制逻辑，支持 LLM 介入。"""
-        from src.engine.roles.base_role import get_role_class
+        """异步版本的抑制逻辑，支持 LLM 策略介入（PLN-038 阶段 S）。
 
-        role_cls = get_role_class(role_id)
+        经 `StorytellerToolRegistry.choose_distortion` 选择扭曲策略：
+        - `BOTC_ST_LLM_STRATEGY=low|on` 时 LLM 可选介入（仅选策略，不改真值）；
+        - 默认 off 时行为与重构前完全一致（启发式兜底）。
+        """
+        from src.agents.storyteller_tools import StorytellerToolRegistry
 
-        # 如果开启了 AI 模式且有 backend，尝试用 LLM 做“更有趣”的虚假信息选择
-        if self.mode == "auto" and self.backend and role_cls and not role_cls.is_fixed_info_role():
-            # 目前暂未实现全量 LLM 虚假信息生成，先走增强的启发式，未来可在此注入 LLM 决策
-            pass
-
-        if role_cls and role_cls.is_fixed_info_role():
-            return self._distort_fixed_info(context, role_id, info, player_id)
-        if role_cls and role_cls.uses_storyteller_adjudication():
-            return self._distort_storyteller_info(context, role_id, info)
+        if self._is_fixed_info_role(role_id) or self.role_receives_storyteller_info(role_id):
+            distorted, strategy = await StorytellerToolRegistry.choose_distortion_async(
+                self, context, role_id, info, player_id
+            )
+            return distorted, strategy.value
         return dict(info), "unspecified_suppression_passthrough"
 
     def _apply_suppression_to_info(
         self, context: StorytellerDecisionContext, role_id: str, info: dict, player_id: str
     ) -> tuple[dict, str]:
-        # 兼容同步调用
-        from src.engine.roles.base_role import get_role_class
+        # 兼容同步调用：同步路径只走启发式（保证可同步调用）
+        from src.agents.storyteller_tools import StorytellerToolRegistry
 
-        role_cls = get_role_class(role_id)
-        if role_cls and role_cls.is_fixed_info_role():
-            return self._distort_fixed_info(context, role_id, info, player_id)
-        if role_cls and role_cls.uses_storyteller_adjudication():
-            return self._distort_storyteller_info(context, role_id, info)
+        if self._is_fixed_info_role(role_id) or self.role_receives_storyteller_info(role_id):
+            distorted, strategy = StorytellerToolRegistry.choose_distortion(
+                self, context, role_id, info, player_id
+            )
+            return distorted, strategy.value
         return dict(info), "unspecified_suppression_passthrough"
 
     def _pick_false_role_seen(
@@ -927,6 +934,13 @@ class StorytellerAgentDelegation:
             return None
         return role_cls.get_definition().role_type
 
+    def _is_fixed_info_role(self, role_id: str) -> bool:
+        """该角色是否为固定信息类角色（洗衣妇/图书管理员/调查员/厨师等）。"""
+        from src.engine.roles.base_role import get_role_class
+
+        role_cls = get_role_class(role_id)
+        return bool(role_cls and role_cls.is_fixed_info_role())
+
     def _pick_false_target_player(
         self,
         context: StorytellerDecisionContext,
@@ -943,7 +957,7 @@ class StorytellerAgentDelegation:
         typed_players = [p for p in eligible_players if pref_val and p.get("role_type") == pref_val]
         pool = typed_players or eligible_players
 
-        # [A3-ST-5] 主动干预：如果好人优势，优先选邪恶队友作为假信息目标，帮他们“穿衣服”
+        # [A3-ST-5] 主动干预：如果好人优势，优先选邪恶队友作为假信息目标，帮他们"穿衣服"
         advantage = self._evaluate_team_advantage(context)
         if advantage > 1.0:
             evil_pool = [p for p in pool if p.get("current_team") == "evil"]
@@ -1170,7 +1184,7 @@ class StorytellerAgentDelegation:
                 role_cls = get_role_class(role_id)
                 if role_cls:
                     role_instance = role_cls()
-                    # 生成初始信息。对于酒鬼，这里生成的是基于他自以为身份的“事实”信息，
+                    # 生成初始信息。对于酒鬼，这里生成的是基于他自以为身份的"事实"信息，
                     # 实际发放时会在 _distribute_night_info 中因 ability_suppressed 被打乱。
                     info = role_instance.build_storyteller_info(game_state, player)
                     if info:
@@ -1191,8 +1205,8 @@ class StorytellerAgentDelegation:
                         )
 
         # 2. 预言家宿敌 (Red Herring)
-        # [A3-ST-5] 智能选择红鲱鱼：优先选择对当前局势有“调节”作用的好人。
-        # 比如：选择一个可疑的好人作为红鲱鱼，可以让预言家查验他时得到“有恶魔”的结果，增加干扰。
+        # [A3-ST-5] 智能选择红鲱鱼：优先选择对当前局势有"调节"作用的好人。
+        # 比如：选择一个可疑的好人作为红鲱鱼，可以让预言家查验他时得到"有恶魔"的结果，增加干扰。
         ft_player = next(
             (
                 p
@@ -1210,12 +1224,12 @@ class StorytellerAgentDelegation:
             ]
             if candidates:
                 # [A3-ST-5] 智能逻辑：
-                # 如果正义方初始强度高，红鲱鱼选个“干净”的人（比如调查员点名过的人），让预言家查出“有恶魔”，增加正义方内耗。
+                # 如果正义方初始强度高，红鲱鱼选个"干净"的人（比如调查员点名过的人），让预言家查出"有恶魔"，增加正义方内耗。
                 # 此处目前基于基础评分系统
                 context = self.build_decision_context(game_state)
                 advantage = self._evaluate_team_advantage(context)
 
-                # 如果局势对正义方有利（advantage > 0），选个看起来“像好人”的人作为红鲱鱼来迷惑他们。
+                # 如果局势对正义方有利（advantage > 0），选个看起来"像好人"的人作为红鲱鱼来迷惑他们。
                 if advantage >= 0:
                     # 倾向于选择非关键信息位的好人作为宿敌
                     red_herring = random.choice(candidates)  # 兜底

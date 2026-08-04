@@ -1,0 +1,50 @@
+{
+  "strategy_table": {
+    "ok": true,
+    "strategy_actions": [
+      "archive",
+      "claim",
+      "defense_speech",
+      "night_action",
+      "nominate",
+      "nomination_intent",
+      "reflect",
+      "speak",
+      "think",
+      "vote"
+    ],
+    "simple_vote_thinking": "disabled",
+    "speak_reasoning_effort": "low",
+    "speak_max_tokens": 400,
+    "missing_actions": []
+  },
+  "three_tier_prefix": {
+    "ok": true,
+    "system_stable": true,
+    "first_user_msg_stable": true,
+    "system_prefix_chars": 1722
+  },
+  "common_prefix": {
+    "ok": true,
+    "both_share_common_prefix": true,
+    "common_prefix_len": 250
+  },
+  "draft_reuse": {
+    "ok": true,
+    "calls_without_draft": 1,
+    "calls_with_draft": 0
+  },
+  "registry": {
+    "all_tool_names": [
+      "speak",
+      "defense_speech",
+      "vote",
+      "nominate",
+      "nomination_intent",
+      "night_action",
+      "slayer_shot",
+      "private_message"
+    ],
+    "tool_count": 8
+  }
+}
