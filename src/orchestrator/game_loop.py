@@ -300,12 +300,27 @@ class GameOrchestrator(GameOrchestratorDelegation):
 
         logger.info("[run_setup_with_options] Syncing all agents")
         self._sync_all_agents("BOTC-FLOW-SETUP")
+        # PLN-038 阶段 E：绑定对局 + 加载玩家跨局档案（进化记忆注入）
+        self._bind_agent_game_context()
         if not self._setup_done:
             self._setup_done = asyncio.get_running_loop().create_future()
         if not self._setup_done.done():
             logger.info("[run_setup_with_options] Setting _setup_done result to True")
             self._setup_done.set_result(True)
         logger.info("[run_setup_with_options] Setup completed successfully")
+
+    def _bind_agent_game_context(self) -> None:
+        """为所有 AI 玩家绑定 game_id 并加载跨局玩家档案（进化机制）。"""
+        from src.agents.ai_agent import AIAgent
+
+        for agent in self.broker.agents.values():
+            if not isinstance(agent, AIAgent):
+                continue
+            try:
+                agent.set_game_context(self.state.game_id)
+                agent.load_player_profile()
+            except Exception as exc:
+                logger.warning("[player-profile] 绑定对局上下文失败 %s: %s", agent.name, exc)
 
     async def run_game_loop(self) -> Team | None:
         try:
@@ -399,6 +414,9 @@ class GameOrchestrator(GameOrchestratorDelegation):
                 if self.settlement_report
                 else 0,
             )
+            # PLN-038 阶段 E：局末玩家进化（战绩 + 经验教训写入跨局档案）
+            await self._finalize_agent_player_profiles()
+
         phase_event = GameEvent(
             event_type="phase_changed",
             phase=target_phase,
@@ -463,6 +481,155 @@ class GameOrchestrator(GameOrchestratorDelegation):
         )
         self._phase_duration_history = self._phase_duration_history[-50:]
         self._mark_progress(None)
+
+    async def _finalize_agent_player_profiles(self) -> None:
+        """局末提炼：为每个 AI 玩家记录战绩、复盘并调整策略（拟人化进化）。
+
+        真实角色/阵营/胜负来自 settlement_report（确定性）。
+        拟人化四维：
+        1. 局后复盘（finalize_game_review：战绩 + 复盘要点 + 倾向微调）；
+        2. 学习他人经验（learn_play_style：从胜方 MVP / 表现好的玩家身上提炼打法）；
+        3. 经验教训沉淀（legacy append_lesson，保留兼容）。
+        均不含私密信息。
+        """
+        from src.agents.ai_agent import AIAgent
+
+        report = self.settlement_report or {}
+        winning_team = (report.get("winning_team") or "").lower()
+        player_reveal: dict[str, dict[str, Any]] = {}
+        for entry in report.get("players", []):
+            player_reveal[entry.get("player_id", "")] = entry
+
+        for agent in self.broker.agents.values():
+            if not isinstance(agent, AIAgent):
+                continue
+            reveal = player_reveal.get(agent.player_id, {})
+            team = (reveal.get("team") or "").lower()
+            won = bool(winning_team) and team == winning_team
+            role_id = reveal.get("true_role_id")
+            takeaway = self._build_player_takeaway(agent, reveal, won)
+            lesson = self._build_player_lesson(agent, reveal, won)
+            try:
+                # 1) 局后复盘 + 调整策略（拟人化进化核心）
+                agent.finalize_game_review(
+                    won=won,
+                    role_id=role_id,
+                    team=team,
+                    takeaway=takeaway,
+                )
+                # 2) 经验教训沉淀（兼容）
+                agent.finalize_game_lesson(
+                    won=won,
+                    role_id=role_id,
+                    team=team,
+                    lesson=lesson,
+                )
+            except Exception as exc:
+                logger.warning("[player-profile] 玩家进化落盘失败 %s: %s", agent.player_id, exc)
+
+        # 3) 学习他人经验：从胜方 MVP / 表现好的玩家提炼打法
+        await self._learn_from_strong_players(winning_team, player_reveal)
+
+        # 说书人跨局档案（进化机制）
+        if self.storyteller_agent is not None and hasattr(
+            self.storyteller_agent, "finalize_game_profile"
+        ):
+            try:
+                await self.storyteller_agent.finalize_game_profile(
+                    game_id=self.state.game_id,
+                    lesson="本局已主持并记录裁决；如需复盘可调用 review_balance。",
+                )
+            except Exception as exc:
+                logger.warning("[storyteller-profile] 说书人进化落盘失败: %s", exc)
+
+    def _build_player_takeaway(self, agent: Any, reveal: dict[str, Any], won: bool) -> str:
+        """构造局后复盘的『本局收获』（规则模板，无私密信息）。
+
+        拟人化：赢局提炼"我做了什么对的"，输局提炼"下次该改什么"。
+        """
+        role_id = reveal.get("true_role_id") or agent.role_id or "unknown"
+        team = (reveal.get("team") or agent.team or "unknown").lower()
+        if won:
+            # 赢局：强调可复制的打法
+            return (
+                f"作为{role_id}（{team}）获胜，"
+                "本局有效打法可复用：控制信息节奏、团结可信队友、按可信线索行动。"
+            )
+        # 输局：反思可改进点（按角色/阵营给出方向，无私密）
+        if team == "evil":
+            return (
+                f"作为{role_id}（{team}）落败，复盘提示：避免过早暴露、"
+                "发言与行动要保持一致性、留好烟雾弹。"
+            )
+        return (
+            f"作为{role_id}（{team}）落败，复盘提示：更早梳理信息位、"
+            "公开表达关键判断、避免被误导站错边。"
+        )
+
+    async def _learn_from_strong_players(
+        self, winning_team: str, player_reveal: dict[str, dict[str, Any]]
+    ) -> None:
+        """学习他人经验：从胜方表现好的玩家提炼打法，让所有 AI 玩家借鉴。
+
+        拟人化：人类玩家会观察高手（通常是胜方阵营）的打法并模仿。
+        这里从胜方中选出"局内表现活跃"的玩家，把其角色/阵营打法定式为
+        可复用经验，写入每个 AI 玩家的 lessons_learned。
+        """
+        from src.agents.ai_agent import AIAgent
+
+        if not winning_team:
+            return
+        # 胜方候选人：胜方存活 / 表现活跃者（用统计数据近似）
+        candidates: list[dict[str, Any]] = []
+        for _pid, reveal in player_reveal.items():
+            if (reveal.get("team") or "").lower() != winning_team:
+                continue
+            stats = reveal.get("stats") or {}
+            activity = int(stats.get("speech_count", 0) or 0) + int(stats.get("votes_cast", 0) or 0)
+            candidates.append({**reveal, "_activity": activity})
+        if not candidates:
+            return
+        # 取表现最好（活跃度最高）的玩家作为学习对象
+        candidates.sort(key=lambda c: c["_activity"], reverse=True)
+        role = candidates[0].get("true_role_id") or "unknown"
+        role_style = {
+            "imp": "恶魔要伪装成好人并主导夜间刀人，发言保持中立不引怀疑",
+            "minion": "爪牙要保护恶魔，主动制造误导、替恶魔挡刀",
+            "washerwoman": "洗衣妇要在首日快速建立可信信息位并分享",
+            "fortune_teller": "占卜师要谨慎公开调查结果，避免过早暴露",
+            "chef": "厨师要用当晚邻近恶魔数辅助首日推演",
+            "hunter": "猎手要选择合适的开枪时机，别浪费技能",
+        }.get(role, f"{role} 要保持信息位节奏与发言一致性")
+        lesson = f"本局胜方{role}打法：{role_style}"
+
+        for agent in self.broker.agents.values():
+            if not isinstance(agent, AIAgent):
+                continue
+            try:
+                agent.learn_play_style(role, lesson)
+            except Exception as exc:
+                logger.warning("[player-profile] 学习他人经验失败 %s: %s", agent.player_id, exc)
+
+    def _build_player_lesson(self, agent: Any, reveal: dict[str, Any], won: bool) -> str:
+        """构造一条可复用的局末经验（规则模板，无私密信息）。"""
+        role_id = reveal.get("true_role_id") or agent.role_id or "unknown"
+        team = (reveal.get("team") or agent.team or "unknown").lower()
+        result_text = "获胜" if won else "落败"
+        # 从本局记忆提取亮点（最多两条，自动截断）
+        highlights: list[str] = []
+        if hasattr(agent, "working_memory") and agent.working_memory.observations:
+            for obs in agent.working_memory.observations[-2:]:
+                text = (obs.content or "").strip()
+                if text and not self._player_lesson_sensitive(text):
+                    highlights.append(text[:60])
+        detail = "；".join(highlights) if highlights else "本局主要推演过程已归档"
+        return f"作为{role_id}（{team}阵营）{result_text}。{detail}"
+
+    @staticmethod
+    def _player_lesson_sensitive(text: str) -> bool:
+        from src.agents.memory.player_profile import MemoryToolsLike
+
+        return MemoryToolsLike.is_sensitive(text)
 
     async def _archive_agent_phase_memories(self) -> None:
         tasks = []
