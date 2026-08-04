@@ -74,10 +74,19 @@ data/debug_game_logs/
 data/games.db
 data/*.db
 data/games.records.json
+# Agent/player evolution data (runtime, generated per game; not for VCS)
+data/agents/
+data/storyteller/
 runtime_game_logs/
 
 # Temporary scratch files at repo root
 /_*.txt
+
+# Agent session scratch output (pytest/ruff/live-game logs written by agent runs)
+.codebuddy/*_out.txt
+.codebuddy/*.json
+.codebuddy/live_game*.txt
+.codebuddy/analyze_*.py
 
 # Browser automation (playwright-cli) snapshots
 /.playwright-cli/

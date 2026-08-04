@@ -115,3 +115,39 @@
 - **否决方案**：① 迁到 doc-governance 技能默认 `documents/` numbered 目录（churn 巨大、易断链）；② 仅给顶层文档加 frontmatter（子目录内细分仍不可检）。
 - **回退/可逆方案**：frontmatter 为纯文本头，删除即回退；`check_doc_health.py` 为独立脚本，移除调用即不影响运行。
 - **约束**：① 新增人文档必须带完整 frontmatter；② 文档链接须为相对路径（禁止绝对机器路径 `/d:/...`、`file:///`）；③ 改 `docs/` 布局前先全仓 grep 引用。
+
+## D012: Agent 原生重构落地（PLN-038 阶段 A/B/S/C/D + PLN-037 P0/P1/P2 协同）
+
+- **日期**：2026-08-03
+- **决策**：① 行动工具化——新建 `GameActionToolRegistry`（8 个 ToolDef），`act()` 以 tool calling 为主导、JSON 为 fallback；② 策略先行 loop——`MemoryController.think` 升级为低预算 LLM 内心独白，`AIAgent.act_with_strategy()` 为策略入口；③ 说书人工具注册表（6 工具），`choose_distortion` 收敛为 `DistortionStrategy` 枚举（值=旧字符串，审计兼容），`BOTC_ST_LLM_STRATEGY=off|low|on` 默认 off（行为与重构前一致）；④ 记忆工具化（append/read/reflect/archive + 落盘 `data/agents/{player_id}/` + 隔离校验）；⑤ 世界感知查询化（observe_state/query_public_log/query_players/query_legal_context + 三层前缀稳定化）；⑥ LLM 策略表（简单动作关思考、发言降 effort/限 max_tokens）、usage 解析扩展（cache hit/miss + reasoning_tokens）、speak 草稿复用（有草稿时 0 次 LLM）。
+- **原因**：agent 从「集中式提示词调用」演进为「受控自主 agent」，同时达成 PLN-037 token 控制目标（speak 输出减半、前缀可缓存、简单动作零思考）。
+- **否决方案**：大爆炸式全量工具化（改动面失控）；LLM 全程决策（破坏说书人确定性红线）。
+- **回退/可逆方案**：`BOTC_ST_LLM_STRATEGY` 默认 off 即行为兼容；工具注册表是独立模块，可整体移除；三层前缀是纯字符串重组，逐行 revert 即可。
+- **约束**：① 说书人真实信息计算保持确定性，LLM 仅影响「是否/如何扭曲」；② 记忆工具写入必须过隔离层（sensitive/private 拒绝）；③ 工具 schema 为稳定字符串（缓存前缀，禁运行时拼接状态）；④ 新增动作类型必须先注册 ToolDef 再接策略表。
+
+## D013: 记忆对局隔离 + 玩家/说书人进化机制（PLN-038 阶段 E）
+
+- **日期**：2026-08-04
+- **决策**：① 记忆对局隔离——`MemoryTools` 单局记忆落盘 `data/agents/{player_id}/games/{game_id}/memory.jsonl`，无 `game_id` 回退玩家根目录；② 玩家进化机制——新建 `PlayerProfileStore`（`profile.json` 战绩统计 + `long_term_memory.jsonl` 跨局经验），AIAgent 在 setup 时 `load_player_profile()`、GAME_OVER 时 `finalize_game_lesson()`，跨局经验经敏感过滤后注入 `act()` 的 stable_context（同局内稳定，不破坏前缀缓存）；③ 说书人进化——`StorytellerProfileStore` + `StorytellerAgent.finalize_game_profile()`，局末统计决策账本（判决数/扭曲数）落盘 `data/storyteller/profile/`。
+- **原因**：原记忆固定 `data/agents/{player_id}/` 导致跨局串味；用户要求每个 AI 玩家拥有"个人玩家视角"的长期记忆库，以实现玩家进化——agent 随对局累积经验、水平精进、表现更接近有记忆的人类玩家。说书人同理。
+- **否决方案**：① 把跨局经验直接并入 persona 参数（会与角色能力耦合、污染人格稳定性）；② 局末用 LLM 蒸馏经验（LLM 故障时无兜底，且增加 live 成本——当前用规则模板，留后续演进）。
+- **回退/可逆方案**：`game_id` 目录为纯路径变更，无 `game_id` 时回退旧路径；`PlayerProfileStore` 是独立模块可整体移除；跨局注入仅增加 stable_context 首段，删掉 `build_long_term_context()` 调用即回退。
+- **约束**：① 跨局经验注入前必须过敏感过滤（恶魔/队友名单等）；② 战绩/胜负/角色一律来自 `settlement_report`（确定性），LLM 不参与局末提炼；③ 跨局摘要必须放在 user 首条 stable_context（同局内逐 token 稳定），不得混入动态段；④ `games/{game_id}/` 只存本局记忆，跨局档案只存可复用经验。
+
+## D014: 拟人化进化机制（局中反思 / 局后复盘 / 学习他人 / 调整策略）
+
+- **日期**：2026-08-04
+- **决策**：在 D013 玩家进化基础上增强为四个拟人化维度（参考人类玩家水平增长机制）：① **局中反思**——`PlayerProfileStore.add_reflection()`（`reflections.jsonl`），AIAgent 暴露 `add_in_game_reflection()`，沉淀对局中的自我校正；② **局后复盘**——`add_game_review()`（`game_reviews.jsonl`）+ `finalize_game_review()`，局末记录"赢在哪/败在哪/下次怎么改"并微调倾向；③ **学习他人经验**——`learn_from_others()`（`lessons_learned.jsonl`），game_loop 局末从**胜方表现最好的玩家**提炼角色通用战术写入所有 AI 玩家；④ **调整策略**——`evolve_strategies()`（`strategies.jsonl`）+ `tendency` 四维画像（aggression/risk_taking/talkativeness/caution），基于胜负/阵营规则微调 + 轻微随机扰动，`build_evolved_tendency_summary()` 生成可注入的"打法倾向"。`build_long_term_summary()` 综合战绩+倾向+复盘+学到的打法+经验教训，注入 `act()` 的 stable_context 首段。
+- **原因**：用户要求进化设计更拟人——人类玩家水平增长来自局中反思、局后复盘、观察高手、调整自我认知四类机制；单一"经验教训"过于单薄，无法让 agent 表现随对局持续精进。
+- **否决方案**：① 仅靠 LLM 蒸馏复盘（live 成本高、失败无兜底——当前倾向微调为规则驱动 + 确定性，留后续演进）；② 让倾向直接改变人格 persona 参数（会污染人格稳定性、与其他难度覆盖冲突——独立 `tendency` 画像不触碰 persona_profile）。
+- **回退/可逆方案**：四维存储是独立 JSONL 文件，删除即回退；`_derive_tendency_delta` 仅微调 `tendency` 字段（±0.02 级），不影响既有行为；`_learn_from_strong_players` 是独立钩子，移除即关闭学习。
+- **约束**：① 学习他人经验只提炼**角色通用战术**，禁止携带该玩家私密信息/真实身份；② 倾向微调范围 0.05~0.95，增量 ±0.02 级防失控；③ 复盘/反思/学习均须过敏感过滤（恶魔/队友名单等）；④ 所有落盘 JSONL 保持向后兼容（旧 `profile.json` 自动合并新字段）。
+
+## D015: speak/defense_speech 关闭 thinking（live 实测 token 优化）
+
+- **日期**：2026-08-04
+- **决策**：将 `LLM_STRATEGY_BY_ACTION` 中 `speak` 与 `defense_speech` 的 `thinking` 从 `enabled` 改为 `disabled`（保留 `reasoning_effort=low`、`max_tokens=400`）。
+- **原因**：DeepSeek 推理模型实测——工具调用路径（主路径）本就 `reasoning_tokens=0`，`thinking=enabled` 不带来额外推理质量；但 JSON fallback 路径 `thinking=enabled` 会烧 356-400 reasoning tokens 并导致空响应/`JSONDecodeError`（fallback 率 5.9%）。改 `disabled` 后三局 live 对比：total_tokens 7365→2848（-62%）、fallback 5.9%→0%，5 玩家发言正常（草稿复用 0 token）。
+- **否决方案**：① 保持 enabled（live 空响应/JSON 解析失败高发，浪费 token）；② 完全删除 speak 的 LLM 调用（牺牲发言质量，草稿复用已处理常见场景，仍需 LLM 处理复杂局势）。
+- **回退/可逆方案**：改回 `"thinking": "enabled"` 即可恢复原策略；`_llm_strategy_for_action` 返回值可被单测断言。
+- **约束**：① 该策略面向 deepseek 等推理模型有效，切换非推理模型（如 GPT-4o）时需重新评估是否恢复 enabled；② `reasoning_effort=low` 保留（不破坏 `test_llm_strategy` 断言）；③ 工具调用主导（PLN-038 阶段A）是此优化的前提——工具路径不依赖 thinking。

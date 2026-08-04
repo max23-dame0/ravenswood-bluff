@@ -1,6 +1,6 @@
 # PROGRESS — 项目当前进度
 
-> 最后更新：2026-08-03
+> 最后更新：2026-08-04
 > **上班必读**：本文件 + DECISIONS.md
 
 ## 活跃任务看板（WIP 显式登记）
@@ -16,19 +16,31 @@
 | 5 | 修复 GitHub Actions lint-and-test 全红 | 修复 | ✅ 已提交推送；CI 三轮修复完成（ruff format / storyteller 日志测试 / CI 提速） | 看 CI 最终转绿 | 无 |
 | 6 | P1 上帝对象拆分 + P2 日志/文档治理 | 重构+治理 | ✅ 已提交推送 | — | 无 |
 | 7 | CI 提速：慢验收测试标 slow + job 超时上限 | 性能 | 🟢 已提交推送（`26df4f4`+`d8bb347`） | 看 CI run 是否快速通过 | 无 |
+| 8 | Agent 原生重构（PLN-038 阶段 A/B/S/C/D + PLN-037 P0/P1/P2） | 重构 | 🟢 已完成（2026-08-03，476 全绿 + 9-gate exit=0 + token 基准 PASS） | 待 live 验收 LLM 策略介入 | 无 |
+| 9 | 记忆对局隔离 + 玩家/说书人进化机制（PLN-038 阶段 E） | 重构 | 🟢 已完成（2026-08-04，新增 10 进化测试 + 端到端落盘验证） | 可选：局末 LLM 蒸馏经验；进化影响人格参数 | 无 |
+| 10 | 拟人化进化增强（局中反思/局后复盘/学习他人/调整策略） | 重构 | 🟢 已完成（2026-08-04，新增 6 拟人化测试 + 端到端验证 reviews/lessons/strategies 自动落盘） | 可选：局中反思引擎级自动触发；LLM 蒸馏复盘 | 无 |
+| 11 | alpha1.2 文档整理 + 真实 LLM live 对局验收 | 文档+验收 | 🟢 已完成（2026-08-04，3 局 DeepSeek live 验证功能 + token -62% + fallback 归零） | — | 无 |
+| 12 | speak/defense_speech 关 thinking（D015 live 实测优化） | 优化 | 🟢 已完成（2026-08-04，token 7365→2848，fallback 5.9%→0%） | 切非推理模型需重估 | 无 |
+| 13 | Prompt 前缀缓存命中率优化（PLN-039 T1-T6 + 精简 + REV-008 F1-F7 + R1/R2/R3） | 优化 | 🟢 已完成并提交（2026-08-04，480 passed + ruff 0 + token 基准 PASS + mock 8 人局 game_over + live 命中率 53.19%/46.00%/43.14% + 精简全局层 2361→1522 + REV-008 全部修复；commit `c79a7ae`）；⚠️ T6 DoD#5（真实总 token ≤187,423）部分达成（短局 177,828），任务板已标注权衡 | 无 | 无 |
 
 ## 当前验证状态
 
 | 检查项 | 状态 |
 |------|------|
 | `pip install -e ".[dev]"` | ✅ 已验证（受管 Python 3.13.12 + 项目根 `.venv` + dev 依赖全部安装） |
-| `pytest tests -q`（基线：447 passed / 0 failed） | ✅ 447 passed（连跑两轮验证）；`-m "not slow"` 快速单测 3.1s RC=0；slow 验收测试（17 个）单独运行 exit 0 |
+| `pytest tests -q`（基线：447 passed / 0 failed） | ✅ **476 passed / 0 failed**（2026-08-03 Agent 原生重构后新增 30 单测）；`-m "not slow"` 快速单测 RC=0；slow 验收测试单独运行 exit 0 |
 | `ruff check src tests scripts` | ✅ 零告警（阶段一规则集 E4/E7/E9/F/W，忽略 E501；F401/F541 经 `--fix` 收敛，E402 由 `scripts/**` per-file-ignores 覆盖，F841/E712 手工清理） |
 | `ruff format --check src tests scripts` | ✅ 182 文件全部已归一；pre-commit `ruff-format` 钩子已启用，CI 该步骤已移除 `continue-on-error` |
 | `python scripts/alpha1.1_acceptance.py`（9 gate） | ✅ exit=0，9/9 全绿 |
 | 文档链接健康（`python scripts/check_doc_health.py`） | ✅ RC=0（68 md 扫描；1 个非致命绝对路径 warning）；已纳入 CI（2026-08-03） |
 | 静态引用审计（脚本路径 / import / REPO_ROOT 深度） | ✅ 无残留旧路径，子目录脚本 `parents[2]` 全覆盖 |
 | git status / 未提交改动 | ✅ 工作区 clean，与 origin/main 同步 |
+| Agent 原生重构（PLN-038 + PLN-037 协同）验收 | ✅ 476 全绿 + ruff 零告警 + format 通过 + `alpha1.1_acceptance.py` 9/9 + `token_budget_benchmark.py` PASS + `simulate_game --stop-after day_1` 通过 + `check_doc_health.py` RC=0；审查报告 `docs/reviews/agent-native-redesign-cr-review-2026-08-03.md` |
+| 玩家进化机制（PLN-038 阶段 E）验收 | ✅ 快速回归 RC=0（含 10 个新进化测试）+ ruff/format 0 告警 + `simulate_game day_1` 通过 + 局末落盘端到端验证（5 玩家战绩 + 说书人主持局数） |
+| 拟人化进化增强（任务 10）验收 | ✅ 全量 `pytest -m "not slow"` = 477 passed / 0 failed（全量含 slow 共 495；2026-08-04 独立复核修正，原文档 483 为口径差）+ ruff check 0 告警 + format 197 files 全绿 + 端到端验证局末自动触发 reviews/lessons/strategies |
+| alpha1.2 live 验收（任务 11/12） | ✅ 3 局 DeepSeek live day_1 全跑通：工具调用主导 + 草稿复用 + 本地策略判定 + JSON fallback 兜底；token 7365→2848（-62%）、fallback 5.9%→0%；简单动作关 thinking reasoning 40→0；证据 `docs/alpha-1.2-evidence/live-agent-native-verification-2026-08-04.md` |
+| 缓存命中优化（2026-08-04）验收 | ✅ `pytest -m "not slow"` = 477 passed / 0 failed + ruff/format/doc 全绿 + token 基准 PASS（system 前缀 1722→1363 仍逐 token 稳定）+ live 8 人局完整对局真实 token 252,999→187,423（-25.9%）、metrics 64,262→40,771（-36.5%）、reasoning 3650→0、fallback 0%；缓存命中率 11.9%→12.7%（DeepSeek 前缀缓存为尽力而为：同一玩家 system 完全一致时实测命中 0-29%，受 LRU/容量限制，前缀一致为必要不充分条件） |
+| Prompt 缓存优化二轮（PLN-039，2026-08-04）验收 | ✅ `pytest -m "not slow"` = 480 passed / 0 failed + `ruff check src tests scripts` 0 告警 + format 全绿 + `check_doc_health.py` PASS + `token_budget_benchmark.py` RESULT: PASS（全局静态层 1522 字符跨 Agent 逐 token 一致 + three_tier 稳定 + draft 复用）+ mock 8 人局 game_over + **live 8 人局完整局实测（RPT-014，多局）**：命中率 41.63%→53.19%→46.00%→**43.14%（REV-008 修复后）**，均 ≥40%；reasoning=0、fallback≈0；archive/storyteller 前置后 0%→57-62%；**evil_coord 0%→75.89%（F5）**；⚠️ 真实总 token 370,931 > 基线 187,423（输入膨胀），计费当量 +12.8%，T6 任务板标 🟨 部分完成。归档：`docs/alpha-1.2-evidence/pln039-live-2026-08-04-rev.llm.jsonl`（REV-008 F1） |
 | 当前 blocker | ✅ 无 |
 
 > **CI 跨平台修复（2026-07-31，commit `ad4e974`）**：GitHub Actions（ubuntu runner）报 20 个失败。
@@ -65,11 +77,9 @@
 > harness 文件、测试治理、P0-P5 规范化、lint 收敛、P1/P2 上帝对象拆分与 print→logging。
 > 当前未提交改动见下表。
 
-| 改动 | 状态 | 计划 commit | 关联任务 |
-|------|:--:|------|------|
-| `public/index.html` 结算 overlay BUG 修复（`ui-welcome` 空值保护） | 🟡 已验证待提交 | 与验收证据一并 commit | M5-L live 验收 |
-| `docs/alpha-1.1-evidence/m5l_live_speech_deepseek_20260803.md` 验收报告 | 🟡 已验证待提交 | 同上 | M5-L live 验收 |
-| `.gitignore` 忽略 `.playwright-cli/`（浏览器自动化缓存） | 🟡 已验证待提交 | 同上 | M5-L live 验收 |
+> **2026-08-04 提交完成**：本清单既有登记已按分组分 3 个 commit 全部提交（工作区 clean）。commit hash 以 `git log --oneline -3` 为准（2026-08-04 三组：token-opt-cache / 阶段 E / alpha1.2）。
+>
+> 既有登记项（`public/index.html` 修复、`m5l_live_speech_deepseek_20260803.md`、`.gitignore` 等）已在历史 commit 中入库，本清单无遗留。
 
 ## 整体进度
 

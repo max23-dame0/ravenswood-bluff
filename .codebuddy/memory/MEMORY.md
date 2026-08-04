@@ -1,6 +1,6 @@
 # 鸦木布拉夫小镇 (Ravenswood Bluff) 项目长期记忆
 
-> 最后更新：2026-07-31
+> 最后更新：2026-08-04
 > 仓库：`d:/ravenswood-bluff` | 分支：`main`
 > **硬上限**：200 行。超出时 AI 需自行精简历史记录，将细节移入子文件。
 
@@ -18,7 +18,7 @@ MEMORY.md（本文件）→ AGENTS.md（操作手册）→ PROGRESS.md → DECIS
 
 ## 1. 项目定位
 
-基于多 Agent + 状态机驱动的《血染钟楼》(Blood on the Clocktower, Trouble Brewing 剧本) 社交推演引擎。LLM 驱动的 AI 玩家与 AI/人类说书人，配合通过浏览器 WebSocket UI 的人类玩家共同对局。当前阶段 **Alpha 1.1**（内部测试，难度系统 + 速度/质量优化 + 模块化重构已完成，待 live 真人验收）。
+基于多 Agent + 状态机驱动的《血染钟楼》(Blood on the Clocktower, Trouble Brewing 剧本) 社交推演引擎。LLM 驱动的 AI 玩家与 AI/人类说书人，配合通过浏览器 WebSocket UI 的人类玩家共同对局。当前阶段 **Alpha 1.2（Agent 原生重构版）**：AI 玩家演进为受控自主 Agent（行动工具化 + 世界感知查询化 + 记忆工具化 + 跨局玩家进化），token 控制达成。
 
 ## 2. 技术栈
 
@@ -89,6 +89,8 @@ DifficultyLevel: CASUAL / STANDARD / MASTER / CHAOS
 
 <!-- AUTO_MEMORY_START -->
 - 2026-08-03 用户进程管理偏好（铁律）：**不要重复开进程**——同一服务/工具已启动过就不再重复启动；任务完成后及时终止不再需要的进程（python/pytest/uvicorn 等），防止堆积占用 CPU/内存/端口。启动新进程前先确认是否已有同名或同端口进程在运行；结束后核对端口是否释放。跑测试时用一次性 `python -c "subprocess.run(...)"` 阻塞式执行，避免残留后台进程。
+- 2026-08-04 PLN-039 第二轮缓存优化 T1-T6 已完成（`common_rules.build_global_static_layer()` 全局静态层 + `prompt_factory.build_stable_system_prompt()` 双层 system + act tools 全量固定 + 草稿复用 act 前缀 + reflect/think/archive/说书人前置全局层）。验证全绿（480 passed + ruff 0 + benchmark PASS + mock 8 人局 game_over + live 8 人局命中率 **53.19%** 达标，reasoning 0/fallback 0）。⚠️ 真实总 token 370,931 > 基线 187,423（输入膨胀 +132%），计费当量估算 +12.8%。**已精简全局层工具文本**：`tool_schema_text()` 只保留"工具名+一句话用途"（参数细节由 tools 参数提供），全局层 2,361 → **1,522 字符（-35.5%）**，仍 ≥1,500；证据 RPT-014。**thinking 结论**：工具调用主导路径本就不烧 reasoning，JSON fallback 开 thinking 有害（D015：fallback 5.9%→0%、total -62%），关闭不影响表现，仅切非推理模型需重估。已提交 3 commit（`c79a7ae` token-opt-cache / `02b4996` 阶段 E / `53a2f84` alpha1.2），工作区 clean，未 push。
+- 2026-08-04 环境踩坑：本机新建 `.venv` 后遇 pydantic-core 2.47.0 与 pydantic 2.13.4 不兼容（`No module named 'pydantic_core._pydantic_core'`），强制装回 **pydantic-core==2.46.4** 修复；随后 live 测试又遇 `No module named 'jiter.jiter'`，强制重装 **jiter**（0.16.0 cp312 win）修复。本机跑测试用 `.\.venv\Scripts\python.exe -m pytest`，PowerShell 下输出重定向到文件再用 read_file 查看（CLIXML 干扰）。live 局调试日志轮换在 `runtime_game_logs/recent_N/llm.jsonl`。
 <!-- AI 在此区域之下追加记忆，保留此标记以便定位 -->
 - 2026-07-31 测试系统治理：① 代码去重——`DummyBackend` 等替身统一至 `tests/doubles.py`（唯一源），`conftest.py` re-export，3 个回归/推理测试文件改为 import；`DummyBackend` 加可配置 `content`（默认中文串，回归用 `content="{}"` 保持旧行为）。② 文档——新增 `.codebuddy/rules/tests.md`（测试规则）、`docs/reference/test-system.md`（测试系统参考，含 9 gate 验收）、`docs/reference/tech-traps.md` 增 T10-T12；`AGENTS.md`/`DECISIONS.md`(D007/D008)/`MEMORY.md` 同步接入。详见 `DECISIONS.md` D007(测试策略 MockBackend-first+门禁为发布 blocker)、D008(替身统一)。
 <!-- AI 在此区域之下追加记忆，保留此标记以便定位 -->

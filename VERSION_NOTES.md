@@ -1,3 +1,36 @@
+# Alpha 1.2（Agent 原生重构版）内部测试版本说明
+
+当前版本口径：`alpha1.2`。
+
+Alpha 1.2（Agent 原生重构版）是《鸦木布拉夫小镇》的架构级演进版本，将 AI 玩家从"集中式调度 + 单次无状态 LLM 调用"演进为**受控自主 Agent**：保留 orchestrator 作为规则裁判与调度器，将行动标准化为工具调用、世界状态按需查询、记忆维护工具化，并引入跨局玩家进化机制。同时达成 token 控制目标。
+
+## 面向玩家与内测者的变化
+
+- **更拟人的 AI 玩家**：AI 玩家拥有跨局长期记忆，会随对局累积"局后复盘 / 局中反思 / 学习他人打法 / 调整策略"，逐渐形成个人打法倾向（更激进或更谨慎），表现更接近有记忆的人类玩家。
+- **记忆对局隔离**：每局记忆独立存放，避免跨局串味。
+- **说书人进化**：说书人跨局累积主持经验与扭曲率画像。
+
+## 面向开发者的重构与优化
+
+- **行动工具化**：`GameActionToolRegistry`（8 个 ToolDef），`act()` 工具调用主导 + JSON fallback。
+- **世界感知查询化**：`WorldTools` 4 只读工具；system prompt 三层前缀稳定化，跨 agent 共享公共规则前缀（缓存命中率提升基础）。
+- **策略先行 loop**：`think` → `act`，`cached_speech_draft` 草稿直接复用（有草稿时 0 次 LLM，输出减半）。
+- **记忆工具化**：`MemoryTools` append/read/reflect/archive。
+- **说书人工具注册表**：6 工具 + `DistortionStrategy` 枚举化 + `BOTC_ST_LLM_STRATEGY=off` 行为兼容。
+- **Token 控制（PLN-037）**：策略表（简单动作关 thinking、发言降 effort 限 400、claim/reflect 限 150）、usage 扩展解析。
+- **拟人化玩家进化（PLN-038 阶段E）**：跨局档案四维 + `tendency` 画像 + 局末自动触发复盘/学习/调整。
+
+## 发布前校验与复现
+
+```text
+pytest tests -q -m "not slow"       → 477 passed / 0 failed
+ruff check src tests scripts         → 0 告警
+scripts/alpha1.1_acceptance.py      → 9/9 exit=0
+scripts/benchmark/token_budget_benchmark.py → RESULT: PASS
+```
+
+---
+
 # Alpha 1.1 内部测试版本说明
 
 当前版本口径：`alpha1.1`。

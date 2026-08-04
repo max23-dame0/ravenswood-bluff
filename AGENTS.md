@@ -1,8 +1,8 @@
 # 鸦木布拉夫小镇 (Ravenswood Bluff) — Agent 操作手册
 
-> **角色**：AI 玩家 / 说书人 facade。**设计目标**为「仅路由、逻辑下沉到子模块」（详见 `CLAUDE.md` 与 `.codebuddy/rules/`）。当前 `ai_agent.py` / `storyteller_agent.py` / `game_loop.py` 仍为上帝对象，拆分进行中（见 `DECISIONS.md` D011 与 `docs/releases/v0.8/AGENTS_refactor.md`）。
+> **角色**：AI 玩家 / 说书人 facade。已演进为**受控自主 Agent**：行动工具化（`GameActionToolRegistry`）+ 世界感知查询化（`WorldTools`）+ 记忆工具化（`MemoryTools`）+ 跨局玩家进化（`PlayerProfileStore`）。orchestrator 保留规则裁判与调度职责；facade 仅路由、逻辑在子模块（详见 `CLAUDE.md` 与 `.codebuddy/rules/`，决策见 `DECISIONS.md` D012/D013/D014）。
 > **上下文预算**：32768 字节
-> **最后更新**：2026-07-31
+> **最后更新**：2026-08-04
 
 ## Setup & Commands
 
@@ -13,6 +13,7 @@ ruff check src tests                     # lint（规则集见 pyproject.toml [t
 ruff format --check src tests            # 格式一致性检查
 BOTC_BACKEND=mock python -m src.api.server   # 启动服务（mock 模式，无需 API key）→ http://127.0.0.1:8000
 python scripts/alpha1.1_acceptance.py        # Alpha 1.1 聚合验收（9 个 gate）
+python scripts/benchmark/token_budget_benchmark.py  # Token 预算基准（离线验证策略表/前缀/草稿复用）
 python scripts/check_doc_health.py           # 文档 frontmatter + 链接健康门禁
 ```
 
@@ -107,7 +108,7 @@ public/  data/
 
 - `CLAUDE.md` — 深度 agent 指南（架构 / 约定 / gotchas / 常见任务）
 - `architecture.md` — 33KB 详细架构
-- `docs/plans/alpha-1.1-plan.md` — 当前计划；`docs/alpha-1.1-evidence/` — 验收证据
+- `docs/plans/agent-native-redesign-plan.md`(PLN-037) + `docs/plans/token-budget-optimization-plan.md`(PLN-038) — 当前 Agent 重构计划；`docs/releases/alpha-1.2-agent-native-release.md` — 本版发布记录
 - `docs/reference/rule_matrix.md` — 角色能力矩阵；`CHANGELOG.md` / `VERSION_NOTES.md`
 - `.codebuddy/rules/` — 分层规则（含 `tests.md` 测试系统规则）；`.codebuddy/memory/MEMORY.md` — 项目认知
 - `docs/reference/test-system.md` — 测试系统深度参考（目录/约定/替身/conftest/9 gate 验收）

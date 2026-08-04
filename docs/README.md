@@ -34,6 +34,7 @@ docs/
 |- frontend_acceptance.md          脚本生成，路径固定（scripts/acceptance/frontend_acceptance.py 写入）
 |- alpha-1.0-benchmark-results.md  脚本生成，路径固定（scripts/benchmark/batch_benchmark.py 写入）
 |- alpha-1.1-evidence/     验收证据（脚本写入，免 frontmatter，原地保留）
+|- alpha-1.2-evidence/     Alpha 1.2 人工验收证据（带 frontmatter，如 live-agent-native-verification）
 |- plans/                  计划与任务板（Delta）
 |   |- alpha-0.2-plan/  alpha-0.3-plan/  alpha-1.0-plan/  alpha-1.1-plan/  alpha-1.2-plan/
 |- releases/               发布说明 / 清单 / 已知问题（Delta）
@@ -96,6 +97,9 @@ docs/
 | PLN-034 | [Alpha 1.1 验证规范：证明改进真实存在](plans/alpha-1.1-plan/verification_policy.md) | [Delta] | 2026-06-01 | `docs/plans/alpha-1.1-plan/verification_policy.md` |
 | PLN-035 | [Alpha 1.2 开发入口](plans/alpha-1.2-plan/README.md) | [Delta] | 2026-06-09 | `docs/plans/alpha-1.2-plan/README.md` |
 | PLN-036 | [M8 任务板：多人联机与局域网部署服务](plans/alpha-1.2-plan/task_m8_network_hosting.md) | [Delta] | 2026-06-09 | `docs/plans/alpha-1.2-plan/task_m8_network_hosting.md` |
+| PLN-037 | [Agent 原生重构设计](plans/agent-native-redesign-plan.md) | [Delta] | 2026-08-04 | `docs/plans/agent-native-redesign-plan.md` |
+| PLN-038 | [Agent 原生重构方案](plans/agent-native-redesign-plan.md) | [Delta] | 2026-08-04 | `docs/plans/agent-native-redesign-plan.md` |
+| PLN-039 | [Prompt 前缀缓存命中率优化方案与任务板](plans/prompt-cache-optimization-plan.md) | [Delta] | 2026-08-04 | `docs/plans/prompt-cache-optimization-plan.md` |
 
 ### 审查 / 移交（Delta）
 
@@ -107,6 +111,8 @@ docs/
 | REV-004 | [当前遗留问题与并行修复计划](reviews/remediation_backlog.md) | [Delta] | 2026-04-08 | `docs/reviews/remediation_backlog.md` |
 | REV-005 | [Gemini Alpha 0.3 审计记录](plans/alpha-0.3-plan/gemini_audit.md) | [Delta] | 2026-04-25 | `docs/plans/alpha-0.3-plan/gemini_audit.md` |
 | REV-006 | [Alpha 0.2 AI 智能重构移交文档 (Handover Document)](reviews/HANDOVER_ALPHA_0.2.md) | [Delta] | 2026-04-21 | `docs/reviews/HANDOVER_ALPHA_0.2.md` |
+| REV-007 | [Agent 原生重构 CR 审查报告](reviews/agent-native-redesign-cr-review-2026-08-03.md) | [Delta] | 2026-08-03 | `docs/reviews/agent-native-redesign-cr-review-2026-08-03.md` |
+| REV-008 | [PLN-039 缓存命中率优化 CR 审查报告（修复指引版）](reviews/pln039-cache-opt-cr-review-2026-08-04.md) | [Delta] | 2026-08-04 | `docs/reviews/pln039-cache-opt-cr-review-2026-08-04.md` |
 
 ### 发布（Delta）
 
@@ -118,6 +124,7 @@ docs/
 | REL-004 | [Alpha 1.0 Release Checklist](releases/alpha-1.0-release-checklist.md) | [Delta] | 2026-04-29 | `docs/releases/alpha-1.0-release-checklist.md` |
 | REL-005 | [Wave 4 Release Checklist](plans/alpha-0.2-plan/wave-4-release-checklist.md) | [Delta] | 2026-04-21 | `docs/plans/alpha-0.2-plan/wave-4-release-checklist.md` |
 | REL-006 | [M6 任务板：发布工程与内测包](plans/alpha-1.0-plan/task_m6_release_package.md) | [Delta] | 2026-04-29 | `docs/plans/alpha-1.0-plan/task_m6_release_package.md` |
+| REL-007 | [Alpha 1.2 Agent 原生重构版发布记录](releases/alpha-1.2-agent-native-release.md) | [Delta] | 2026-08-04 | `docs/releases/alpha-1.2-agent-native-release.md` |
 
 ### 报告 / 分析（Delta）
 
@@ -135,6 +142,8 @@ docs/
 | RPT-010 | [M7 任务板：验证规范与增量证据](plans/alpha-1.1-plan/task_m7_validation_evidence.md) | [Delta] | 2026-06-01 | `docs/plans/alpha-1.1-plan/task_m7_validation_evidence.md` |
 | RPT-011 | [对局分析报告: efa662a3 (8人Live局)](reviews/game-analysis/2026-05-07_efa662a3_8player_live.md) | [Delta] | 2026-06-01 | `docs/reviews/game-analysis/2026-05-07_efa662a3_8player_live.md` |
 | RPT-012 | [对局分析目录](reviews/game-analysis/README.md) | [Delta] | 2026-06-01 | `docs/reviews/game-analysis/README.md` |
+| RPT-013 | [Alpha 1.2 Agent 原生重构 live 对局验收证据（真实 LLM）](alpha-1.2-evidence/live-agent-native-verification-2026-08-04.md) | [Delta] | 2026-08-04 | `docs/alpha-1.2-evidence/live-agent-native-verification-2026-08-04.md` |
+| RPT-014 | [PLN-039 第二轮缓存优化 live 8 人局实测报告](alpha-1.2-evidence/pln039-live-8p-cache-verification-2026-08-04.md) | [Delta] | 2026-08-04 | `docs/alpha-1.2-evidence/pln039-live-8p-cache-verification-2026-08-04.md` |
 
 ### 参考 / 指南（Cold）
 
@@ -144,6 +153,7 @@ docs/
 | REF-003 | [《鸦木布拉夫小镇》多人/局域网联机配置指南](guides/lan_play_guide.md) | [Cold] | 2026-06-09 | `docs/guides/lan_play_guide.md` |
 | REF-004 | [技术陷阱速查 (tech-traps)](reference/tech-traps.md) | [Cold] | 2026-07-30 | `docs/reference/tech-traps.md` |
 | REF-005 | [测试系统参考 (test-system)](reference/test-system.md) | [Cold] | 2026-07-31 | `docs/reference/test-system.md` |
+| REF-006 | [AI 玩家输入提示词（Prompt）设计总览](guides/prompt-design.md) | [Cold] | 2026-08-04 | `docs/guides/prompt-design.md` |
 
 ## 4. ADR 索引
 

@@ -1,5 +1,38 @@
 # Changelog
 
+## [alpha1.2-agent-native] - 2026-08-04
+
+Alpha 1.2（Agent 原生重构版）将 AI 玩家从"集中式调度 + 单次无状态 LLM 调用"演进为受控自主 Agent，同时落地跨局玩家进化机制与 token 控制目标。
+
+### 新增与强化
+
+- **行动工具化（PLN-038 阶段A）**：新增 `GameActionToolRegistry`（8 个 ToolDef：speak/defense_speech/vote/nominate/nomination_intent/night_action/slayer_shot/private_message），`act()` 以工具调用为主导、JSON 为 fallback。
+- **世界感知查询化（阶段D）**：新增 `WorldTools`（observe_state/query_public_log/query_players/query_legal_context）4 只读工具，agent 按需查询世界状态；system prompt 重组为三层前缀（稳定规则层 / 稳定长上下文 / 动态短内容），跨 agent 共享公共规则前缀（`common_rules.py`）。
+- **策略先行 loop（阶段B）**：`MemoryController.think` 升级为低预算 LLM 内心独白；`AIAgent.act_with_strategy()` 策略入口；`cached_speech_draft` 草稿直接复用（有草稿时 0 次 LLM，输出减半）。
+- **记忆工具化（阶段C）**：`MemoryTools` append/read/reflect/archive，附隔离校验与落盘。
+- **说书人工具注册表（阶段S）**：6 工具 + `DistortionStrategy` 枚举化（值兼容旧字符串）+ `BOTC_ST_LLM_STRATEGY=off|low|on` 默认 off（行为与重构前一致）+ `review_balance` 落盘 `data/storyteller/{game_id}/`。
+- **LLM 策略表 + token 控制（PLN-037）**：`LLM_STRATEGY_BY_ACTION` 策略表（vote/night/nominate 关 thinking、speak/defense 降 effort 限 400、claim/reflect/archive 限 150-200）；usage 解析扩展（prompt_cache_hit/miss_tokens + reasoning_tokens）。
+- **记忆对局隔离（阶段E）**：单局记忆落盘 `data/agents/{player_id}/games/{game_id}/`，跨局档案与对局隔离。
+- **拟人化玩家进化（阶段E）**：跨局档案四维（局中反思 `reflections.jsonl` / 局后复盘 `game_reviews.jsonl` / 学习他人 `lessons_learned.jsonl` / 调整策略 `strategies.jsonl` + `tendency` 四维画像），`build_long_term_summary()` 注入新局 prompt；说书人跨局档案 `data/storyteller/profile/`。
+- **Token 基准脚本**：`scripts/benchmark/token_budget_benchmark.py`（离线验证策略表/三层前缀/草稿复用/公共前缀）。
+- **live 实测优化（2026-08-04）**：`speak`/`defense_speech` 关闭 thinking（D015）。DeepSeek 推理模型工具路径本就不烧 reasoning，关 thinking 消除 JSON fallback 路径的 reasoning 浪费与空响应/JSONDecodeError。3 局 live 对比：total_tokens 7365→2848（-62%）、fallback 5.9%→0%。
+
+### 自动化验证
+
+- 新增 `tests/test_agents/test_agent_tools.py`（19 单测）、`test_storyteller_tools.py`（9）、`test_llm/test_llm_strategy.py`（5）、`test_player_evolution.py`（含拟人化 6 单测）。
+- 全量 `pytest tests -q -m "not slow"` = 477 passed（全量含 slow 共 495）；ruff check + format 0 告警；`alpha1.1_acceptance.py` 9/9。
+- **Live 验收**：`simulate_game.py --backend live --player-count 5 --stop-after day_1` 跑 5 人完整 day_1 对局（DeepSeek），工具调用主导 + 草稿复用 + 本地策略判定全生效，证据见 `docs/alpha-1.2-evidence/live-agent-native-verification-2026-08-04.md`。
+
+### 文档
+
+- 计划：`docs/plans/agent-native-redesign-plan.md`、`docs/plans/token-budget-optimization-plan.md`
+- 审查：`docs/reviews/agent-native-redesign-cr-review-2026-08-03.md`
+- 发布：`docs/releases/alpha-1.2-agent-native-release.md`
+
+### 已知限制
+
+- `BOTC_ST_LLM_STRATEGY=low|on` 需 live 真人验收；工具调用主导路径依赖真实 LLM 返回 `tool_calls`；进化机制待 live 验证。
+
 ## [alpha1.1] - 2026-06-09
 
 Alpha 1.1 引入了 AI 玩家难度系统，并完成了重大的速度工程优化、对话质量修复与底层代码重构，使 AI 玩家从“最优解机器”转变为具备策略深度、性格差异且响应迅速的真实对手。
