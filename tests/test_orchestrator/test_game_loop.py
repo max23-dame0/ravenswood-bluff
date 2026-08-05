@@ -79,6 +79,22 @@ class TrackingAgent(BaseAgent):
         return ""
 
 
+class DraftTrackingAgent(TrackingAgent):
+    """TrackingAgent that can also generate speech drafts and records speak kwargs."""
+
+    def __init__(self, pid, name, actions=None):
+        super().__init__(pid, name, actions)
+        self.speak_kwargs: list[dict] = []
+
+    async def generate_draft_speech(self, visible_state, legal_context=None):
+        return {"action": "speak", "content": f"draft from {self.player_id}"}
+
+    async def act(self, visible_state, action_type, legal_context=None, **kwargs):
+        if action_type == "speak":
+            self.speak_kwargs.append(dict(kwargs))
+        return await super().act(visible_state, action_type, legal_context=legal_context, **kwargs)
+
+
 class EvilCoordinationAgent(ScriptedAgent):
     async def build_evil_night_coordination_message(
         self, action, visible_state, legal_context=None
@@ -821,6 +837,94 @@ async def test_day_discussion_does_not_throttle_ai_only_games():
     speak_events = [event for event in orch.event_log.events if event.event_type == "player_speaks"]
     assert [event.actor for event in speak_events] == ["p1", "p2", "p3"]
     assert all(agent.calls == ["speak"] for agent in agents)
+
+
+@pytest.mark.asyncio
+async def test_day_discussion_speaks_in_seat_order_when_human_in_middle():
+    """Human player seated in the middle still speaks strictly in seat order."""
+    initial_state = GameState(
+        phase=GamePhase.DAY_DISCUSSION,
+        round_number=1,
+        day_number=1,
+        players=(
+            PlayerState(player_id="p1", name="AI One", role_id="washerwoman", team=Team.GOOD),
+            PlayerState(player_id="human", name="Human", role_id="empath", team=Team.GOOD),
+            PlayerState(player_id="p2", name="AI Two", role_id="imp", team=Team.EVIL),
+            PlayerState(player_id="p3", name="AI Three", role_id="chef", team=Team.GOOD),
+        ),
+        seat_order=("p1", "human", "p2", "p3"),
+        config=GameConfig(
+            player_count=4,
+            human_mode="player",
+            human_player_ids=["human"],
+            is_human_participant=True,
+            discussion_rounds=1,
+            ai_discussion_message_limit=4,
+        ),
+    )
+    orch = GameOrchestrator(initial_state)
+    orch.storyteller_agent = DummyStoryteller()
+    agents = [
+        TrackingAgent("p1", "AI One", {"speak": [{"action": "speak", "content": "one"}]}),
+        TrackingAgent("human", "Human", {"speak": [{"action": "speak", "content": "human"}]}),
+        TrackingAgent("p2", "AI Two", {"speak": [{"action": "speak", "content": "two"}]}),
+        TrackingAgent("p3", "AI Three", {"speak": [{"action": "speak", "content": "three"}]}),
+    ]
+    for agent in agents:
+        orch.register_agent(agent)
+
+    await orch._run_day_discussion()
+
+    speak_events = [event for event in orch.event_log.events if event.event_type == "player_speaks"]
+    assert [event.actor for event in speak_events] == ["p1", "human", "p2", "p3"]
+    assert all(agent.calls == ["speak"] for agent in agents)
+
+
+@pytest.mark.asyncio
+async def test_day_discussion_draft_policy_reuse_first_then_refine():
+    """方案B：首位发言的 AI 直接复用草稿；一旦本轮已有人发言，后续 AI 精炼草稿。"""
+    initial_state = GameState(
+        phase=GamePhase.DAY_DISCUSSION,
+        round_number=1,
+        day_number=1,
+        players=(
+            PlayerState(player_id="p1", name="AI One", role_id="washerwoman", team=Team.GOOD),
+            PlayerState(player_id="p2", name="AI Two", role_id="empath", team=Team.GOOD),
+            PlayerState(player_id="human", name="Human", role_id="chef", team=Team.GOOD),
+            PlayerState(player_id="p3", name="AI Three", role_id="imp", team=Team.EVIL),
+        ),
+        seat_order=("p1", "p2", "human", "p3"),
+        config=GameConfig(
+            player_count=4,
+            human_mode="player",
+            human_player_ids=["human"],
+            is_human_participant=True,
+            discussion_rounds=1,
+            ai_discussion_message_limit=4,
+        ),
+    )
+    orch = GameOrchestrator(initial_state)
+    orch.storyteller_agent = DummyStoryteller()
+    p1 = DraftTrackingAgent("p1", "AI One", {"speak": [{"action": "speak", "content": "one"}]})
+    p2 = DraftTrackingAgent("p2", "AI Two", {"speak": [{"action": "speak", "content": "two"}]})
+    human = TrackingAgent(
+        "human", "Human", {"speak": [{"action": "speak", "content": "human here"}]}
+    )
+    p3 = DraftTrackingAgent("p3", "AI Three", {"speak": [{"action": "speak", "content": "three"}]})
+    for agent in (p1, p2, human, p3):
+        orch.register_agent(agent)
+
+    await orch._run_day_discussion()
+
+    speak_events = [event for event in orch.event_log.events if event.event_type == "player_speaks"]
+    assert [event.actor for event in speak_events] == ["p1", "p2", "human", "p3"]
+    # p1 首位发言者 → 复用草稿（refinement_mode=False）
+    assert p1.speak_kwargs and p1.speak_kwargs[0]["refinement_mode"] is False
+    assert p1.speak_kwargs[0]["cached_speech_draft"] == "draft from p1"
+    # p2 发言前 p1 已说话 → 精炼
+    assert p2.speak_kwargs and p2.speak_kwargs[0]["refinement_mode"] is True
+    # p3 发言前 human 已说话 → 精炼
+    assert p3.speak_kwargs and p3.speak_kwargs[0]["refinement_mode"] is True
 
 
 @pytest.mark.asyncio

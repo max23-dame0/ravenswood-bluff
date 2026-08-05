@@ -100,18 +100,25 @@ class DayDiscussionHandler:
                         vs_map[player.player_id] = vs
                         lc_map[player.player_id] = lc
 
-            # Step 2: Kick off AI pre-generation BEFORE human loop
-            # Background LLM tasks run concurrently while humans speak.
+            # Step 2: Kick off AI pre-generation BEFORE the discussion loop
+            # Background LLM tasks run concurrently while players act in seat order.
+            # round_start_event_count 用于方案B：判断轮到某 AI 时本轮是否已有人发言。
             pregen_cache = SpeechPreGenCache()
+            round_start_event_count = len(self._o.event_log.events)
             if agents_map:
-                event_count = len(self._o.event_log.events)
+                event_count = round_start_event_count
                 await pregen_cache.pregenerate_batch(agents_map, vs_map, lc_map, event_count)
 
-            # Step 3: Process human players (pregen runs in background)
+            ai_player_ids = {p.player_id for p in ai_players}
+
+            # Step 3: Process all players in seat order (humans and AI interleaved).
+            # Each speaker sees the latest state including earlier speeches this round.
             for player in self._o.state.players:
                 agent = self._o.broker.agents.get(player.player_id)
                 if not agent:
                     continue
+
+                # --- Human player (real-time input) ---
                 if player.player_id in human_ids:
                     visible_state = self._o._get_agent_visible_state(player.player_id)
                     if not visible_state:
@@ -160,13 +167,13 @@ class DayDiscussionHandler:
                         target_id = action.get("target")
                         if target_id:
                             await self._o._execute_slayer_shot(player.player_id, target_id)
-
-            # Step 4: Process AI speeches sequentially
-            # Each AI sees the latest state including human speeches from this round.
-            for _idx, p in enumerate(ai_players):
-                speak_agent = self._o.broker.agents.get(p.player_id)
-                if not speak_agent:
                     continue
+
+                # --- AI player (uses pre-generated draft) ---
+                if player.player_id not in ai_player_ids:
+                    # AI player throttled out of this round (ai_message_limit)
+                    continue
+                p = player
                 visible_state = self._o._get_agent_visible_state(p.player_id)
                 if not visible_state:
                     continue
@@ -175,23 +182,36 @@ class DayDiscussionHandler:
                 # Get pre-generated LLM draft (waits for background task)
                 draft = await pregen_cache.get_or_wait(p.player_id)
 
+                # 方案B：若本轮已有人发言，则基于最新局势精炼草稿（refinement_mode=True，
+                # act() 走完整 LLM，注入草稿供修正）；若该 AI 是本轮首位发言者（无人插话），
+                # 直接复用草稿省一次 LLM（refinement_mode=False，act() 短路复用）。
+                refine_draft = bool(
+                    draft
+                    and draft.content
+                    and len(self._o.event_log.events) > round_start_event_count
+                )
+
                 try:
                     if draft and draft.content:
                         action = await self._o._timed_act(
-                            speak_agent,
+                            agent,
                             visible_state,
                             "speak",
                             legal_context=legal_context,
                             player_id=p.player_id,
                             phase="day_discussion",
                             cached_speech_draft=draft.content,
-                            refinement_mode=True,
+                            refinement_mode=refine_draft,
                         )
                         if action:
-                            action["speech_source"] = "cache_refined"
+                            action["speech_source"] = (
+                                "cache_refined"
+                                if refine_draft
+                                else "cache_finalized_draft_reuse"
+                            )
                     else:
                         action = await self._o._timed_act(
-                            speak_agent,
+                            agent,
                             visible_state,
                             "speak",
                             legal_context=legal_context,
