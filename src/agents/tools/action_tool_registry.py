@@ -172,6 +172,11 @@ class GameActionToolRegistry:
         return [cls._build_tool_def(name) for name in cls._TOOL_SCHEMAS]
 
     @classmethod
+    def known_tool_names(cls) -> set[str]:
+        """返回所有可识别的工具名集合（用于从 thinking 文本 scavenge tool call）。"""
+        return set(cls._TOOL_SCHEMAS)
+
+    @classmethod
     def tool_schema_text(cls) -> str:
         """8 个 Action 工具的一句话用途（稳定字符串，供全局静态层使用）。
 

@@ -151,25 +151,134 @@ class AIAgent(
 
     # 按 action type 的 LLM 思考/输出策略表（PLN-037 P0-4.1）
     LLM_STRATEGY_BY_ACTION: dict[str, dict[str, Any]] = {
-        "vote": {"thinking": "disabled", "reasoning_effort": None, "max_tokens": 200},
-        "night_action": {"thinking": "disabled", "reasoning_effort": None, "max_tokens": 200},
-        "nominate": {"thinking": "disabled", "reasoning_effort": None, "max_tokens": 200},
-        "nomination_intent": {"thinking": "disabled", "reasoning_effort": None, "max_tokens": 200},
-        "speak": {"thinking": "disabled", "reasoning_effort": "low", "max_tokens": 400},
-        "defense_speech": {"thinking": "disabled", "reasoning_effort": "low", "max_tokens": 400},
+        # max_tokens 需为 thinking 预留充足空间（2026-08-05 live 实测：DeepSeek thinking
+        # 长度波动大——nomination_intent reasoning 835~1200、speak 270~1000、vote 可达 800，
+        # 上限不足会 finish=length 致 content/tool_calls 全空、empty_response fallback。
+        # 再提高一档（~25% 余量）以稳定清零 fallback；实际占用以实测再收敛）。
+        "vote": {"thinking": "disabled", "reasoning_effort": None, "max_tokens": 1600},
+        "night_action": {"thinking": "disabled", "reasoning_effort": None, "max_tokens": 1400},
+        "nominate": {"thinking": "disabled", "reasoning_effort": None, "max_tokens": 1600},
+        "nomination_intent": {"thinking": "disabled", "reasoning_effort": None, "max_tokens": 2400},
+        "speak": {"thinking": "disabled", "reasoning_effort": "low", "max_tokens": 2000},
+        "defense_speech": {"thinking": "disabled", "reasoning_effort": "low", "max_tokens": 2000},
         "reflect": {"thinking": "disabled", "reasoning_effort": None, "max_tokens": 150},
         "archive": {"thinking": "disabled", "reasoning_effort": None, "max_tokens": 150},
         "claim": {"thinking": "disabled", "reasoning_effort": None, "max_tokens": 150},
-        "think": {"thinking": "disabled", "reasoning_effort": "low", "max_tokens": 200},
+        "think": {"thinking": "disabled", "reasoning_effort": "low", "max_tokens": 1000},
     }
 
-    @classmethod
-    def _llm_strategy_for_action(cls, action_type: str) -> dict[str, Any]:
-        """返回该动作对应的 LLM 策略；未知动作给保守兜底（不关思考但限 max_tokens）。"""
-        return cls.LLM_STRATEGY_BY_ACTION.get(
-            action_type,
-            {"thinking": None, "reasoning_effort": None, "max_tokens": 400},
+    # 高价值推理动作：这些动作按难度预设开启深度思考（用户决策 2026-08-05）。
+    _HIGH_VALUE_THINKING_ACTIONS = {
+        "speak",
+        "defense_speech",
+        "nominate",
+        "nomination_intent",
+        "vote",
+        "night_action",
+        "think",
+    }
+
+    def _thinking_level(self) -> str:
+        """按难度预设返回思考强度 off/medium/high；env AI_THINKING_LEVEL 可全局覆盖。"""
+        override = os.getenv("AI_THINKING_LEVEL", "").strip().lower()
+        if override in {"off", "low", "medium", "high"}:
+            return "off" if override == "low" else override
+        level_by_difficulty = {
+            "casual": "off",
+            "standard": "medium",
+            "master": "high",
+            "chaos": "high",
+        }
+        difficulty = getattr(self, "difficulty", "standard")
+        key = difficulty.value if hasattr(difficulty, "value") else str(difficulty)
+        return level_by_difficulty.get(key, "medium")
+
+    def _llm_strategy_for_action(self, action_type: str) -> dict[str, Any]:
+        """返回该动作对应的 LLM 策略；未知动作给保守兜底（不关思考但限 max_tokens）。
+
+        深度思考强度按难度预设分级（用户决策 2026-08-05）：
+        casual=off / standard=medium / master=high / chaos=high；
+        env AI_THINKING_LEVEL 可全局覆盖。reflect/archive/claim 等总结类动作保持 disabled。
+        """
+        strategy = dict(
+            self.LLM_STRATEGY_BY_ACTION.get(
+                action_type,
+                {"thinking": None, "reasoning_effort": None, "max_tokens": 400},
+            )
         )
+        if action_type in self._HIGH_VALUE_THINKING_ACTIONS:
+            level = self._thinking_level()
+            if level == "off":
+                strategy["thinking"] = "disabled"
+                strategy["reasoning_effort"] = None
+            elif level == "medium":
+                strategy["thinking"] = "enabled"
+                strategy["reasoning_effort"] = "medium"
+            else:  # high
+                strategy["thinking"] = "enabled"
+                strategy["reasoning_effort"] = "high"
+        else:
+            strategy["thinking"] = "disabled"
+            strategy["reasoning_effort"] = None
+        return strategy
+
+    def _append_player_thought_log(
+        self,
+        visible_state: AgentVisibleState,
+        action: dict[str, Any],
+        llm_thought: str,
+        decision_reasoning: str,
+        usage: dict | None,
+        action_type: str,
+    ) -> None:
+        """把一次动作的思考轨迹追加到玩家对局记录
+        `data/agents/{player_id}/games/{game_id}/thoughts.jsonl`（对局隔离）。
+
+        为未来"共享经验池"设计（2026-08-05）：每个玩家视角的思考独立落盘，
+        局后统一沉淀、新对局跨局复用，配合人格设定形成差异化的活人感。
+        仅 live 后端落盘（mock 的模式匹配无沉淀价值，避免测试/模拟污染数据目录）。
+        """
+        try:
+            from src.agents.tools.memory_tools import MemoryTools
+            from src.llm.mock_backend import MockBackend
+
+            if isinstance(self.backend, MockBackend):
+                return
+
+            game_id = self.game_id or getattr(visible_state, "game_id", None)
+            base = MemoryTools.game_dir(self.player_id, game_id)
+            entry = {
+                "ts": time.time(),
+                "phase": str(visible_state.phase),
+                "round_number": visible_state.round_number,
+                "day_number": getattr(visible_state, "day_number", None),
+                "action_type": action_type,
+                "action": action,
+                "llm_thought": llm_thought,
+                "decision_reasoning": decision_reasoning,
+                "usage": usage or {},
+            }
+            with open(base / "thoughts.jsonl", "a", encoding="utf-8") as f:
+                f.write(json.dumps(entry, ensure_ascii=False) + "\n")
+        except Exception as exc:
+            logger.warning("[%s] 思考记录落盘失败: %s", self.name, exc)
+
+    def _extract_decision_from_reasoning(self, reasoning: str) -> str:
+        """DeepSeek thinking 末尾可能写出决策 JSON；content 为空时从中恢复（2026-08-05）。
+
+        复用 OpenAIBackend._extract_json_objects 扫描文本中的 JSON 对象，
+        只返回含 action 键的决策对象 JSON 文本。
+        """
+        if not reasoning:
+            return ""
+        try:
+            from src.llm.openai_backend import OpenAIBackend
+        except ImportError:  # pragma: no cover - 防御性
+            return ""
+        for obj in OpenAIBackend._extract_json_objects(reasoning):
+            if isinstance(obj, dict) and "action" in obj:
+                return json.dumps(obj, ensure_ascii=False)
+        return ""
 
     def _action_timeout_seconds(self, action_type: str = "") -> float:
         env_override = os.getenv("AI_ACTION_TIMEOUT_SECONDS")
@@ -482,9 +591,15 @@ class AIAgent(
                     "reasoning": f"我是猎手，当前对 {target_name} 的恶魔怀疑度极高（{suspicion:.2f}），决定白天主动开枪。",
                 }
 
-        # PLN-037 P0-4.3: 有效草稿直接复用，跳过第二次 LLM（speak 输出减半）
+        # PLN-037 P0-4.3 + 方案B：有效草稿直接复用，跳过第二次 LLM（speak 输出减半）。
+        # 仅当 refinement_mode=False（该 AI 是本轮首位发言者，无人插话）才直接复用；
+        # refinement_mode=True（本轮已有人发言）时走下方完整 LLM，基于最新局势精炼草稿。
         cached_speech_draft = str(kwargs.get("cached_speech_draft") or "").strip()
-        if cached_speech_draft and action_type in {"speak", "defense_speech"}:
+        if (
+            cached_speech_draft
+            and action_type in {"speak", "defense_speech"}
+            and not refinement_mode
+        ):
             content = self._sanitize_public_speech_content(cached_speech_draft, visible_state)
             self._record_action_metric(
                 visible_state,
@@ -674,6 +789,15 @@ class AIAgent(
                     visible_state, legal_context, action_type, tool_decision
                 )
                 fallback_reason = self._pending_fallback_reason
+                # per-player 思考记录（工具调用路径同样记录 reasoning + 决策，2026-08-05）
+                self._append_player_thought_log(
+                    visible_state,
+                    decision,
+                    str(getattr(response, "reasoning_content", "") or "").strip(),
+                    decision.get("reasoning", ""),
+                    response.usage,
+                    action_type,
+                )
                 self._record_action_metric(
                     visible_state,
                     action_type,
@@ -688,21 +812,31 @@ class AIAgent(
                     tool_used=True,
                 )
                 return decision
-            # JSON fallback
+            # JSON fallback；content 为空时尝试从 reasoning_content（DeepSeek thinking）恢复决策 JSON
             response_text = response.content or ""
+            if not str(response_text).strip():
+                response_text = self._extract_decision_from_reasoning(
+                    str(getattr(response, "reasoning_content", "") or "")
+                )
             decision = self._parse_llm_decision_json(response_text)
             decision = self._normalize_decision(visible_state, legal_context, action_type, decision)
             fallback_reason = self._pending_fallback_reason
 
-            # 记录到数据仓库 (Task C)
+            # 思考轨迹：data_collector（全局） + per-player 对局落盘（独立于 data_collector）
+            llm_thought = str(getattr(response, "reasoning_content", "") or "").strip()
+            thought = decision.get("reasoning", "")
             if self.data_collector:
-                thought = decision.get("reasoning", "")
+                combined_thought = (
+                    f"[深度思考]\n{llm_thought}\n[决策推理]\n{thought}"
+                    if llm_thought
+                    else thought
+                )
                 self.data_collector.record_thought_trace(
                     player_id=self.player_id,
                     role_id=self.role_id,
                     phase=str(visible_state.phase),
                     round_number=visible_state.round_number,
-                    thought=thought,
+                    thought=combined_thought,
                     action=decision,
                     context={
                         "retrieved_text_len": len(retrieved_text)
@@ -711,6 +845,14 @@ class AIAgent(
                     },
                     usage=response.usage,
                 )
+            self._append_player_thought_log(
+                visible_state,
+                decision,
+                llm_thought,
+                thought,
+                response.usage,
+                action_type,
+            )
 
             if "reasoning" in decision:
                 logger.info(f"[{self.name}] 内部思考: {decision['reasoning']}")

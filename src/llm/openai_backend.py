@@ -228,6 +228,28 @@ class OpenAIBackend(LLMBackend):
                     )
                 )
 
+        # Scavenge 兜底（2026-08-05）：DeepSeek 开启 thinking 后偶发把 tool call JSON
+        # 写进 reasoning_content/thinking 块或 content 文本而非标准 tool_calls 字段，
+        # 标准字段为空时尝试从文本中正则恢复（社区已知适配问题）。
+        if not tool_calls:
+            scavenge_text = str(getattr(message, "reasoning_content", "") or "")
+            if not scavenge_text:
+                scavenge_text = str(content or "")
+            if scavenge_text:
+                try:
+                    from src.agents.tools.action_tool_registry import GameActionToolRegistry
+                except ImportError:  # pragma: no cover - 防御性
+                    GameActionToolRegistry = None  # type: ignore[assignment]
+                if GameActionToolRegistry is not None:
+                    scavenged = self._scavenge_tool_calls_from_text(
+                        scavenge_text, GameActionToolRegistry.known_tool_names()
+                    )
+                    if scavenged:
+                        tool_calls = scavenged
+                        logger.info(
+                            "[Scavenge] 从 thinking/content 文本恢复 %d 个 tool call", len(scavenged)
+                        )
+
         usage = {
             "prompt_tokens": response.usage.prompt_tokens if response.usage else 0,
             "completion_tokens": response.usage.completion_tokens if response.usage else 0,
@@ -253,15 +275,98 @@ class OpenAIBackend(LLMBackend):
             diagnostics=diagnostic_fields,
         )
 
+        reasoning_content = str(getattr(message, "reasoning_content", "") or "").strip()
         return LLMResponse(
             content=content,
             tool_calls=tool_calls,
             model=response.model,
             usage=usage,
+            reasoning_content=reasoning_content,
         )
 
     def get_model_name(self) -> str:
         return self._model
+
+    @staticmethod
+    def _extract_json_objects(text: str) -> list[Any]:
+        """用平衡括号扫描提取文本中的顶层 JSON 对象（跳过字符串内的括号/转义）。"""
+        results: list[Any] = []
+        stack: list[str] = []
+        start: int | None = None
+        in_str = False
+        escape = False
+        for i, ch in enumerate(text):
+            if in_str:
+                if escape:
+                    escape = False
+                elif ch == "\\":
+                    escape = True
+                elif ch == '"':
+                    in_str = False
+                continue
+            if ch == '"':
+                in_str = True
+            elif ch == "{":
+                if not stack:
+                    start = i
+                stack.append(ch)
+            elif ch == "}":
+                if stack:
+                    stack.pop()
+                    if not stack and start is not None:
+                        candidate = text[start : i + 1]
+                        try:
+                            results.append(json.loads(candidate))
+                        except (json.JSONDecodeError, ValueError):
+                            pass
+                        start = None
+        return results
+
+    @staticmethod
+    def _scavenge_tool_calls_from_text(
+        text: str, known_names: set[str]
+    ) -> list[ToolCall]:
+        """从 thinking/content 文本中恢复被写成 JSON 的 tool call。
+
+        支持两种形态：
+        - 标准：{"id": "...", "function": {"name": "speak", "arguments": "{...}"}}
+        - 简化：{"name": "speak", "arguments": {"content": "..."}}
+        arguments 既可能是字符串（再 json.loads）也可能是对象。
+        """
+        tool_calls: list[ToolCall] = []
+        if not text:
+            return tool_calls
+        for candidate in OpenAIBackend._extract_json_objects(text):
+            if not isinstance(candidate, dict):
+                continue
+            name: Any = None
+            arguments: Any = None
+            func = candidate.get("function")
+            if isinstance(func, dict):
+                name = func.get("name")
+                arguments = func.get("arguments")
+            else:
+                name = candidate.get("name")
+                arguments = candidate.get("arguments")
+            if not isinstance(name, str) or name not in known_names:
+                continue
+            if isinstance(arguments, str):
+                try:
+                    arguments = json.loads(arguments)
+                except (json.JSONDecodeError, ValueError):
+                    arguments = {"raw": arguments}
+            if not isinstance(arguments, dict):
+                continue
+            tool_calls.append(
+                ToolCall(
+                    tool_call_id=str(
+                        candidate.get("id") or candidate.get("tool_call_id") or "scavenged"
+                    ),
+                    function_name=name,
+                    arguments=arguments,
+                )
+            )
+        return tool_calls
 
     @staticmethod
     def _is_embedding_unsupported_error(error: Exception) -> bool:

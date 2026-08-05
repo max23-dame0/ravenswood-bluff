@@ -44,6 +44,7 @@ class LLMResponse(BaseModel):
     tool_calls: list[ToolCall] = Field(default_factory=list)
     model: str = ""
     usage: dict = Field(default_factory=dict)  # token 用量
+    reasoning_content: str = ""  # 深度思考内容（DeepSeek reasoning_content，完整不截断）
 
 
 class LLMBackend(ABC):
