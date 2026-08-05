@@ -805,6 +805,8 @@
             <button id="slayerBtn" onclick="slayerShot()" style="background: var(--error); color: white; display: none;">Slayer Shot</button>
             <button id="submitBtn" onclick="sendAction()" disabled>Submit Action</button>
             <button id="chatBtn" onclick="sendQuickChat()" style="background: var(--surface); color: var(--secondary);">Chat</button>
+            <button id="rematchBtn" onclick="requestRematch()" style="background: linear-gradient(135deg, var(--primary), #9b59b6); color: #fff; font-weight: 700; display: none;">🔄 再来一局</button>
+            <button id="historyFromGameOverBtn" onclick="openHistoryFromSettlement()" style="background: var(--surface); color: #ffcc66; display: none;">📚 历史对局</button>
         </div>
     </div>
 
@@ -1514,6 +1516,19 @@
             closeSettlementOverlay(false);
             toggleHistoryOverlay(false);
             settlementShownFor = null;
+            // 恢复操作面板：上一局 game_over 时隐藏了正常输入控件并显示"再来一局"等按钮
+            const actionInputEl = document.getElementById('actionInput');
+            if (actionInputEl) actionInputEl.style.display = 'block';
+            const toneSelectEl = document.getElementById('toneSelect');
+            if (toneSelectEl) toneSelectEl.style.display = 'block';
+            const submitBtnEl = document.getElementById('submitBtn');
+            if (submitBtnEl) submitBtnEl.style.display = 'block';
+            const chatBtnEl = document.getElementById('chatBtn');
+            if (chatBtnEl) chatBtnEl.style.display = 'block';
+            const rematchBtnEl = document.getElementById('rematchBtn');
+            if (rematchBtnEl) rematchBtnEl.style.display = 'none';
+            const historyFromGameOverBtnEl = document.getElementById('historyFromGameOverBtn');
+            if (historyFromGameOverBtnEl) historyFromGameOverBtnEl.style.display = 'none';
         }
 
         function resetSetupOverlay() {
@@ -2041,6 +2056,20 @@
                 const canUseEvilChat = ['first_night', 'night', 'day_discussion'].includes(gameState.phase);
                 evilChatLabel.style.display = (isEvil && canUseEvilChat) ? 'flex' : 'none';
             }
+
+            // 游戏结束：操作面板切换为"再来一局 / 历史对局"，隐藏正常输入控件。
+            // 恢复动作在 clearSessionArtifacts（新局开始）执行，避免干扰运行中的 action UI。
+            const isGameOver = gameState.phase === 'game_over';
+            const rematchBtn = document.getElementById('rematchBtn');
+            const historyFromGameOverBtn = document.getElementById('historyFromGameOverBtn');
+            if (rematchBtn) rematchBtn.style.display = isGameOver ? 'block' : 'none';
+            if (historyFromGameOverBtn) historyFromGameOverBtn.style.display = isGameOver ? 'block' : 'none';
+            if (isGameOver) {
+                ['actionInput', 'toneSelect', 'submitBtn', 'chatBtn', 'skipBtn', 'slayerBtn', 'voteSelect', 'evilChatToggleLabel', 'action-target-container'].forEach(id => {
+                    const el = document.getElementById(id);
+                    if (el) el.style.display = 'none';
+                });
+            }
         }
 
         async function fetchGameState() {
@@ -2119,6 +2148,39 @@
             return `${gameKey}:${gameState.day_number}:${round}`;
         }
 
+        // 兜底清洗：LLM 偶发返回的 JSON/markdown 包裹内容，只提取纯文本（修复 2026-08-05）
+        function extractPlainMessage(content) {
+            if (typeof content !== 'string') content = String(content || '');
+            let text = content.trim();
+            if (!text) return text;
+            const fence = text.match(/```(?:json|text)?\s*([\s\S]*?)```/);
+            if (fence) text = fence[1].trim();
+            const stripped = text.trim();
+            if (stripped.startsWith('{') || stripped.startsWith('[')) {
+                try {
+                    const parsed = JSON.parse(stripped);
+                    if (Array.isArray(parsed) && parsed.length) {
+                        const first = parsed[0];
+                        if (typeof first === 'object' && first !== null) {
+                            for (const k of ['content', 'message', 'text']) {
+                                if (typeof first[k] === 'string' && first[k].trim()) return first[k].trim();
+                            }
+                        } else if (typeof first === 'string' && first.trim()) {
+                            return first.trim();
+                        }
+                    } else if (typeof parsed === 'object' && parsed !== null) {
+                        for (const k of ['content', 'message', 'text', 'text_content']) {
+                            if (typeof parsed[k] === 'string' && parsed[k].trim()) return parsed[k].trim();
+                        }
+                        for (const v of Object.values(parsed)) {
+                            if (typeof v === 'string' && v.trim()) return v.trim();
+                        }
+                    }
+                } catch (e) { /* 非 JSON，保持原文 */ }
+            }
+            return text;
+        }
+
         function handleEventUpdate(e, isRecovery = false) {
             if (e?.game_id && currentGameId && e.game_id !== currentGameId) {
                 return;
@@ -2128,7 +2190,7 @@
             }
             if (e.event_type === 'player_speaks') {
                 let prefix = e.payload.is_private ? `<span style="color:var(--error)">${t('evil_chat')}</span> ` : '';
-                logMessage(prefix + e.payload.content, e.actor === currentUserId ? 'self' : 'player', playerName(e.actor));
+                logMessage(prefix + extractPlainMessage(e.payload.content), e.actor === currentUserId ? 'self' : 'player', playerName(e.actor));
             } else if (e.event_type === 'phase_changed') {
                 const phaseName = t(`phase_${e.phase}`);
                 const dayText = t('day_prefix', { n: e.payload.day_number || gameState.day_number });
