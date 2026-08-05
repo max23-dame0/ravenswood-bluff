@@ -142,22 +142,62 @@ def test_global_static_layer_is_pure_static_and_shared_across_agents():
 # ---------------------------------------------------------------------------
 
 
-def test_llm_strategy_table_disables_thinking_for_simple_actions():
-    assert AIAgent._llm_strategy_for_action("vote")["thinking"] == "disabled"
-    assert AIAgent._llm_strategy_for_action("night_action")["thinking"] == "disabled"
-    assert AIAgent._llm_strategy_for_action("nominate")["thinking"] == "disabled"
+def _make_strategy_agent(difficulty: str = "standard") -> AIAgent:
+    return AIAgent(
+        player_id="p1",
+        name="Alice",
+        backend=CapturingBackend(),
+        persona=Persona(description="谨慎", speaking_style="平稳"),
+        difficulty=difficulty,
+    )
 
 
-def test_llm_strategy_table_speaks_use_low_effort():
-    strategy = AIAgent._llm_strategy_for_action("speak")
-    assert strategy["reasoning_effort"] == "low"
+def test_llm_strategy_table_thinking_levels_by_difficulty(monkeypatch: pytest.MonkeyPatch):
+    # 用户决策 2026-08-05：casual=off / standard=medium / master=high / chaos=high
+    monkeypatch.delenv("AI_THINKING_LEVEL", raising=False)
+    casual = _make_strategy_agent("casual")
+    assert casual._llm_strategy_for_action("vote")["thinking"] == "disabled"
+    assert casual._llm_strategy_for_action("night_action")["thinking"] == "disabled"
+    assert casual._llm_strategy_for_action("nominate")["thinking"] == "disabled"
+
+    standard = _make_strategy_agent("standard")
+    assert standard._llm_strategy_for_action("vote")["thinking"] == "enabled"
+    assert standard._llm_strategy_for_action("vote")["reasoning_effort"] == "medium"
+    assert standard._llm_strategy_for_action("night_action")["thinking"] == "enabled"
+    assert standard._llm_strategy_for_action("nominate")["reasoning_effort"] == "medium"
+
+    master = _make_strategy_agent("master")
+    assert master._llm_strategy_for_action("vote")["thinking"] == "enabled"
+    assert master._llm_strategy_for_action("vote")["reasoning_effort"] == "high"
+
+
+def test_llm_strategy_table_speaks_use_difficulty_effort(monkeypatch: pytest.MonkeyPatch):
+    monkeypatch.delenv("AI_THINKING_LEVEL", raising=False)
+    strategy = _make_strategy_agent("standard")._llm_strategy_for_action("speak")
+    assert strategy["thinking"] == "enabled"
+    assert strategy["reasoning_effort"] == "medium"
+    # 2026-08-05 调大：为 thinking 预留空间（DeepSeek reasoning 波动可达 1000+），避免 finish=length 无输出
+    assert strategy["max_tokens"] == 2000
+
+
+def test_llm_strategy_table_unknown_action_falls_back(monkeypatch: pytest.MonkeyPatch):
+    monkeypatch.delenv("AI_THINKING_LEVEL", raising=False)
+    strategy = _make_strategy_agent()._llm_strategy_for_action("unknown_action")
+    assert strategy["thinking"] == "disabled"
+    assert strategy["reasoning_effort"] is None
     assert strategy["max_tokens"] == 400
 
 
-def test_llm_strategy_table_unknown_action_falls_back():
-    strategy = AIAgent._llm_strategy_for_action("unknown_action")
-    assert strategy["thinking"] is None
-    assert strategy["max_tokens"] == 400
+def test_llm_strategy_table_env_override_forces_level(monkeypatch: pytest.MonkeyPatch):
+    # AI_THINKING_LEVEL 环境变量可全局覆盖难度默认值
+    monkeypatch.setenv("AI_THINKING_LEVEL", "high")
+    casual = _make_strategy_agent("casual")
+    assert casual._llm_strategy_for_action("vote")["thinking"] == "enabled"
+    assert casual._llm_strategy_for_action("vote")["reasoning_effort"] == "high"
+
+    monkeypatch.setenv("AI_THINKING_LEVEL", "off")
+    master = _make_strategy_agent("master")
+    assert master._llm_strategy_for_action("vote")["thinking"] == "disabled"
 
 
 # ---------------------------------------------------------------------------

@@ -115,3 +115,49 @@ def test_get_embedding_status_reports_disable_state() -> None:
     assert status["model"] == "Pro/BAAI/bge-m3"
     assert status["base_url"] == "https://api.siliconflow.cn/v1"
     assert status["disabled_reason"] == "404"
+
+
+# ---------------------------------------------------------------------------
+# Scavenge：从 thinking/content 文本恢复 tool call（DeepSeek thinking 兼容）
+# ---------------------------------------------------------------------------
+
+
+def test_scavenge_standard_tool_call_format() -> None:
+    text = (
+        '{"id": "call_1", "type": "function", "function": '
+        '{"name": "speak", "arguments": "{\\"content\\": \\"你好\\", \\"tone\\": \\"calm\\"}"}}'
+    )
+    calls = OpenAIBackend._scavenge_tool_calls_from_text(text, {"speak", "vote"})
+    assert len(calls) == 1
+    assert calls[0].function_name == "speak"
+    assert calls[0].arguments == {"content": "你好", "tone": "calm"}
+
+
+def test_scavenge_simplified_format_and_filters_unknown_tools() -> None:
+    text = (
+        '我想了想：{"name": "vote", "arguments": {"decision": true}} '
+        '但也考虑过 {"name": "unknown_tool", "arguments": {}}'
+    )
+    calls = OpenAIBackend._scavenge_tool_calls_from_text(text, {"speak", "vote"})
+    assert len(calls) == 1
+    assert calls[0].function_name == "vote"
+    assert calls[0].arguments == {"decision": True}
+
+
+def test_scavenge_accepts_dict_arguments() -> None:
+    text = '{"name": "nominate", "arguments": {"action": "nominate", "target": "p3"}}'
+    calls = OpenAIBackend._scavenge_tool_calls_from_text(text, {"nominate"})
+    assert len(calls) == 1
+    assert calls[0].function_name == "nominate"
+    assert calls[0].arguments == {"action": "nominate", "target": "p3"}
+
+
+def test_scavenge_no_match_returns_empty() -> None:
+    assert OpenAIBackend._scavenge_tool_calls_from_text("没有工具调用", {"speak"}) == []
+
+
+def test_extract_json_objects_ignores_brackets_inside_strings() -> None:
+    text = '他说了"你好 {"fake": 1}" 然后 {"name": "speak", "arguments": {"content": "x"}}'
+    objs = OpenAIBackend._extract_json_objects(text)
+    assert len(objs) == 1
+    assert objs[0]["name"] == "speak"
