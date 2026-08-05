@@ -31,7 +31,12 @@ class DecisionEngine:
     #  SCORING
     # ==================================================================
 
-    def target_signal_score(self, target_id: str, visible_state: AgentVisibleState) -> float:
+    def target_signal_score(
+        self,
+        target_id: str,
+        visible_state: AgentVisibleState,
+        mention_boost: bool = False,
+    ) -> float:
         agent = self._agent
         if not target_id or target_id == agent.player_id:
             return 0.0
@@ -45,7 +50,12 @@ class DecisionEngine:
         intel = agent.difficulty_preset.nomination_intelligence
         texts = agent._recent_context_texts(visible_state)
         mention_hits = agent._count_mentions(texts, target.name)
-        score = 0.16 + min(0.24, mention_hits * 0.06)
+        # 修复（2026-08-05）：仅提名路径开启早期信号敏感度提升（mention_boost=True），
+        # 投票/其他决策保持原始权重，避免 suspicion 虚高导致全员投 yes。
+        if mention_boost:
+            score = 0.16 + min(0.30, mention_hits * 0.08)
+        else:
+            score = 0.16 + min(0.24, mention_hits * 0.06)
 
         if target_id in visible_state.nominees_today:
             score += 0.12
@@ -299,12 +309,18 @@ class DecisionEngine:
         nominees_so_far = len(getattr(visible_state, "nominees_today", ()) or ())
         if nominees_so_far < patience and not intent_mode:
             # Quick scan: only bypass patience if there's a strong signal
-            quick_scores = [self.target_signal_score(tid, visible_state) for tid in legal_targets]
+            quick_scores = [
+                self.target_signal_score(tid, visible_state, mention_boost=True)
+                for tid in legal_targets
+            ]
             if not quick_scores or max(quick_scores) < 0.60:
                 return None
 
         noise_key = f"nom_target_day{getattr(visible_state, 'day_number', 1)}_round{getattr(visible_state, 'round_number', 1)}"
-        base_scores = {tid: self.target_signal_score(tid, visible_state) for tid in legal_targets}
+        base_scores = {
+            tid: self.target_signal_score(tid, visible_state, mention_boost=True)
+            for tid in legal_targets
+        }
         noisy_scores = {
             tid: score + agent.decision_noise.threshold_noise(f"{noise_key}_{tid}")
             for tid, score in base_scores.items()
@@ -345,7 +361,7 @@ class DecisionEngine:
         if not legal_targets:
             return [], 0.0
         scored_targets = [
-            (self.target_signal_score(target_id, visible_state), target_id)
+            (self.target_signal_score(target_id, visible_state, mention_boost=True), target_id)
             for target_id in legal_targets
         ]
         best_score = max(score for score, _ in scored_targets)
@@ -850,6 +866,25 @@ class DecisionEngine:
         if action_type in {"nominate", "nomination_intent"}:
             target = decision.get("target")
             if decision.get("action") == "none" or str(target).lower() == "none":
+                # 修复（2026-08-05）：LLM 过于保守而放弃提名时，若场上存在已达意图阈值的
+                # 强信号目标，主动推动提名，避免整场无人提名。
+                strong = agent._select_nomination_target(
+                    visible_state, legal_context, intent_mode=(action_type == "nomination_intent")
+                )
+                if strong:
+                    strong_target, strong_score, strong_threshold = strong
+                    return {
+                        "action": "nominate",
+                        "target": strong_target,
+                        "reasoning": agent._augment_reasoning_with_evidence(
+                            f"LLM 倾向观望，但 {agent._player_name_from_visible_state(strong_target, visible_state)} 的怀疑信号已达意图阈值，主动推动提名。({reasoning or 'llm_none_strong_signal'})",
+                            action_type=action_type,
+                            target_id=strong_target,
+                            visible_state=visible_state,
+                            suspicion=strong_score,
+                            threshold=strong_threshold,
+                        ),
+                    }
                 return {"action": "none", "target": None, "reasoning": reasoning or "放弃提名。"}
 
             legal_targets = list(legal_context.legal_nomination_targets)

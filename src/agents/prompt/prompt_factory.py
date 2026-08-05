@@ -102,8 +102,8 @@ class PromptFactory:
         agent = self._agent
         action_hints = {
             "speak": "口语化发言，直接表达观点或质疑。",
-            "nominate": '你的任务是决定是否提名。如果不确定或不想提名，请果断输出 {"action": "none"} 放弃提名，不要勉强。',
-            "nomination_intent": "你的任务是先判断是否提名。不要像规则机器，先想清楚再说。不确信可直接不提名。",
+            "nominate": '你的任务是决定是否提名。只要有合理怀疑的对象，就应主动推动提名；只有毫无依据时才果断放弃 ({"action": "none"})。',
+            "nomination_intent": "你的任务是判断是否提名。结合白天讨论积累的疑点做决定：有合理怀疑（被多人质疑、行为反常、前后矛盾、或你掌握负面线索）就主动提名，不要因信息有限而一味观望。",
             "vote": "你的任务是投票。请从性格角度出发，不一定要投给可疑分最高的人；不要像算分机器一样刻板。",
             "defense_speech": "你是被提名者。请像真人一样辩解，语气要贴合你的性格。",
             "night_action": "你在夜晚执行角色能力。请选择符合角色和局势的目标，语气保持自然。",
@@ -131,12 +131,21 @@ class PromptFactory:
         if action_type in {"nominate", "nomination_intent"}:
             legal_targets = list(legal_context.legal_nomination_targets)
             if legal_targets:
-                threshold = agent._nomination_threshold(visible_state)
-                base = (
-                    f"你可以合法提名的目标只有这些：{', '.join(legal_targets)}。"
-                    f"只有当怀疑度明显高于 {threshold:.2f} 时才提名；"
-                    "如果没有足够理由，请返回 action=none。"
-                )
+                day = getattr(visible_state, "day_number", 1)
+                if day >= 2:
+                    base = (
+                        f"你可以合法提名的目标只有这些：{', '.join(legal_targets)}。"
+                        "白天讨论已进行到第 "
+                        f"{day} 天，场上应该已经积累了一些疑点。"
+                        "只要有合理怀疑（某人被多人质疑、行为反常、前后矛盾、或你掌握负面线索），"
+                        "就应该主动推动提名，不要一直观望；只有确实毫无头绪时才返回 action=none。"
+                    )
+                else:
+                    base = (
+                        f"你可以合法提名的目标只有这些：{', '.join(legal_targets)}。"
+                        "第一天信息有限，可以适当观望；但如果某人已被明显怀疑，也应果断提名。"
+                        "只有没有任何可疑对象时才返回 action=none。"
+                    )
                 if agent._can_attempt_slayer_shot(visible_state, legal_context, action_type):
                     base += " 如果你是猎手且已经对某人形成极强恶魔判断，也可以改为返回 action=slayer_shot 并指定 target。"
                 return f"{base}\n{memory_brief}" if memory_brief else base
