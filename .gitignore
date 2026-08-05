@@ -34,6 +34,9 @@ Thumbs.db
 *.out
 logs/
 
+# Temporary work（临时脚本/产物，见项目约定 2026-08-04）
+tmp_work/
+
 # Test
 .pytest_cache/
 htmlcov/
