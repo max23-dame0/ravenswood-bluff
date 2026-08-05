@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import json
+import re
 from typing import TYPE_CHECKING, Any
 
 from src.content.trouble_brewing_terms import get_role_name
@@ -19,6 +21,46 @@ class EvilStrategy:
 
     def __init__(self, agent: AIAgent) -> None:
         self._agent = agent
+
+    @staticmethod
+    def _extract_plain_message(content: str) -> str:
+        """把 LLM 偶发返回的 JSON / markdown 代码块包裹清洗为纯文本对话消息。
+
+        修复（2026-08-05）：协调消息此前直接把 response.content 透传，
+        DeepSeek 偶发返回 JSON 包裹导致邪恶频道显示 JSON 原文。
+        """
+        text = (content or "").strip()
+        if not text:
+            return text
+        # 1. 剥掉 markdown 代码块 ```...``` / ```json ...```
+        fence = re.search(r"```(?:json|text)?\s*(.*?)```", text, re.S)
+        if fence:
+            text = fence.group(1).strip()
+        # 2. 整体是 JSON 对象/数组 → 提取 content / message / text 字段
+        stripped = text.strip()
+        if stripped.startswith(("{", "[")):
+            try:
+                parsed = json.loads(stripped)
+            except (json.JSONDecodeError, ValueError):
+                parsed = None
+            if isinstance(parsed, dict):
+                for key in ("content", "message", "text", "text_content"):
+                    value = parsed.get(key)
+                    if isinstance(value, str) and value.strip():
+                        return value.strip()
+                for value in parsed.values():
+                    if isinstance(value, str) and value.strip():
+                        return value.strip()
+            elif isinstance(parsed, list) and parsed:
+                first = parsed[0]
+                if isinstance(first, dict):
+                    for key in ("content", "message", "text"):
+                        value = first.get(key)
+                        if isinstance(value, str) and value.strip():
+                            return value.strip()
+                elif isinstance(first, str) and first.strip():
+                    return first.strip()
+        return text
 
     # ------------------------------------------------------------------
     # Strategic summary for evil team decision-making
@@ -250,7 +292,7 @@ class EvilStrategy:
                 max_tokens=150,
                 thinking="disabled",
             )
-            content = (response.content or "").strip()
+            content = self._extract_plain_message(response.content)
             if content:
                 return content
         except Exception:
@@ -402,7 +444,7 @@ class EvilStrategy:
                 max_tokens=200,
                 thinking="disabled",
             )
-            content = (response.content or "").strip()
+            content = self._extract_plain_message(response.content)
             if content:
                 return content
         except Exception:
