@@ -1282,6 +1282,8 @@ async def test_ai_agent_nomination_intent_can_proactively_nominate():
         persona=Persona(description="强势带节奏者", speaking_style="直接、喜欢推动局面"),
     )
     state = GameState(
+        # 固定 game_id：DecisionNoise 种子依赖 game_id，不固定则提名阈值判定随机（MEMORY 已知约定）
+        game_id="test-proactive-nominate",
         phase=GamePhase.NOMINATION,
         round_number=2,
         day_number=2,
@@ -1322,6 +1324,7 @@ async def test_ai_agent_nomination_intent_can_proactively_nominate():
         nominees_today=(),
     )
 
+    agent.set_game_context("test-proactive-nominate")
     visible_state, legal_context = _agent_ctx(agent, state)
     decision = await agent.act(visible_state, "nomination_intent", legal_context=legal_context)
     assert decision["action"] == "none"

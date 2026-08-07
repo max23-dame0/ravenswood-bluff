@@ -1233,15 +1233,25 @@ class DecisionEngine:
         if evil_coordination:
             content = evil_coordination
         elif stable_line:
-            content = (
-                f"我先说我更信哪条线：{stable_line}。公开场上的说法我会参考，但不会放在这之上。"
+            # stable_line 已是完整可发言句子（paraphrase 后），直接引用，
+            # 不再包一层"我有信息"外壳（避免句子重复/不通顺）
+            content = agent._stable_choice(
+                [
+                    f"{stable_line}，其他说法我再掂量掂量。",
+                    f"这么说吧，{stable_line}。",
+                    f"{stable_line}，大家可以参考着盘。",
+                ],
+                visible_state.round_number,
+                visible_state.day_number,
+                action_type,
+                "speech",
             )
         else:
             content = agent._stable_choice(
                 [
-                    "我先听大家说完，再决定要不要站队。",
-                    "我还在观察局势，暂时不想把话说死。",
-                    "先别急着下结论，我想再听听更多细节。",
+                    "我先听听大家怎么说，再决定要不要表态。",
+                    "现在信息还不多，我想再看看再说。",
+                    "先不急着下结论，多听两句更稳。",
                 ],
                 visible_state.round_number,
                 visible_state.day_number,
