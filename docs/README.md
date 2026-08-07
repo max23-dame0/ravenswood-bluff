@@ -146,6 +146,7 @@ docs/
 | RPT-012 | [对局分析目录](reviews/game-analysis/README.md) | [Delta] | 2026-06-01 | `docs/reviews/game-analysis/README.md` |
 | RPT-013 | [Alpha 1.2 Agent 原生重构 live 对局验收证据（真实 LLM）](alpha-1.2-evidence/live-agent-native-verification-2026-08-04.md) | [Delta] | 2026-08-04 | `docs/alpha-1.2-evidence/live-agent-native-verification-2026-08-04.md` |
 | RPT-014 | [PLN-039 第二轮缓存优化 live 8 人局实测报告](alpha-1.2-evidence/pln039-live-8p-cache-verification-2026-08-04.md) | [Delta] | 2026-08-04 | `docs/alpha-1.2-evidence/pln039-live-8p-cache-verification-2026-08-04.md` |
+| RPT-015 | [PLN-040 T3 tendency 标定实验结果](alpha-1.2-evidence/pln040-t3-tendency-calibration-2026-08-07.md) | [Delta] | 2026-08-07 | `docs/alpha-1.2-evidence/pln040-t3-tendency-calibration-2026-08-07.md` |
 
 ### 参考 / 指南（Cold）
 
