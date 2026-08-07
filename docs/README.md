@@ -124,7 +124,8 @@ docs/
 | REL-004 | [Alpha 1.0 Release Checklist](releases/alpha-1.0-release-checklist.md) | [Delta] | 2026-04-29 | `docs/releases/alpha-1.0-release-checklist.md` |
 | REL-005 | [Wave 4 Release Checklist](plans/alpha-0.2-plan/wave-4-release-checklist.md) | [Delta] | 2026-04-21 | `docs/plans/alpha-0.2-plan/wave-4-release-checklist.md` |
 | REL-006 | [M6 任务板：发布工程与内测包](plans/alpha-1.0-plan/task_m6_release_package.md) | [Delta] | 2026-04-29 | `docs/plans/alpha-1.0-plan/task_m6_release_package.md` |
-| REL-007 | [Alpha 1.2 Agent 原生重构版发布记录](releases/alpha-1.2-agent-native-release.md) | [Delta] | 2026-08-04 | `docs/releases/alpha-1.2-agent-native-release.md` |
+| REL-007 | [Alpha 1.2「觉醒之鸦」Agent 原生重构版发布记录](releases/alpha-1.2-agent-native-release.md) | [Delta] | 2026-08-04 | `docs/releases/alpha-1.2-agent-native-release.md` |
+| REL-009 | [Alpha 1.2「觉醒之鸦」Release Checklist](releases/alpha-1.2-release-checklist.md) | [Delta] | 2026-08-07 | `docs/releases/alpha-1.2-release-checklist.md` |
 
 ### 报告 / 分析（Delta）
 

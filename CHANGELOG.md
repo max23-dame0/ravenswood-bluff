@@ -1,8 +1,8 @@
 # Changelog
 
-## [alpha1.2-agent-native] - 2026-08-04
+## [alpha1.2-awakening] - 2026-08-07
 
-Alpha 1.2（Agent 原生重构版）将 AI 玩家从"集中式调度 + 单次无状态 LLM 调用"演进为受控自主 Agent，同时落地跨局玩家进化机制与 token 控制目标。
+Alpha 1.2「觉醒之鸦」（Agent 原生重构版）将 AI 玩家从"集中式调度 + 单次无状态 LLM 调用"演进为受控自主 Agent，同时落地跨局玩家进化机制与 token 控制目标。
 
 ### 新增与强化
 
@@ -11,27 +11,37 @@ Alpha 1.2（Agent 原生重构版）将 AI 玩家从"集中式调度 + 单次无
 - **策略先行 loop（阶段B）**：`MemoryController.think` 升级为低预算 LLM 内心独白；`AIAgent.act_with_strategy()` 策略入口；`cached_speech_draft` 草稿直接复用（有草稿时 0 次 LLM，输出减半）。
 - **记忆工具化（阶段C）**：`MemoryTools` append/read/reflect/archive，附隔离校验与落盘。
 - **说书人工具注册表（阶段S）**：6 工具 + `DistortionStrategy` 枚举化（值兼容旧字符串）+ `BOTC_ST_LLM_STRATEGY=off|low|on` 默认 off（行为与重构前一致）+ `review_balance` 落盘 `data/storyteller/{game_id}/`。
-- **LLM 策略表 + token 控制（PLN-037）**：`LLM_STRATEGY_BY_ACTION` 策略表（vote/night/nominate 关 thinking、speak/defense 降 effort 限 400、claim/reflect/archive 限 150-200）；usage 解析扩展（prompt_cache_hit/miss_tokens + reasoning_tokens）。
+- **LLM 策略表 + token 控制（PLN-037）**：`LLM_STRATEGY_BY_ACTION` 策略表（vote/night/nominate 关 thinking、speak/defense 降 effort、claim/reflect/archive 限 token）；usage 解析扩展（prompt_cache_hit/miss_tokens + reasoning_tokens）。
 - **记忆对局隔离（阶段E）**：单局记忆落盘 `data/agents/{player_id}/games/{game_id}/`，跨局档案与对局隔离。
 - **拟人化玩家进化（阶段E）**：跨局档案四维（局中反思 `reflections.jsonl` / 局后复盘 `game_reviews.jsonl` / 学习他人 `lessons_learned.jsonl` / 调整策略 `strategies.jsonl` + `tendency` 四维画像），`build_long_term_summary()` 注入新局 prompt；说书人跨局档案 `data/storyteller/profile/`。
 - **Token 基准脚本**：`scripts/benchmark/token_budget_benchmark.py`（离线验证策略表/三层前缀/草稿复用/公共前缀）。
-- **live 实测优化（2026-08-04）**：`speak`/`defense_speech` 关闭 thinking（D015）。DeepSeek 推理模型工具路径本就不烧 reasoning，关 thinking 消除 JSON fallback 路径的 reasoning 浪费与空响应/JSONDecodeError。3 局 live 对比：total_tokens 7365→2848（-62%）、fallback 5.9%→0%。
+- **Prompt 前缀缓存优化（PLN-039，2026-08-04）**：全局静态层（跨 agent 共享前缀 1522 字符）+ 双层 system + tools 全量固定 + 草稿/辅助 prompt 对齐。live 8 人局实测命中率 12.7%→43-53%，evil_coord 0%→75.89%，reasoning 归零。
+- **live 实测优化（2026-08-04/05）**：
+  - D015：`speak`/`defense_speech` 关闭 thinking。3 局 live 对比：total_tokens 7365→2848（-62%）、fallback 5.9%→0%。
+  - 深度思考分级（`AI_THINKING_LEVEL=off|low|medium|high`，按难度预设 + env 覆盖），reasoning 记录 + `thoughts.jsonl` 落盘。
+  - Scavenge 机制：reasoning_content 中恢复工具调用 JSON（`openai_backend._scavenge_tool_calls_from_text`），解决 DeepSeek 偶发把 tool call 写进 thinking 块。
+  - max_tokens 定稿（nomination_intent 2000 / speak 1600 / vote 1200 / night_action 1000 / think 800），live 验证 fallback 清零。
+- **白天发言动态响应（方案B，2026-08-05）**：AI 白天发言按座次与人/机穿插，本轮已有他人发言时走完整 LLM 精炼（注入草稿修正）、首位发言者直接复用草稿省一次 LLM；同时修复"无人提名"问题（提名引导分天 + LLM none 时本地兜底覆写 + 提名路径敏感度提升）。
+- **前端修复（2026-08-05）**：游戏结束按钮（再来一局/历史对局）、结算 overlay 空值保护、邪恶频道 JSON 清洗。
 
 ### 自动化验证
 
-- 新增 `tests/test_agents/test_agent_tools.py`（19 单测）、`test_storyteller_tools.py`（9）、`test_llm/test_llm_strategy.py`（5）、`test_player_evolution.py`（含拟人化 6 单测）。
-- 全量 `pytest tests -q -m "not slow"` = 477 passed（全量含 slow 共 495）；ruff check + format 0 告警；`alpha1.1_acceptance.py` 9/9。
-- **Live 验收**：`simulate_game.py --backend live --player-count 5 --stop-after day_1` 跑 5 人完整 day_1 对局（DeepSeek），工具调用主导 + 草稿复用 + 本地策略判定全生效，证据见 `docs/alpha-1.2-evidence/live-agent-native-verification-2026-08-04.md`。
+- 新增 `tests/test_agents/test_agent_tools.py`（19 单测）、`test_storyteller_tools.py`（9）、`test_llm/test_llm_strategy.py`（5）、`test_player_evolution.py`（含拟人化 6 单测）等。
+- 全量 `pytest tests -q -m "not slow"` = 477+ passed（全量含 slow 共 495）；ruff check + format 0 告警；`alpha1.1_acceptance.py` 9/9。
+- **Live 验收**：多轮 DeepSeek live 对局（5/8 人）验证工具调用主导 + 草稿复用 + 本地策略判定 + 缓存命中率达标，证据见 `docs/alpha-1.2-evidence/`。
 
 ### 文档
 
-- 计划：`docs/plans/agent-native-redesign-plan.md`、`docs/plans/token-budget-optimization-plan.md`
-- 审查：`docs/reviews/agent-native-redesign-cr-review-2026-08-03.md`
-- 发布：`docs/releases/alpha-1.2-agent-native-release.md`
+- 计划：`docs/plans/agent-native-redesign-plan.md`、`docs/plans/token-budget-optimization-plan.md`、`docs/plans/prompt-cache-optimization-plan.md`
+- 审查：`docs/reviews/agent-native-redesign-cr-review-2026-08-03.md`、`docs/reviews/pln039-cache-opt-cr-review-2026-08-04.md`
+- 发布：`docs/releases/alpha-1.2-agent-native-release.md`、`docs/releases/alpha-1.2-release-checklist.md`
+- 参考：`docs/guides/prompt-design.md`（AI 玩家输入提示词设计总览）
 
 ### 已知限制
 
 - `BOTC_ST_LLM_STRATEGY=low|on` 需 live 真人验收；工具调用主导路径依赖真实 LLM 返回 `tool_calls`；进化机制待 live 验证。
+- `ai_conversation_quality` 验收 gate 在 MockBackend 下偶发 flaky（单跑即通过）。
+- DeepSeek 前缀缓存为尽力而为（前缀一致为必要不充分条件），命中率 43-63% 为当前架构实测区间。
 
 ## [alpha1.1] - 2026-06-09
 

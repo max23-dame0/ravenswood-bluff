@@ -1,10 +1,10 @@
 # 鸦木布拉夫小镇 (Ravenswood Bluff) AI 引擎
 
-![Version](https://img.shields.io/badge/version-alpha--1.1-orange)
+![Version](https://img.shields.io/badge/version-alpha--1.2--awakening-orange)
 ![Python](https://img.shields.io/badge/python-3.11+-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 
-**鸦木布拉夫小镇** 是一个基于多智能体（Multi-Agent）与状态机驱动的《血染钟楼》（Blood on the Clocktower）社交推演引擎。当前版本口径为 **Alpha 1.1 内部测试版本**：在前一版本稳定主流程的基础上，正式引入了多轴 AI 玩家难度系统，实施了深度响应速度与对话质量优化工程，并对底层上帝对象（AIAgent 与 GameOrchestrator）完成了彻底的模块化重构。
+**鸦木布拉夫小镇** 是一个基于多智能体（Multi-Agent）与状态机驱动的《血染钟楼》（Blood on the Clocktower）社交推演引擎。当前版本口径为 **Alpha 1.2「觉醒之鸦」(The Awakening) 内部测试版本**：在前一版本多轴难度系统与速度工程的基础上，将 AI 玩家从「集中式调度 + 单次无状态 LLM 调用」演进为**受控自主 Agent**（行动工具化、世界感知查询化、记忆工具化、策略先行），并落地**跨局玩家/说书人进化机制**（局中反思、局后复盘、学习他人、调整策略）与整套 **token 成本控制**（前缀缓存优化 + 草稿复用 + thinking 分级）。
 
 
 ---
@@ -13,9 +13,11 @@
 
 - **完整主流程**：支持 `SETUP -> FIRST_NIGHT -> DAY_DISCUSSION -> NOMINATION -> VOTING -> EXECUTION -> NIGHT -> GAME_OVER` 主链，覆盖提名、辩解、投票、处决、夜晚行动、结算和 rematch。
 - **《暗流涌动》角色规则**：主体角色能力已实现，并通过 `docs/reference/rule_matrix.md` 和专项验收持续追踪高风险角色边界。
-- **AI 玩家与真人混合局**：AI 玩家具备结构化记忆、身份声明账本、社交图谱和 persona 差异；真人玩家可通过浏览器参与核心流程。
-- **AI/人类说书人链路**：说书人裁量、私密信息、夜晚步骤和 judgement ledger 可追踪，玩家视角与说书人视角保持信息边界。
-- **复盘与数据资产**：对局历史、AI traces、说书人裁量和导出脚本为内测问题定位提供证据链。
+- **受控自主 AI 玩家**：AI 玩家以工具调用主导行动（8 个行动 ToolDef）、按需查询世界（4 只读 WorldTools）、工具化维护记忆（append/read/reflect/archive），并以策略先行 loop（think → act）驱动决策；JSON fallback 兜底保证不卡流程。
+- **跨局玩家进化**：AI 玩家拥有个人跨局档案（战绩、倾向画像、局中反思、局后复盘、向强者学习、策略调整），新对局自动注入既往经验，行为随对局精进、风格分化，更接近有记忆的人类玩家；说书人同样累积跨局主持经验。
+- **AI/人类说书人链路**：说书人裁量、私密信息、夜晚步骤和 judgement ledger 可追踪，玩家视角与说书人视角保持信息边界；说书人工具注册表 + `BOTC_ST_LLM_STRATEGY` 分级 LLM 介入。
+- **Token 成本控制**：三层前缀缓存优化（真实命中率 43-63%）、发言草稿复用（有草稿时 0 次 LLM）、thinking 分级与 max_tokens 上限（live 实测 total -62%、fallback 归零）。
+- **复盘与数据资产**：对局历史、AI traces、说书人裁量、玩家进化档案和导出脚本为内测问题定位提供证据链。
 
 ---
 
@@ -59,7 +61,7 @@ $env:OPENAI_BASE_URL="https://api.openai.com/v1"
 
 ---
 
-## Alpha 1.1 验收入口
+## 验收入口
 
 发布与验收前，必须执行一键聚合门禁命令以运行全部 9 个 Gate 自动化验收：
 
@@ -80,23 +82,32 @@ $env:OPENAI_BASE_URL="https://api.openai.com/v1"
 
 验收证据输出至 `docs/alpha-1.1-evidence/` 目录。
 
+Agent 原生重构的 token 控制效果由离线基准验证：
+
+```powershell
+.\.venv\Scripts\python.exe scripts\benchmark\token_budget_benchmark.py
+```
+
+> Alpha 1.2 完整发布门禁与验收记录见 `docs/releases/alpha-1.2-release-checklist.md`。
+
 
 ---
 
 ## 项目架构
 
-- `docs/plans/alpha-1.1-plan.md`：Alpha 1.1 总体开发计划、Milestone 列表与验收标准。
-- `docs/plans/alpha-1.1-plan/`：M5/M6/M7 各阶段具体任务板。
-- `docs/alpha-1.1-evidence/`：发布的各项测试与验收证据记录。
-- `VERSION_NOTES.md`：Alpha 1.1 内部测试版本说明。
+- `docs/plans/agent-native-redesign-plan.md`：Agent 原生重构（PLN-037/038）总体设计与任务板。
+- `docs/plans/prompt-cache-optimization-plan.md`：Prompt 前缀缓存命中率优化（PLN-039）与任务板。
+- `docs/releases/alpha-1.2-agent-native-release.md`：Alpha 1.2「觉醒之鸦」发布记录。
+- `docs/alpha-1.1-evidence/`：9-gate 验收证据记录；`docs/alpha-1.2-evidence/`：Alpha 1.2 live 验收证据。
+- `VERSION_NOTES.md`：Alpha 1.2 内部测试版本说明。
 - `CHANGELOG.md`：项目版本迭代变更记录。
-- `src/agents/`：AI 玩家（Facade 及其下 9 大重构子模块）、说书人。
+- `src/agents/`：AI 玩家（受控自主 Agent）、说书人（工具注册表 + 跨局档案）。
 - `src/engine/`：规则引擎、角色能力、阶段控制、数据采集。
-- `src/orchestrator/`：对局循环（Facade 及其下阶段处理器等重构模块）、信息分发。
-- `src/state/`：状态快照、事件日志、对局记录。
+- `src/orchestrator/`：对局循环、事件总线、信息分发（信息隔离）。
+- `src/state/`：不可变 GameState 快照、事件日志、对局记录。
 - `src/api/`：本地 API server 与前端接口。
 - `public/`：浏览器 UI。
-- `scripts/`：验收门禁、导出、模拟和数据工具。
+- `scripts/`：验收门禁、基准、导出、模拟和数据工具。
 - `tests/`：单元、集成与验收测试。
 
 
@@ -124,7 +135,7 @@ $env:OPENAI_BASE_URL="https://api.openai.com/v1"
 
 ## 版本记录
 
-此分支所有变动追踪至 [CHANGELOG.md](./CHANGELOG.md)。Alpha 1.1 详细开发设计与路线见 [docs/plans/alpha-1.1-plan.md](./docs/plans/alpha-1.1-plan.md)。
+此分支所有变动追踪至 [CHANGELOG.md](./CHANGELOG.md)。Alpha 1.2「觉醒之鸦」详细发布说明见 [docs/releases/alpha-1.2-agent-native-release.md](./docs/releases/alpha-1.2-agent-native-release.md)，发布门禁见 [docs/releases/alpha-1.2-release-checklist.md](./docs/releases/alpha-1.2-release-checklist.md)。
 
 
 ## 开源协议

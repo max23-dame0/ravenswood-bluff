@@ -1,8 +1,9 @@
 # 鸦木布拉夫小镇 (Ravenswood Bluff) — Agent 操作手册
 
 > **角色**：AI 玩家 / 说书人 facade。已演进为**受控自主 Agent**：行动工具化（`GameActionToolRegistry`）+ 世界感知查询化（`WorldTools`）+ 记忆工具化（`MemoryTools`）+ 跨局玩家进化（`PlayerProfileStore`）。orchestrator 保留规则裁判与调度职责；facade 仅路由、逻辑在子模块（详见 `CLAUDE.md` 与 `.codebuddy/rules/`，决策见 `DECISIONS.md` D012/D013/D014）。
+> **当前版本**：Alpha 1.2「觉醒之鸦」(The Awakening) — `alpha1.2-awakening`（发布记录 `docs/releases/alpha-1.2-agent-native-release.md`，门禁 `docs/releases/alpha-1.2-release-checklist.md`）
 > **上下文预算**：32768 字节
-> **最后更新**：2026-08-04
+> **最后更新**：2026-08-07
 
 ## Setup & Commands
 

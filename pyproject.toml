@@ -1,6 +1,6 @@
 [project]
 name = "ravenswood-bluff"
-version = "0.1.0"
+version = "0.2.0"
 description = "鸦木布拉夫小镇 — 基于多Agent的社交推理桌游系统"
 readme = "README.md"
 requires-python = ">=3.11"

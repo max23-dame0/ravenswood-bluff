@@ -2,7 +2,7 @@
 
 > **Purpose**: This document is the single entry point for any programming agent (Claude, Codex, Gemini, etc.) to understand, navigate, and contribute to this project. It is designed to be reusable, traceable, and kept up-to-date.
 >
-> **Last updated**: 2026-08-04 | **Current phase**: Alpha 1.2 Agent-native (受控自主 Agent + 玩家进化 + token 优化)
+> **Last updated**: 2026-08-07 | **Current phase**: Alpha 1.2「觉醒之鸦」(The Awakening) Agent-native (受控自主 Agent + 玩家进化 + token 优化)
 >
 > **Update rule**: When you make a change that affects architecture, conventions, or phase status, update the relevant section of this file and commit it with your work.
 

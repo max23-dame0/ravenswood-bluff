@@ -1,6 +1,6 @@
 ---
 doc_id: "REL-007"
-title: "Alpha 1.2 Agent 原生重构版发布记录"
+title: "Alpha 1.2「觉醒之鸦」Agent 原生重构版发布记录"
 category: "release"
 role: "[Delta]"
 status: "published"
@@ -8,14 +8,16 @@ date: "2026-08-04"
 author: "Ravenswood Bluff"
 ---
 
-# Alpha 1.2 Agent 原生重构版发布记录
+# Alpha 1.2「觉醒之鸦」(The Awakening) Agent 原生重构版发布记录
 
 > 本文档记录 **agent 原生重构（PLN-038）** 与 **token 优化（PLN-037）** 两大重大改动，
 > 以及 **记忆对局隔离 + 拟人化进化机制** 的落地。是相对 Alpha 1.1 的架构级演进版本。
 
 ## 1. 版本口径
 
-当前版本口径：`alpha1.2`（Agent 原生重构版）。
+当前版本口径：`alpha1.2-awakening`，代号 **「觉醒之鸦」(The Awakening)**。
+"觉醒"对应 AI 玩家从无状态调度演进为受控自主 Agent 的架构级跃迁；"鸦"呼应项目名 Ravenswood（鸦木镇），
+哥特神秘风格契合《血染钟楼》主题。
 
 Alpha 1.1 解决了"AI 玩家难度系统与响应流畅体验"。Alpha 1.2 将 AI 玩家从"集中式调度 + 单次无状态 LLM 调用"
 演进为**受控自主 Agent**：保留 orchestrator 作为规则裁判与调度器，将行动标准化为工具调用、

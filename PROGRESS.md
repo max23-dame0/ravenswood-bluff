@@ -1,6 +1,6 @@
 # PROGRESS — 项目当前进度
 
-> 最后更新：2026-08-04
+> 最后更新：2026-08-07
 > **上班必读**：本文件 + DECISIONS.md
 
 ## 活跃任务看板（WIP 显式登记）
@@ -22,6 +22,7 @@
 | 11 | alpha1.2 文档整理 + 真实 LLM live 对局验收 | 文档+验收 | 🟢 已完成（2026-08-04，3 局 DeepSeek live 验证功能 + token -62% + fallback 归零） | — | 无 |
 | 12 | speak/defense_speech 关 thinking（D015 live 实测优化） | 优化 | 🟢 已完成（2026-08-04，token 7365→2848，fallback 5.9%→0%） | 切非推理模型需重估 | 无 |
 | 13 | Prompt 前缀缓存命中率优化（PLN-039 T1-T6 + 精简 + REV-008 F1-F7 + R1/R2/R3） | 优化 | 🟢 已完成并提交（2026-08-04，480 passed + ruff 0 + token 基准 PASS + mock 8 人局 game_over + live 命中率 53.19%/46.00%/43.14% + 精简全局层 2361→1522 + REV-008 全部修复；commit `c79a7ae`）；⚠️ T6 DoD#5（真实总 token ≤187,423）部分达成（短局 177,828），任务板已标注权衡 | 无 | 无 |
+| 14 | **发布 Alpha 1.2「觉醒之鸦」(The Awakening)**：起代号 + README/CHANGELOG/VERSION_NOTES/REL-007/AGENTS 更新 + 新建 REL-009 Release Checklist + docs 索引登记 + pyproject 版本 0.1.0→0.2.0 | 发布 | 🟡 文档全部更新完成，doc health PASS；待用户确认后 commit + 打 tag `alpha1.2-awakening` | 提交发布（等待用户确认 commit 范围） | 无 |
 
 ## 当前验证状态
 
@@ -106,3 +107,5 @@
 | 2026-07-31 | **P1 上帝对象拆分**：ai_agent/game_loop/storyteller_agent 三 facade 抽取委托模块（行数 1429/842/1369 → 802/497/25），行为零变更；**P2** 生产 print→logging（server.py/replay_parser.py）+ AGENTS.md facade 描述修正；修正测试 `random` 打桩指向 delegation 模块；顺手修 `alpha1.1_acceptance.py` 的 `PYTHON.exists()` 既存 bug（`sys.executable` 是 str，改 `Path(sys.executable)`）以跑通 9-gate | ruff 零告警；`alpha1.1_acceptance.py` 9/9 全绿；wave1/alpha3 隔离运行 exit 0；全量 pytest 仅 1 个 subprocess 验收测试偶发 240s 超时（既存测试隔离脆弱性，非回归） | 用户决定是否按 P1/P2 分阶段 commit | .codebuddy/memory/2026-07-31.md |
 | 2026-08-03 | **CI 三轮修复**：① ruff format 检查失败（facade 拆分引入，3 文件规范化）；② storyteller 日志测试干净环境失败（handler 重绑 workspace，`_bind_storyteller_log_handler`）；③ CI 提速（16 个验收包装测试标 `slow` 排除 + job `timeout-minutes: 25`）；④ `check_doc_health.py` 纳入 CI + 补 `AGENTS_refactor.md` frontmatter | ruff check/format 全过；`-m "not slow"` 快速单测 3.1s RC=0；全量 447 passed；doc health RC=0 | 看 GitHub CI run 是否快速转绿 | .codebuddy/memory/2026-08-03.md |
 | 2026-08-03 | **M5-L 真实 live 真人验收（DeepSeek）**：`.env` 配置 DeepSeek live；playwright-cli 以真人玩家身份跑通 2 局完整 5 人局至 GAME_OVER；speech fallback 6.7% / LLM 成功 93.3% / orchestrator 0 超时（达标）；信息隔离（玩家 grimoire 403 / 邪恶频道对好人不可见）PASS；说书人控制台 PASS；修复结算 overlay i18n 崩溃 BUG（`ui-welcome` 空值保护） | 2 局完整对局验收通过；结算修复后 console 0 errors；验收报告已写入 evidence 目录 | 提交 3 项改动；后续补 8 人局/高难度真人复测 + vote/nomination 预算放宽 | .codebuddy/memory/2026-08-03.md |
+| 2026-08-05 | **Alpha 1.2 live 深度优化**：7 个原子提交推送（白天发言按座次+方案B、提名修复、游戏结束按钮、邪恶频道清洗、深度思考分级+per-player 落盘+Scavenge、max_tokens 定稿并实测 fallback 清零、测试与 chore） | 工作区 clean；live 确认局 fallback 清零、命中率 54-58% | 用户确认发布 Alpha 1.2 | .codebuddy/memory/2026-08-05.md |
+| 2026-08-07 | **发布 Alpha 1.2「觉醒之鸦」**：代号 The Awakening；更新 README/CHANGELOG/VERSION_NOTES/REL-007/AGENTS/docs 索引；新建 REL-009 Release Checklist；pyproject 0.1.0→0.2.0 | doc health PASS（78 md，1 历史非致命 warning） | commit + tag `alpha1.2-awakening` | 本文件 |
