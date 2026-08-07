@@ -23,7 +23,8 @@
 | 12 | speak/defense_speech 关 thinking（D015 live 实测优化） | 优化 | 🟢 已完成（2026-08-04，token 7365→2848，fallback 5.9%→0%） | 切非推理模型需重估 | 无 |
 | 13 | Prompt 前缀缓存命中率优化（PLN-039 T1-T6 + 精简 + REV-008 F1-F7 + R1/R2/R3） | 优化 | 🟢 已完成并提交（2026-08-04，480 passed + ruff 0 + token 基准 PASS + mock 8 人局 game_over + live 命中率 53.19%/46.00%/43.14% + 精简全局层 2361→1522 + REV-008 全部修复；commit `c79a7ae`）；⚠️ T6 DoD#5（真实总 token ≤187,423）部分达成（短局 177,828），任务板已标注权衡 | 无 | 无 |
 | 14 | **发布 Alpha 1.2「觉醒之鸦」(The Awakening)**：起代号 + README/CHANGELOG/VERSION_NOTES/REL-007/AGENTS 更新 + 新建 REL-009 Release Checklist + docs 索引登记 + pyproject 版本 0.1.0→0.2.0 | 发布 | ✅ 已完成并提交（commit `fd320a1` + tag `alpha1.2-awakening`，2026-08-07；doc health PASS）；未 push | push 由用户决定 | 无 |
-| 15 | **PLN-040 差异化玩家进化 + 量化基准**：候选方向留档 + 方向 A 规划文档（任务板 T1-T6 / 量化指标 M1-M5 / DoD / 风险） | 规划 | 🟡 规划文档已落盘 `docs/plans/pln040-player-distinctness-plan.md` + docs 索引登记 + doc health PASS；待用户确认后从 T1 开始实施 | 用户确认后执行 T1（行为指纹基准脚本） | 无 |
+| 15 | **PLN-040 差异化玩家进化 + 量化基准**：候选方向留档 + 方向 A 规划文档（任务板 T1-T6 / 量化指标 M1-M5 / DoD / 风险） | 规划 | ✅ 已完成并提交（2026-08-07，commit `0164cac`） | — | 无 |
+| 16 | **PLN-040 T1 行为指纹基准**：`scripts/benchmark/player_distinctness_benchmark.py`（12 维指纹 + 两两距离矩阵 + 报告）+ 18 单测 + 基线报告归档 | 实施 | ✅ 已完成待提交（ruff 0 + 18 测试全绿 + 5 局 8 人基线 mean_distance=0.3212，证据 `docs/alpha-1.2-evidence/pln040-t1-...json`）；⚠️ 洞察：mock 噪声使 M1 绝对值失真，T3 验收改相对对照 | 提交 T1（commit 后继续 T2 共享经验池） | 无 |
 
 ## 当前验证状态
 
