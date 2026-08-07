@@ -22,7 +22,7 @@
 | 11 | alpha1.2 文档整理 + 真实 LLM live 对局验收 | 文档+验收 | 🟢 已完成（2026-08-04，3 局 DeepSeek live 验证功能 + token -62% + fallback 归零） | — | 无 |
 | 12 | speak/defense_speech 关 thinking（D015 live 实测优化） | 优化 | 🟢 已完成（2026-08-04，token 7365→2848，fallback 5.9%→0%） | 切非推理模型需重估 | 无 |
 | 13 | Prompt 前缀缓存命中率优化（PLN-039 T1-T6 + 精简 + REV-008 F1-F7 + R1/R2/R3） | 优化 | 🟢 已完成并提交（2026-08-04，480 passed + ruff 0 + token 基准 PASS + mock 8 人局 game_over + live 命中率 53.19%/46.00%/43.14% + 精简全局层 2361→1522 + REV-008 全部修复；commit `c79a7ae`）；⚠️ T6 DoD#5（真实总 token ≤187,423）部分达成（短局 177,828），任务板已标注权衡 | 无 | 无 |
-| 14 | **发布 Alpha 1.2「觉醒之鸦」(The Awakening)**：起代号 + README/CHANGELOG/VERSION_NOTES/REL-007/AGENTS 更新 + 新建 REL-009 Release Checklist + docs 索引登记 + pyproject 版本 0.1.0→0.2.0 | 发布 | 🟡 文档全部更新完成，doc health PASS；待用户确认后 commit + 打 tag `alpha1.2-awakening` | 提交发布（等待用户确认 commit 范围） | 无 |
+| 14 | **发布 Alpha 1.2「觉醒之鸦」(The Awakening)**：起代号 + README/CHANGELOG/VERSION_NOTES/REL-007/AGENTS 更新 + 新建 REL-009 Release Checklist + docs 索引登记 + pyproject 版本 0.1.0→0.2.0 | 发布 | ✅ 已完成并提交（commit `fd320a1` + tag `alpha1.2-awakening`，2026-08-07；doc health PASS）；未 push | push 由用户决定 | 无 |
 
 ## 当前验证状态
 
