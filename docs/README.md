@@ -100,6 +100,7 @@ docs/
 | PLN-037 | [Agent 原生重构设计](plans/agent-native-redesign-plan.md) | [Delta] | 2026-08-04 | `docs/plans/agent-native-redesign-plan.md` |
 | PLN-038 | [Agent 原生重构方案](plans/agent-native-redesign-plan.md) | [Delta] | 2026-08-04 | `docs/plans/agent-native-redesign-plan.md` |
 | PLN-039 | [Prompt 前缀缓存命中率优化方案与任务板](plans/prompt-cache-optimization-plan.md) | [Delta] | 2026-08-04 | `docs/plans/prompt-cache-optimization-plan.md` |
+| PLN-040 | [差异化玩家进化 + 量化基准方案与任务板](plans/pln040-player-distinctness-plan.md) | [Delta] | 2026-08-07 | `docs/plans/pln040-player-distinctness-plan.md` |
 
 ### 审查 / 移交（Delta）
 
