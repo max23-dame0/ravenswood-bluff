@@ -28,7 +28,8 @@
 | 17 | **PLN-040 T2 共享经验池**：`src/agents/memory/shared_pool.py`（deposit 去私密化沉淀 + retrieve 角色/阵营/新鲜度检索 + build_shared_context 注入摘要）+ game_loop 沉淀钩子 + AIAgent 注入合并 + 12 单测 | 实施 | ✅ 已完成并提交推送（commit `c425233` + `7f3986f` + `d3000af`，2026-08-07 push origin/main，含 2 个发布遗留 P2 修复） | — | 无 |
 | 18 | **PLN-040 T3 差异化注入**：`tendency_behavior_overrides`（四维→行为标签覆盖，中性不覆盖）+ 连续画像文案 + `BOTC_TENDENCY_STEP` 标定步长 + 标定实验脚本 + 11 单测 | 实施 | ✅ 已完成待提交（ruff 0 + 全量测试 0 回归 + **M5 标定验证通过**：baseline 0.3127 vs polarized 0.3430/mixed 0.3482，Δ+0.03 差异化生效，证据 `docs/alpha-1.2-evidence/pln040-t3-tendency-calibration-2026-08-07.md`）；⚠️ 关键修复：默认 tendency 强制覆盖导致提名测试回归，改为中性区间不覆盖 | 提交（等待用户确认） | 无 |
 | 19 | **PLN-040 T3.5 mock fallback 根因修复**：`mock_backend.py` action_type 提取补扫 messages（修复 vote/nomination 100% fallback）+ 标定脚本对齐 live 本地判定路径 + 6 单测 | 实施 | ✅ 已完成待提交（ruff 0 + 回归通过 + fallback_rate 57%→2.4~11.9% + 方案 3 验证 polarized Δ+0.0092/mixed Δ+0.0226）；**关键发现**：mock 返回固定合法决策绕过 threshold 路径导致 tendency 差异不可测，必须走本地判定路径（与 live 一致） | 提交（等待用户确认） | 无 |
-| 20 | **PLN-040 T4 进化有效性 A/B**：`evolution_ab_benchmark.py`（程序化对局循环 + 胜率/Elo 统计 + 对照组隔离）+ 6 单测 | 实施 | 🟡 已完成待提交（ruff 0 + 回归通过 + 诚实负结果：对照组 48.00% vs 进化组 50.00% Δ+2.00pp/Elo+8，未达 M4 目标 +5pp/+25；证据 RPT-016）；**诊断**：进化写入生效（tendency 显著漂移）但 mock 胜率增益有限；对照组每局清档是方法论关键 | 提交（等待用户确认）；后续可增大 K/玩家数或增强进化机制 | 无 |
+| 20 | **PLN-040 T4 进化有效性 A/B**：`evolution_ab_benchmark.py`（程序化对局循环 + 胜率/Elo 统计 + 对照组隔离）+ 6 单测 | 实施 | ✅ 已完成并提交推送（commit `d3de356` + `68e55e8`，2026-08-07 push；诚实负结果：Δ+2.00pp/Elo+8 未达 M4 目标；证据 RPT-016） | — | 无 |
+| 21 | **PLN-040 T5 盲测验证**：`export_blind_test_samples.py`（export 导出匿名样本 + score 统计猜中率）+ 8 单测 | 实施 | 🟡 代码完成待提交（ruff 0 + 全量测试 0 回归 + 冒烟导出 25 样本/2 局 + score 演示 40% 猜中率）；**待真人标注**（≥3 人 × ≥30 次标注）后才能判 M3 | 提交（等待用户确认）；真人标注后跑 score 判 M3 | 无 |
 
 ## 当前验证状态
 
