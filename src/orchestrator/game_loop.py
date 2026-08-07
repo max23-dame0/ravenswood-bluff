@@ -500,6 +500,9 @@ class GameOrchestrator(GameOrchestratorDelegation):
         for entry in report.get("players", []):
             player_reveal[entry.get("player_id", "")] = entry
 
+        from src.agents.memory.shared_pool import SharedExperiencePool
+
+        pool = SharedExperiencePool()
         for agent in self.broker.agents.values():
             if not isinstance(agent, AIAgent):
                 continue
@@ -526,6 +529,19 @@ class GameOrchestrator(GameOrchestratorDelegation):
                 )
             except Exception as exc:
                 logger.warning("[player-profile] 玩家进化落盘失败 %s: %s", agent.player_id, exc)
+
+            # PLN-040 T2：去私密化后沉淀进共享经验池（角色通用经验，供跨局检索）
+            try:
+                pool.deposit(
+                    role_id=role_id,
+                    team=team,
+                    won=won,
+                    lesson=lesson,
+                    takeaway=takeaway,
+                    game_id=self.state.game_id,
+                )
+            except Exception as exc:
+                logger.warning("[shared-pool] 沉淀经验失败 %s: %s", agent.player_id, exc)
 
         # 3) 学习他人经验：从胜方 MVP / 表现好的玩家提炼打法
         await self._learn_from_strong_players(winning_team, player_reveal)

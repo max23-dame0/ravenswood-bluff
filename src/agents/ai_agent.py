@@ -1015,8 +1015,25 @@ class AIAgent(
 
         进化的关键：把以往对局的战绩与经验教训带入本局，
         让 agent 表现更接近有长期记忆的人类玩家。
+        PLN-040 T2：合并共享经验池的个性化子集（按角色/阵营检索，去私密化）。
         """
         self._long_term_summary = self._player_profile.build_long_term_summary(limit=6)
+        # T2 共享经验池：同角色/阵营的跨局经验（setup 时算一次，保持前缀稳定）
+        try:
+            from src.agents.memory.shared_pool import SharedExperiencePool
+
+            shared = SharedExperiencePool().build_shared_context(
+                role_id=self.role_id,
+                team=(self.team.value if hasattr(self.team, "value") else str(self.team or "")),
+            )
+            if shared:
+                self._long_term_summary = (
+                    f"{self._long_term_summary}\n{shared}"
+                    if self._long_term_summary
+                    else shared
+                )
+        except Exception as exc:
+            logger.warning("[shared-pool] 共享经验注入失败 %s: %s", self.player_id, exc)
 
     @property
     def player_profile(self) -> dict[str, Any]:
