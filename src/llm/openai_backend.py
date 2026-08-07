@@ -6,10 +6,12 @@ OpenAI LLM 后端实现
 
 from __future__ import annotations
 
+import contextlib
 import json
 import logging
 import os
 import uuid
+from typing import Any
 
 from src.debug.game_debug_logger import game_debug_logger
 from src.llm.base_backend import (
@@ -310,16 +312,13 @@ class OpenAIBackend(LLMBackend):
                 if not stack:
                     start = i
                 stack.append(ch)
-            elif ch == "}":
-                if stack:
-                    stack.pop()
-                    if not stack and start is not None:
-                        candidate = text[start : i + 1]
-                        try:
-                            results.append(json.loads(candidate))
-                        except (json.JSONDecodeError, ValueError):
-                            pass
-                        start = None
+            elif ch == "}" and stack:
+                stack.pop()
+                if not stack and start is not None:
+                    candidate = text[start : i + 1]
+                    with contextlib.suppress(json.JSONDecodeError, ValueError):
+                        results.append(json.loads(candidate))
+                    start = None
         return results
 
     @staticmethod

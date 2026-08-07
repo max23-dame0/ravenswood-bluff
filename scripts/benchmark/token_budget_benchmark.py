@@ -72,8 +72,16 @@ def _make_state(day: int = 1, round_no: int = 1) -> GameState:
 
 async def _check_strategy_table() -> dict[str, Any]:
     missing = [a for a in AIAgent.LLM_STRATEGY_BY_ACTION if not a]
-    simple = AIAgent._llm_strategy_for_action("vote")
-    speak = AIAgent._llm_strategy_for_action("speak")
+    # 2026-08-05 起 _llm_strategy_for_action 为 instance method（按难度分级）
+    backend = _CountingBackend()
+    agent = AIAgent(
+        player_id="p1",
+        name="Alice",
+        backend=backend,
+        persona=Persona(description="谨慎", speaking_style="平稳"),
+    )
+    simple = agent._llm_strategy_for_action("vote")
+    speak = agent._llm_strategy_for_action("speak")
     return {
         "ok": True,
         "strategy_actions": sorted(AIAgent.LLM_STRATEGY_BY_ACTION.keys()),
