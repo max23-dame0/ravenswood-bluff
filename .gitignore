@@ -82,6 +82,10 @@ data/agents/
 data/storyteller/
 # Benchmark runtime outputs (aggregated reports archived to docs/alpha-1.2-evidence/)
 data/bench/
+# Blind-test labeling samples (local annotation artifacts; re-export when labeling)
+data/blind_qc/
+data/blind_ready/
+data/blind_ready2/
 runtime_game_logs/
 
 # Temporary scratch files at repo root

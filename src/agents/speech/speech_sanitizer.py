@@ -99,7 +99,9 @@ class SpeechSanitizer:
             return text
 
         # 多样化、口语化的自然补锚句式（不再用"我先说…"固定模板）。
-        # stable_line 已是完整可发言句子（paraphrase 后），直接并句避免"。。"
+        # stable_line 已是完整可发言句子（paraphrase 后），先去掉结尾句号
+        # 再并句，避免"。。"/"。，"拼接瑕疵
+        stable_core = stable_line.rstrip("。！？!?")
         if action_type == "defense_speech":
             prefix = random.choice(
                 [
@@ -117,7 +119,7 @@ class SpeechSanitizer:
                     "对了，有个细节你们可能没注意：",
                 ]
             )
-        return f"{prefix}{stable_line}，{text}"
+        return f"{prefix}{stable_core}，{text}"
 
     # ------------------------------------------------------------------
     # Anchor line selection
@@ -150,14 +152,50 @@ class SpeechSanitizer:
 
         public_claims = agent.working_memory.get_public_memory_summaries("role_claim")
         if public_claims:
-            return public_claims[-1]
+            return self._objective_public_paraphrase(public_claims[-1], visible_state)
 
         safe_objective_categories = ("death", "failed_kill_target", "role_transfer")
         for category in safe_objective_categories:
             summaries = agent.working_memory.get_objective_memory_summaries(category)
             if summaries:
-                return summaries[-1]
+                return self._objective_public_paraphrase(summaries[-1], visible_state)
         return ""
+
+    def _objective_public_paraphrase(
+        self, summary: str, visible_state: AgentVisibleState
+    ) -> str:
+        """把数据格式的记忆摘要转述为口语化发言（角色声明/死亡等客观信息）。
+
+        输入示例："P2 公开跳身份为 士兵" / "P1 死亡，原因：night"
+        输出为自然口语句子，保留锚定信息但去除数据感。
+        """
+        # 角色声明："X 公开跳身份为 角色"
+        if "公开跳身份为" in summary:
+            player_name, _, role = summary.partition("公开跳身份为")
+            player_name = player_name.strip().strip("：:")
+            role = role.strip()
+            return random.choice(
+                [
+                    f"{player_name} 说自己是{role}，这条我先记着。",
+                    f"{player_name} 刚才公开报了 {role}，看看后面能不能对上。",
+                    f"{player_name} 自称 {role}，我倒要看他能不能自圆其说。",
+                ]
+            )
+        # 死亡/转移："X 死亡，原因：night" / "X 死了"
+        if "死亡" in summary or "死了" in summary or "原因：" in summary:
+            player_name = summary.split("死亡")[0].split("死了")[0].strip()
+            if not player_name:
+                names = self._mentioned_visible_names(summary, visible_state)
+                player_name = names[0] if names else ""
+            return random.choice(
+                [
+                    f"{player_name} 昨晚走了，这条线得接着看。",
+                    f"{player_name} 出局了，昨晚那事跟他脱不开干系。",
+                    f"{player_name} 没了，他之前的说法值得再盘一遍。",
+                ]
+            )
+        # 其他客观信息：保持原样（已较中性）
+        return summary
 
     def preferred_speech_anchor_line(self, visible_state: AgentVisibleState) -> str:
         """优先选择最适合真实公开发言引用的高可信/客观线索。"""

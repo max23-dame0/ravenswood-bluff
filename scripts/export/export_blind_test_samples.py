@@ -155,8 +155,13 @@ def export_samples(
     max_speeches_per_player: int = 6,
     out_dir: str = "data/blind",
     backend_mode: str = "mock",
+    min_length: int = 0,
 ) -> dict[str, Any]:
-    """导出盲测样本到 out_dir。"""
+    """导出盲测样本到 out_dir。
+
+    min_length>0 时过滤过短发言（live 局偶发的 fallback 短句偏机械，
+    方案 A：滤掉 <min_length 字的发言，保证盲测样本质量）。
+    """
     all_by_player: dict[str, list[dict[str, Any]]] = {}
     game_ids: list[str] = []
     for i in range(games):
@@ -166,12 +171,14 @@ def export_samples(
         )
         game_ids.append(gid)
         for pid, speeches in by_player.items():
+            if min_length > 0:
+                speeches = [sp for sp in speeches if len(str(sp.get("content", ""))) >= min_length]
             all_by_player.setdefault(pid, []).extend(speeches)
 
     player_ids = sorted(all_by_player)
     anon_map = _anonymize(player_ids)
     if not player_ids:
-        raise RuntimeError("没有收集到任何发言，请检查 mock 对局是否正常发言")
+        raise RuntimeError("没有收集到任何发言，请检查对局是否正常发言")
 
     # 每玩家取最多 N 段（去重后），构造样本（sample_id 不含 player_id，匿名）
     samples: list[dict[str, Any]] = []
@@ -317,6 +324,8 @@ def main() -> int:
     export_p.add_argument("--seed", type=int, default=42)
     export_p.add_argument("--timeout", type=int, default=180, help="live 局单局超时（mock 默认 120）")
     export_p.add_argument("--max-speeches-per-player", type=int, default=6)
+    export_p.add_argument("--min-length", type=int, default=30,
+                          help="过滤少于该字数的发言（方案 A：滤掉 live 偶发 fallback 短机械句，默认 30）")
     export_p.add_argument("--out-dir", default="data/blind")
 
     score_p = sub.add_parser("score", help="统计标注结果")
@@ -346,6 +355,7 @@ def main() -> int:
         max_speeches_per_player=args.max_speeches_per_player,
         out_dir=args.out_dir,
         backend_mode=args.backend,
+        min_length=args.min_length,
     )
     print("\n" + "=" * 60)
     print("导出结果")

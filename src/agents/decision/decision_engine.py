@@ -1234,12 +1234,13 @@ class DecisionEngine:
             content = evil_coordination
         elif stable_line:
             # stable_line 已是完整可发言句子（paraphrase 后），直接引用，
-            # 不再包一层"我有信息"外壳（避免句子重复/不通顺）
+            # 不再包一层"我有信息"外壳；先去掉结尾句号避免"。，"拼接瑕疵
+            stable_core = stable_line.rstrip("。！？!?")
             content = agent._stable_choice(
                 [
-                    f"{stable_line}，其他说法我再掂量掂量。",
-                    f"这么说吧，{stable_line}。",
-                    f"{stable_line}，大家可以参考着盘。",
+                    f"{stable_core}，其他说法我再掂量掂量。",
+                    f"这么说吧，{stable_core}。",
+                    f"{stable_core}，大家可以参考着盘。",
                 ],
                 visible_state.round_number,
                 visible_state.day_number,
