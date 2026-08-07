@@ -261,26 +261,34 @@ class PlayerProfileStore:
         return self._read_jsonl(self._strategies_path, limit)
 
     def build_evolved_tendency_summary(self) -> str:
-        """生成当前进化后的行动倾向描述（调整策略的可注入结果）。"""
+        """生成当前进化后的行动倾向描述（调整策略的可注入结果）。
+
+        PLN-040 T3：从"4 档标签"升级为连续画像文案（0~1 值直接描述），
+        使不同 tendency 的玩家注入文案可感知差异化（配合行为标签覆盖）。
+        """
         profile = self.load_profile()
         t = profile["tendency"]
         labels: list[str] = []
-        if t["aggression"] >= 0.6:
-            labels.append("你倾向于主动施压、抢占节奏")
-        elif t["aggression"] <= 0.4:
-            labels.append("你倾向于低调观察、谋定后动")
-        if t["risk_taking"] >= 0.6:
-            labels.append("你愿意承担一定风险换取收益")
-        elif t["risk_taking"] <= 0.4:
-            labels.append("你偏保守，优先求稳")
-        if t["talkativeness"] >= 0.6:
-            labels.append("你乐于多发言带动讨论")
-        elif t["talkativeness"] <= 0.4:
-            labels.append("你话不多，惜字如金")
-        if t["caution"] >= 0.6:
-            labels.append("你很注意保护自己的关键信息")
-        if not labels:
-            labels.append("你打法均衡，视局势随机应变")
+
+        def _level(value: float) -> str:
+            if value >= 0.65:
+                return "偏强"
+            if value >= 0.55:
+                return "略强"
+            if value <= 0.35:
+                return "偏弱"
+            if value <= 0.45:
+                return "略弱"
+            return "中等"
+
+        labels.append(f"攻击性{_level(t['aggression'])}"
+                      + ("（主动施压、抢占节奏）" if t["aggression"] >= 0.6 else ""))
+        labels.append(f"冒险度{_level(t['risk_taking'])}"
+                      + ("（敢冒险换收益）" if t["risk_taking"] >= 0.6 else ""))
+        labels.append(f"健谈度{_level(t['talkativeness'])}"
+                      + ("（乐于发言带动讨论）" if t["talkativeness"] >= 0.6 else ""))
+        labels.append(f"谨慎度{_level(t['caution'])}"
+                      + ("（保护关键信息）" if t["caution"] >= 0.6 else ""))
         return "你的打法倾向：" + "；".join(labels)
 
     # ------------------------------------------------------------------

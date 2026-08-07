@@ -129,6 +129,16 @@ class MemoryController:
             "archetype": archetype,
         }
 
+        # PLN-040 T3：tendency → 行为标签覆盖（进化倾向真实影响决策阈值）
+        # 仅覆盖决策引擎消费的三组标签，不触碰 persona 稳定锚点（前缀缓存安全）。
+        try:
+            overrides = agent.tendency_behavior_overrides()
+            for key in ("risk_tolerance", "social_style", "assertiveness"):
+                if overrides.get(key):
+                    agent.persona_profile[key] = overrides[key]
+        except Exception as exc:
+            logger.debug("[persona] tendency 覆盖失败（使用默认）: %s", exc)
+
         # Apply difficulty overrides
         preset = agent.difficulty_preset
         for key, value in preset.persona_overrides.items():

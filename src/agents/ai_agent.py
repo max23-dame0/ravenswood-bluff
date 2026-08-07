@@ -1166,6 +1166,10 @@ class AIAgent(
             else:
                 # 正义输：推演不足 → 更积极发言、更敢施压
                 delta = {"talkativeness": 0.02, "aggression": 0.01}
+        # PLN-040 T3 M5 标定：步长可用 BOTC_TENDENCY_STEP 覆盖（默认 0.02，
+        # 标定实验可调 0.05/0.10/0.15 观察行为差异；仍守 0.05~0.95 边界）
+        step = float(os.getenv("BOTC_TENDENCY_STEP", "0.02"))
+        delta = {k: v * step / 0.02 for k, v in delta.items()}
         # 轻微随机扰动，避免所有玩家收敛到同一打法
         for k in list(delta):
             delta[k] = round(delta[k] + random.uniform(-0.005, 0.005), 3)
@@ -1174,6 +1178,51 @@ class AIAgent(
     def build_long_term_context(self) -> str:
         """供 system prompt 注入的跨局经验摘要（空则返回空串）。"""
         return self._long_term_summary
+
+    # ------------------------------------------------------------------
+    # PLN-040 T3：tendency → 行为标签映射（差异化注入核心）
+    # ------------------------------------------------------------------
+
+    def tendency_behavior_overrides(self) -> dict[str, str]:
+        """把进化倾向（tendency 四维）映射为决策引擎消费的行为标签。
+
+        决策引擎（decision_engine.py）通过 `_persona_modifier` 消费
+        persona_profile 的 risk_tolerance / social_style / assertiveness
+        三组标签来调整提名/投票阈值。T3 让 tendency 真实影响行为：
+        - talkativeness 高 → 带节奏（更主动施压、更多发言倾向）
+        - aggression 高     → 激进 + 强势
+        - caution 高        → 保守 + 温和
+        - risk_taking 高    → 激进（敢冒险）
+
+        返回值合并进 persona_profile（setup 时一次，前缀稳定）。
+
+        仅当 tendency 显著偏离中性（>=0.65 或 <=0.35）才覆盖对应标签；
+        中性区间（0.35~0.65）不覆盖，保留原有 _pick_stable/archetype 结果，
+        保证默认玩家行为与 T3 前完全一致（不改变既有决策行为）。
+        """
+        profile = self._player_profile.load_profile()
+        tendency = profile.get("tendency") or {}
+        t = {
+            k: float(tendency.get(k, 0.5))
+            for k in ("aggression", "risk_taking", "talkativeness", "caution")
+        }
+        overrides: dict[str, str] = {}
+        # risk_tolerance：保守(高caution或低risk) / 激进(高aggression或高risk)；中性不覆盖
+        if t["caution"] >= 0.65 or t["risk_taking"] <= 0.35:
+            overrides["risk_tolerance"] = "保守"
+        elif t["aggression"] >= 0.65 or t["risk_taking"] >= 0.65:
+            overrides["risk_tolerance"] = "激进"
+        # social_style：带节奏(高talk或高aggression) / 从众(低talk)；中性不覆盖
+        if t["talkativeness"] >= 0.65 or t["aggression"] >= 0.65:
+            overrides["social_style"] = "带节奏"
+        elif t["talkativeness"] <= 0.35:
+            overrides["social_style"] = "从众"
+        # assertiveness：强势(高aggression) / 温和(高caution)；中性不覆盖
+        if t["aggression"] >= 0.65:
+            overrides["assertiveness"] = "强势"
+        elif t["caution"] >= 0.65:
+            overrides["assertiveness"] = "温和"
+        return overrides
 
     # ------------------------------------------------------------------
     # 记忆工具对局隔离辅助
