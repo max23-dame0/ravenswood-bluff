@@ -16,6 +16,23 @@ from src.state.game_state import AgentVisibleState, Team
 if TYPE_CHECKING:
     from src.agents.ai_agent import AIAgent
 
+# LLM 高频固定的口头应答开场词（"行，""我先说个结论吧""我先说句心里话"等）。
+# 剥离后保留实质内容，降低机器人感。长词在前避免短词先匹配截断。
+_MECHANICAL_OPENERS = (
+    "我先说个结论吧，",
+    "我先说个结论，",
+    "我先说句心里话，",
+    "我先说句心里话。",
+    "我先说句心里话",
+    "我先说，",
+    "我先说。",
+    "行，",
+    "行吧，",
+    "行吧",
+    "行，那",
+    "这么说吧，",
+)
+
 
 class SpeechSanitizer:
     """Sanitizes and stabilizes public speech content for AIAgent."""
@@ -31,6 +48,8 @@ class SpeechSanitizer:
         text = content.strip()
         if not text:
             return text
+        # 剥离 LLM 高频固定口头应答开场（"行，""我先说个结论吧"等）
+        text = self._strip_mechanical_opener(text)
 
         safe_anchor = self.public_speech_anchor_line(visible_state)
         unsafe_markers = (
@@ -70,6 +89,21 @@ class SpeechSanitizer:
                 "有些事我心里有数，不过现在不是说的时候。",
             ]
         )
+
+    def _strip_mechanical_opener(self, text: str) -> str:
+        """剥离 LLM 高频固定口头应答开场词（'行，''我先说个结论吧'等）。
+
+        保留实质内容（如 '行，第一天嘛大家先别藏着掖着' → '第一天嘛大家先别藏着掖着'），
+        降低发言的机械重复感。仅剥离句首固定词，不破坏句子主体。
+        """
+        candidate = text.lstrip()
+        for opener in _MECHANICAL_OPENERS:
+            if candidate.startswith(opener):
+                rest = candidate[len(opener) :].lstrip("，。！？!?：: ")
+                if len(rest) >= 4:  # 剩余内容过短则保留原文，避免过度裁剪
+                    return rest
+                break
+        return text
 
     def stabilize_speech_content_with_memory(
         self,
