@@ -546,12 +546,14 @@ class GameOrchestrator(GameOrchestratorDelegation):
         # 3) 学习他人经验：从胜方 MVP / 表现好的玩家提炼打法
         await self._learn_from_strong_players(winning_team, player_reveal)
 
-        # 说书人跨局档案（进化机制）
+        # 说书人跨局档案（进化机制）。finalize_game_profile 为同步方法（返回 dict），
+        # 不可 await（dict 非 awaitable）——此前 await 每次局末抛 TypeError 被吞，
+        # 说书人档案从未成功落盘。
         if self.storyteller_agent is not None and hasattr(
             self.storyteller_agent, "finalize_game_profile"
         ):
             try:
-                await self.storyteller_agent.finalize_game_profile(
+                self.storyteller_agent.finalize_game_profile(
                     game_id=self.state.game_id,
                     lesson="本局已主持并记录裁决；如需复盘可调用 review_balance。",
                 )
