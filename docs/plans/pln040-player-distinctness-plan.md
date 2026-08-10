@@ -3,8 +3,9 @@ doc_id: "PLN-040"
 title: "差异化玩家进化 + 量化基准方案与任务板"
 category: "planning"
 role: "[Delta]"
-status: "draft"
+status: "published"
 date: "2026-08-07"
+updated: "2026-08-10"
 author: "Ravenswood Bluff"
 ---
 
@@ -131,7 +132,7 @@ author: "Ravenswood Bluff"
 | **T3.5** | mock fallback 根因修复 + 判定路径对齐 | 🥇P0 | 🟢 已完成 | 修复 MockBackend 提取不到 action_type 导致 vote/nomination 100% fallback；对齐 live 本地判定路径使 tendency 可测 | T3.5.1 ✅ `_extract_action_type` 同时扫描 system+messages（6 单测，vote 返回 `decision:true`）；T3.5.2 ✅ mock 局 fallback_rate 57%→2.4~11.9%（下降 5-23 倍）；T3.5.3 ✅ 方案 3 落地——标定脚本开启 `AI_FAST_LOW_VALUE_ACTIONS=1` 复现 live 本地判定路径，**polarized Δ+0.0092 / mixed Δ+0.0226（差异化重新可测，纯真实信号）**；⚠️ 关键发现：修复后 mock 返回固定合法决策绕过 threshold 路径，Δ 转负——证明"决策阈值类差异化在 mock 的 LLM 模拟路径下不可测，必须走本地判定路径（与 live 一致）" |
 | **T4** | 进化有效性 | 🥈P1 | 🟨 部分完成（诚实负结果） | 进化 K 局后 vs 冷启动的胜率/Elo A/B | T4.1 ✅ `evolution_ab_benchmark.py` + 6 单测（程序化对局循环/胜率/Elo/对照组隔离）；T4.2 ❌ 未达标——对照组 48.00% vs 进化组 50.00%（Δ+2.00pp、Elo +8，目标 +5pp/+25）；T4.3 ✅ 输出诊断（RPT-016）：进化写入生效（tendency 显著漂移）但胜率增益有限（mock 噪声大、5 人局样本方差高）；对照组每局清档是方法论关键（初版 Δ≈0，修复后 +2pp） |
 | **T5** | 盲测验证 | 🥉P2 | 🟢 代码完成（待真人标注） | 真人盲测：发言识别准确率 > 随机基线 | T5.1 ✅ `scripts/export/export_blind_test_samples.py`（export 导出 25 样本/2 局，匿名化 P1-P5，去重防 mock 重复发言；score 统计猜中率 vs 20% 基线，M3 样本量 ≥30）；T5.2 ⬜ 待真人标注（≥3 人 × ≥30 次标注）；T5.3 ⬜ 待标注后生成报告 |
-| **T6** | 收尾验证 | 🥇P0 | ⬜ 待开始 | 全量回归 + live 抽查 + 文档 | T6.1 `pytest -m "not slow"` 全绿 + ruff 0；T6.2 mock 8 人局 game_over；T6.3 少量 live 抽查（差异化/进化的真实 LLM 表现）；T6.4 PLN-040 状态 published + PROGRESS 登记 |
+| **T6** | 收尾验证 | 🥇P0 | 🟢 已完成 | 全量回归 + live 抽查 + 文档 | T6.1 ✅ `pytest -m "not slow"` 全绿 + ruff 0 + `alpha1.1_acceptance.py` 9/9 + `token_budget_benchmark` RESULT: PASS + `check_doc_health` PASS（2026-08-10）；T6.2 ✅ mock 8 人局 game_over（winner=good，2 天完整对局）；T6.3 ✅ live 5 人局 day_1 抽查（deepseek-v4-flash，fallback_rate=0.0，发言自然无机械开头，玩家风格差异化明显：P2 新手问询/P3 施压/P4 直接质问/P5 逻辑追问）；T6.4 ✅ 本计划 status draft→published + PROGRESS 登记 |
 
 > 状态列：⬜ 待开始 → 🟨 进行中 → 🟢 已完成（完成后在 PROGRESS.md 待提交清单登记）
 > 任务顺序：T1 → T2 → T3 → T4 → T5 → T6（T4/T5 可并行，T6 收尾）
