@@ -21,6 +21,7 @@ from __future__ import annotations
 import argparse
 import asyncio
 import json
+import random
 import sys
 from pathlib import Path
 from typing import Any
@@ -147,15 +148,17 @@ def _build_sample_id(game_id: str, seq: int) -> str:
     return f"{game_id[:8]}_{seq:02d}"
 
 
+# shuffle 种子偏移：与对局种子解耦，避免"换对局种子 → 标注顺序也变"的隐式耦合
+_SHUFFLE_SEED_OFFSET = 1
+
+
 def _shuffle_samples(samples: list[dict[str, Any]], seed: int) -> list[dict[str, Any]]:
     """打乱样本顺序，避免同一玩家的发言连续排列被标注者识别。
 
     固定 seed 保证同参导出可复现（score 按 sample_id 回查，不受顺序影响）。
     """
-    import random as _random
-
     shuffled = list(samples)
-    _random.Random(seed).shuffle(shuffled)
+    random.Random(seed + _SHUFFLE_SEED_OFFSET).shuffle(shuffled)
     return shuffled
 
 

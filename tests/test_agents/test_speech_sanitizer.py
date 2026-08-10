@@ -76,6 +76,28 @@ def test_not_matching_word_inside(tmp_path, monkeypatch):
     assert sanitizer._strip_mechanical_opener(text) == text
 
 
+def test_env_extends_mechanical_openers(tmp_path, monkeypatch):
+    """BOTC_MECHANICAL_OPENERS 可追加自定义口头禅（避免硬编码单一来源）。"""
+    monkeypatch.setenv("BOTC_MECHANICAL_OPENERS", "emmm，,说实话，")
+    from src.agents.speech.speech_sanitizer import _mechanical_openers
+
+    openers = _mechanical_openers()
+    assert "emmm，" in openers
+    assert "说实话，" in openers
+    # 内置默认保留
+    assert "行，" in openers
+
+    sanitizer, _ = _make_sanitizer(tmp_path, monkeypatch)
+    assert sanitizer._strip_mechanical_opener("说实话，我有点怀疑 P2。") == "我有点怀疑 P2。"
+
+
+def test_env_empty_keeps_defaults(tmp_path, monkeypatch):
+    monkeypatch.delenv("BOTC_MECHANICAL_OPENERS", raising=False)
+    from src.agents.speech.speech_sanitizer import _DEFAULT_MECHANICAL_OPENERS, _mechanical_openers
+
+    assert _mechanical_openers() == _DEFAULT_MECHANICAL_OPENERS
+
+
 # ---------------------------------------------------------------------------
 # sanitize_public_speech_content 应用剥离
 # ---------------------------------------------------------------------------

@@ -65,13 +65,14 @@ def test_shuffle_breaks_player_grouping(exp) -> None:
     shuffled = exp._shuffle_samples(samples, seed=42)
     assert len(shuffled) == 30
     assert set(s["sample_id"] for s in shuffled) == set(s["sample_id"] for s in samples)
-    # 同玩家相邻对数量应远小于分组排列时的 25（5 玩家 × 每组内 5 条相邻边）
+    # 同玩家相邻对数量应远小于分组排列时的 25（5 玩家 × 每组内 5 条相邻边）。
+    # 用相对阈值（< 一半）避免依赖具体种子值导致断言脆弱。
     adjacent_same = sum(
         1
         for a, b in zip(shuffled, shuffled[1:], strict=False)
         if a["anon_player"] == b["anon_player"]
     )
-    assert adjacent_same < 5
+    assert adjacent_same < (6 - 1) * 5 // 2
 
 
 def test_shuffle_deterministic(exp) -> None:

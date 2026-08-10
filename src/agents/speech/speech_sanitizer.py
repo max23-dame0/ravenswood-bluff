@@ -18,7 +18,9 @@ if TYPE_CHECKING:
 
 # LLM 高频固定的口头应答开场词（"行，""我先说个结论吧""我先说句心里话"等）。
 # 剥离后保留实质内容，降低机器人感。长词在前避免短词先匹配截断。
-_MECHANICAL_OPENERS = (
+# 可通过环境变量 BOTC_MECHANICAL_OPENERS 追加（逗号分隔），如：
+#   BOTC_MECHANICAL_OPENERS="emmm，,说实话，"
+_DEFAULT_MECHANICAL_OPENERS = (
     "我先说个结论吧，",
     "我先说个结论，",
     "我先说句心里话，",
@@ -26,12 +28,25 @@ _MECHANICAL_OPENERS = (
     "我先说句心里话",
     "我先说，",
     "我先说。",
-    "行，",
     "行吧，",
     "行吧",
-    "行，那",
+    "行，",
     "这么说吧，",
 )
+
+# 剥离机械开场词后，剩余内容少于该长度则保留原文（避免过度裁剪）
+_MIN_OPENER_REMAINDER = 4
+
+
+def _mechanical_openers() -> tuple[str, ...]:
+    """返回生效的机械开场词列表（内置默认 + 环境变量追加）。"""
+    import os
+
+    extra = os.environ.get("BOTC_MECHANICAL_OPENERS", "")
+    if not extra:
+        return _DEFAULT_MECHANICAL_OPENERS
+    additions = tuple(item.strip() for item in extra.split(",") if item.strip())
+    return _DEFAULT_MECHANICAL_OPENERS + additions
 
 
 class SpeechSanitizer:
@@ -97,10 +112,11 @@ class SpeechSanitizer:
         降低发言的机械重复感。仅剥离句首固定词，不破坏句子主体。
         """
         candidate = text.lstrip()
-        for opener in _MECHANICAL_OPENERS:
+        for opener in _mechanical_openers():
             if candidate.startswith(opener):
                 rest = candidate[len(opener) :].lstrip("，。！？!?：: ")
-                if len(rest) >= 4:  # 剩余内容过短则保留原文，避免过度裁剪
+                # 剩余内容过短则保留原文，避免过度裁剪
+                if len(rest) >= _MIN_OPENER_REMAINDER:
                     return rest
                 break
         return text
