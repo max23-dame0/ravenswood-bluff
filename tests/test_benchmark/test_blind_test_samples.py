@@ -48,6 +48,57 @@ def test_anonymize_deterministic(exp) -> None:
 
 
 # ---------------------------------------------------------------------------
+# _shuffle_samples
+# ---------------------------------------------------------------------------
+
+
+def test_shuffle_breaks_player_grouping(exp) -> None:
+    """同玩家样本原本按玩家连续分组排列，shuffle 后必须被打散（盲测关键）。
+
+    验证：任意相邻两条样本不都是同一玩家（连续分组被破坏）。
+    """
+    samples = [
+        {"sample_id": f"g1_{p}_{i}", "anon_player": p.upper()}
+        for p in ("p1", "p2", "p3", "p4", "p5")
+        for i in range(6)
+    ]
+    shuffled = exp._shuffle_samples(samples, seed=42)
+    assert len(shuffled) == 30
+    assert set(s["sample_id"] for s in shuffled) == set(s["sample_id"] for s in samples)
+    # 同玩家相邻对数量应远小于分组排列时的 25（5 玩家 × 每组内 5 条相邻边）
+    adjacent_same = sum(
+        1
+        for a, b in zip(shuffled, shuffled[1:], strict=False)
+        if a["anon_player"] == b["anon_player"]
+    )
+    assert adjacent_same < 5
+
+
+def test_shuffle_deterministic(exp) -> None:
+    samples = [
+        {"sample_id": f"g1_{p}_{i}", "anon_player": p.upper()}
+        for p in ("p1", "p2", "p3")
+        for i in range(3)
+    ]
+    assert exp._shuffle_samples(samples, seed=7) == exp._shuffle_samples(samples, seed=7)
+
+
+# ---------------------------------------------------------------------------
+# _tsv_content
+# ---------------------------------------------------------------------------
+
+
+def test_tsv_content_strips_newlines_and_tabs(exp) -> None:
+    """TSV 单元格内容必须不含换行/tab，否则一行会被拆成多行破坏格式。"""
+    content = "第一段\n第二段\r\n第三段\t带tab"
+    cleaned = exp._tsv_content(content)
+    assert "\n" not in cleaned
+    assert "\r" not in cleaned
+    assert "\t" not in cleaned
+    assert cleaned == "第一段 第二段 第三段 带tab"
+
+
+# ---------------------------------------------------------------------------
 # score_labels
 # ---------------------------------------------------------------------------
 

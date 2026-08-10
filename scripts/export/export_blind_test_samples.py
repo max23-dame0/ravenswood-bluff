@@ -147,6 +147,32 @@ def _build_sample_id(game_id: str, seq: int) -> str:
     return f"{game_id[:8]}_{seq:02d}"
 
 
+def _shuffle_samples(samples: list[dict[str, Any]], seed: int) -> list[dict[str, Any]]:
+    """打乱样本顺序，避免同一玩家的发言连续排列被标注者识别。
+
+    固定 seed 保证同参导出可复现（score 按 sample_id 回查，不受顺序影响）。
+    """
+    import random as _random
+
+    shuffled = list(samples)
+    _random.Random(seed).shuffle(shuffled)
+    return shuffled
+
+
+def _tsv_content(content: str) -> str:
+    """清洗 TSV 单元格内容：替换换行/tab 为空格。
+
+    TSV 以换行分行、tab 分列，发言内容若含 \n 会把一行拆成多行、
+    含 \t 会错列，破坏标注表单结构。
+    """
+    return (
+        content.replace("\r\n", " ")
+        .replace("\n", " ")
+        .replace("\r", " ")
+        .replace("\t", " ")
+    )
+
+
 def export_samples(
     games: int = 2,
     player_count: int = 5,
@@ -204,6 +230,10 @@ def export_samples(
             )
             seq += 1
 
+    # 打乱样本顺序（M3 盲测关键）：不允许标注者按 sample_id 序号/相邻行
+    # 推断"连续几条是同一玩家"——只允许凭发言风格判断。固定 seed 可复现。
+    samples = _shuffle_samples(samples, seed)
+
     out_path = Path(out_dir)
     out_path.mkdir(parents=True, exist_ok=True)
 
@@ -232,7 +262,7 @@ def export_samples(
     lines = ["sample_id\tcontent\t候选玩家\t标注(填 P1..P5)"]
     for s in samples:
         candidates = " / ".join(anon_map[pid] for pid in player_ids)
-        lines.append(f"{s['sample_id']}\t{s['content']}\t{candidates}\t")
+        lines.append(f"{s['sample_id']}\t{_tsv_content(s['content'])}\t{candidates}\t")
     (out_path / "labeling.tsv").write_text("\n".join(lines), encoding="utf-8")
 
     # summary.json
