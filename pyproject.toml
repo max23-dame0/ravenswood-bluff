@@ -13,6 +13,8 @@ dependencies = [
     "websockets",
     "python-dotenv",
     "aiosqlite>=0.19",
+    # PLN-041：本地稀疏检索（零模型依赖，embeddings 降级兜底）
+    "rank-bm25>=0.2",
 ]
 
 [project.optional-dependencies]
