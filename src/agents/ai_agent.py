@@ -45,8 +45,10 @@ from src.agents.memory.working_memory import WorkingMemory
 from src.agents.observation.event_observer import EventObserver
 from src.agents.persona.persona import Persona
 from src.agents.prompt.prompt_factory import PromptFactory
+from src.agents.reasoning.viewpoint import viewpoint_enabled
 from src.agents.speech.speech_sanitizer import SpeechSanitizer
 from src.agents.strategy.evil_strategy import EvilStrategy
+from src.agents.workflow.cognitive_workflow import cognitive_speak_enabled
 from src.content.trouble_brewing_terms import get_role_name
 from src.engine.data_collector import GameDataCollector
 from src.llm.base_backend import LLMBackend
@@ -145,6 +147,14 @@ class AIAgent(
         self._action_trace = ActionTrace(
             player_id=player_id, game_id="", enabled=trace_enabled_for(backend)
         )
+        # PLN-042 T4：认知工作流观点库（viewpoint_enabled 判定：BOTC_VIEWPOINTS=1
+        # 强制 / BOTC_COGNITIVE_SPEAK=1 隐式 / 默认 live 后端；mock 默认关闭）
+        self._viewpoint_store = None
+        self._last_cognitive_claim = ""
+        if viewpoint_enabled():
+            from src.agents.reasoning.viewpoint import ViewpointStore
+
+            self._viewpoint_store = ViewpointStore(player_id=player_id, game_id="", enabled=True)
         self._refresh_persona_profile()
 
     # 按 action type 的硬时间预算（秒）
@@ -569,6 +579,39 @@ class AIAgent(
 
         legal_context = legal_context or AgentActionLegalContext()
         self._prime_social_graph_from_state(visible_state)
+
+        # PLN-042 T4：认知工作流——speak/defense_speech 先形成观点链再发言。
+        # orchestrator 全部走 act()（不经 act_with_strategy），故挂在此处；
+        # 草稿复用路径（0 次 LLM）也先落盘观点；非草稿路径把观点摘要
+        # 并入 strategic_thought 注入 act() 的 user 段。开关默认 off 零影响。
+        if cognitive_speak_enabled() and action_type in {"speak", "defense_speech"}:
+            try:
+                from src.agents.workflow.cognitive_workflow import run_cognitive_speech
+
+                cog = await run_cognitive_speech(
+                    self,
+                    self.player_id,
+                    visible_state,
+                    context={
+                        "game_id": visible_state.game_id,
+                        "day_number": visible_state.day_number,
+                        "round_number": visible_state.round_number,
+                        "action_type": action_type,
+                    },
+                )
+                if cog and cog.get("claim"):
+                    self._last_cognitive_claim = cog["claim"]
+                    cached_draft = str(kwargs.get("cached_speech_draft") or "").strip()
+                    if not cached_draft:
+                        viewpoint_note = (
+                            f"【你的观点链】{cog['claim']}（置信度 {cog['confidence']:.2f}）。"
+                            f"{cog.get('content', '')}"
+                        )
+                        kwargs["strategic_thought"] = (
+                            f"{kwargs.get('strategic_thought', '')}\n{viewpoint_note}".strip()
+                        )
+            except Exception as _cog_exc:  # noqa: BLE001 - 认知路径失败不影响主流程
+                logger.warning("[%s] 认知工作流失败（已跳过）: %s", self.name, _cog_exc)
 
         if self._should_use_local_low_value_action(action_type):
             decision = self._local_low_value_decision(visible_state, legal_context, action_type)
@@ -1019,6 +1062,40 @@ class AIAgent(
         return decision
 
     # ------------------------------------------------------------------
+    # PLN-042 T4：认知工作流辅助
+    # ------------------------------------------------------------------
+
+    def get_viewpoint_store(self):
+        """返回观点库（BOTC_COGNITIVE_SPEAK=1 时存在，否则 None）。"""
+        return getattr(self, "_viewpoint_store", None)
+
+    def build_memory_snapshot(self) -> dict[str, list[str]]:
+        """构建认知工作流的记忆快照（hard/soft 分级，排除阵营私密类别）。
+
+        信息隔离：evil_teammates / evil_bluffs 等私密类别**不进快照**，
+        防止观点/发言泄露队友与恶魔身份。
+        """
+        hard: list[str] = []
+        for category in (
+            "fortune_teller_info",
+            "investigator_info",
+            "empath_info",
+            "chef_info",
+            "revealed_role",
+            "demon_candidate",
+            "role_candidate_hint",
+        ):
+            hard.extend(self.working_memory.get_private_memory_summaries(category))
+        objective = [
+            s
+            for s in self.working_memory.get_objective_memory_summaries()
+            if not any(kw in s for kw in ("队友", "同伙", "恶魔名单"))
+        ]
+        hard.extend(objective)
+        soft = self.working_memory.get_public_memory_summaries()
+        return {"hard": hard[-8:], "soft": soft[-8:]}
+
+    # ------------------------------------------------------------------
     # PLN-038 阶段 E：玩家进化机制（跨局长期记忆）
     # ------------------------------------------------------------------
 
@@ -1035,6 +1112,18 @@ class AIAgent(
                 game_id=game_id,
                 enabled=trace_enabled_for(self.backend),
             )
+        except Exception:  # noqa: BLE001
+            pass
+        # PLN-042 T4：观点库绑定对局目录（仅开关开启时存在）
+        try:
+            if getattr(self, "_viewpoint_store", None) is not None:
+                from src.agents.reasoning.viewpoint import ViewpointStore, viewpoint_enabled
+
+                self._viewpoint_store = ViewpointStore(
+                    player_id=self.player_id,
+                    game_id=game_id,
+                    enabled=viewpoint_enabled(),
+                )
         except Exception:  # noqa: BLE001
             pass
 
