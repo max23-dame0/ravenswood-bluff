@@ -137,6 +137,14 @@ class AIAgent(
         self.game_id: str | None = None
         self._player_profile = PlayerProfileStore(player_id, name)
         self._long_term_summary: str = ""
+        # PLN-041 T9：规则书注入上下文（setup 期一次，同局稳定）
+        self._rulebook_context: str = ""
+        # PLN-041 Phase 4：玩家行动轨迹（live 落盘，mock 不产生污染文件）
+        from src.agents.workflow.action_trace import ActionTrace, trace_enabled_for
+
+        self._action_trace = ActionTrace(
+            player_id=player_id, game_id="", enabled=trace_enabled_for(backend)
+        )
         self._refresh_persona_profile()
 
     # 按 action type 的硬时间预算（秒）
@@ -399,6 +407,12 @@ class AIAgent(
         }
         metric.update(extra)
         self.action_metrics.append(metric)
+        # PLN-041 Phase 4：玩家行动轨迹落盘（live 后端启用）
+        try:
+            if getattr(self, "_action_trace", None) is not None:
+                self._action_trace.record(metric)
+        except Exception:  # noqa: BLE001 - trace 失败不影响主流程
+            pass
         self.action_metrics = self.action_metrics[-200:]
         if fallback_used:
             logger.warning(
@@ -714,10 +728,15 @@ class AIAgent(
         # 变化点后置是 DeepSeek 前缀缓存命中的关键：任何变化点都会截断完整前缀缓存。
         stable_rules = self._build_stable_system_prompt(visible_state)
 
-        # 稳定长上下文（跨局玩家记忆，同局内逐 token 稳定）作为 user 首条（D013 约束③）
+        # 稳定长上下文（规则书 + 跨局玩家记忆，同局内逐 token 稳定）作为 user 首条（D013 约束③ / PLN-041 T9）
+        rulebook = self._rulebook_context.strip()
+        rulebook_block = f"\n【你的角色规则书】\n{rulebook}\n" if rulebook else ""
         long_term = self._long_term_summary.strip()
         long_term_block = f"\n【你的跨局玩家记忆（进化）】\n{long_term}\n" if long_term else ""
-        stable_context = long_term_block.strip() or "【跨局记忆】本局新玩家，尚无跨局记忆。"
+        stable_context = (
+            f"{rulebook_block}\n{long_term_block}".strip()
+            or "【跨局记忆】本局新玩家，尚无跨局记忆。"
+        )
 
         # 逐次变化内容（本局记忆 + 局势 + 动作格式）全部后置为 user 末条，最大化可缓存前缀
         dynamic_context = f"""【你的记忆与档案】
@@ -827,9 +846,7 @@ class AIAgent(
             thought = decision.get("reasoning", "")
             if self.data_collector:
                 combined_thought = (
-                    f"[深度思考]\n{llm_thought}\n[决策推理]\n{thought}"
-                    if llm_thought
-                    else thought
+                    f"[深度思考]\n{llm_thought}\n[决策推理]\n{thought}" if llm_thought else thought
                 )
                 self.data_collector.record_thought_trace(
                     player_id=self.player_id,
@@ -1009,6 +1026,17 @@ class AIAgent(
         """绑定当前对局 game_id（记忆工具对局隔离 + 跨局种子隔离）。"""
         self.game_id = game_id
         self.decision_noise.game_id = game_id
+        # PLN-041 Phase 4：行动轨迹绑定对局目录
+        try:
+            from src.agents.workflow.action_trace import ActionTrace, trace_enabled_for
+
+            self._action_trace = ActionTrace(
+                player_id=self.player_id,
+                game_id=game_id,
+                enabled=trace_enabled_for(self.backend),
+            )
+        except Exception:  # noqa: BLE001
+            pass
 
     def load_player_profile(self) -> None:
         """开局加载跨局玩家档案：生成『过往经验』摘要供 prompt 注入。
@@ -1016,7 +1044,21 @@ class AIAgent(
         进化的关键：把以往对局的战绩与经验教训带入本局，
         让 agent 表现更接近有长期记忆的人类玩家。
         PLN-040 T2：合并共享经验池的个性化子集（按角色/阵营检索，去私密化）。
+        PLN-041 T9：规则书静态注入（setup 期一次，同局稳定，零缓存破坏）。
         """
+        # 规则书注入：玩家角色能力 + 阵营红线（setup 期一次，前缀稳定）
+        try:
+            from src.content.rule_knowledge import build_role_rulebook_context
+
+            rulebook = build_role_rulebook_context(
+                role_id=self.role_id or "",
+                team=(self.team.value if hasattr(self.team, "value") else str(self.team or "")),
+            )
+            self._rulebook_context = rulebook
+        except Exception as exc:
+            logger.warning("[rulebook] 规则书注入失败 %s: %s", self.player_id, exc)
+            self._rulebook_context = ""
+
         self._long_term_summary = self._player_profile.build_long_term_summary(limit=6)
         # T2 共享经验池：同角色/阵营的跨局经验（setup 时算一次，保持前缀稳定）
         try:
@@ -1028,9 +1070,7 @@ class AIAgent(
             )
             if shared:
                 self._long_term_summary = (
-                    f"{self._long_term_summary}\n{shared}"
-                    if self._long_term_summary
-                    else shared
+                    f"{self._long_term_summary}\n{shared}" if self._long_term_summary else shared
                 )
         except Exception as exc:
             logger.warning("[shared-pool] 共享经验注入失败 %s: %s", self.player_id, exc)

@@ -139,7 +139,9 @@ def test_build_shared_context_formats_text(tmp_path, monkeypatch):
     monkeypatch.setenv("BOTC_DATA_DIR", str(tmp_path))
     pool = SharedExperiencePool()
     # 注意：含"恶魔/队友名单"等敏感词的经验会被 is_sensitive 拒绝入池（信息隔离）
-    pool.deposit(role_id="imp", team="evil", won=True, lesson="要控制信息释放节奏，避免过早暴露意图。")
+    pool.deposit(
+        role_id="imp", team="evil", won=True, lesson="要控制信息释放节奏，避免过早暴露意图。"
+    )
     ctx = pool.build_shared_context(role_id="imp", team="evil")
     assert "共享经验池" in ctx
     assert "控制信息释放节奏" in ctx
@@ -196,6 +198,49 @@ def test_load_player_profile_keeps_own_when_pool_empty(tmp_path, monkeypatch):
     summary = agent.build_long_term_context()
     assert "我的个人经验" in summary
     assert "共享经验池" not in summary
+
+
+# ---------------------------------------------------------------------------
+# PLN-041 T9：规则书注入（setup 期静态注入）
+# ---------------------------------------------------------------------------
+
+
+def test_load_player_profile_injects_rulebook(tmp_path, monkeypatch):
+    monkeypatch.setenv("BOTC_DATA_DIR", str(tmp_path))
+    agent = _make_agent(tmp_path, monkeypatch)
+    agent.role_id = "washerwoman"
+    from src.state.game_state import Team as _T
+
+    agent.team = _T.GOOD
+    agent.load_player_profile()
+    assert agent._rulebook_context
+    assert "洗衣妇" in agent._rulebook_context
+    assert "村民" in agent._rulebook_context
+
+
+def test_load_player_profile_rulebook_evil_red_line(tmp_path, monkeypatch):
+    monkeypatch.setenv("BOTC_DATA_DIR", str(tmp_path))
+    agent = _make_agent(tmp_path, monkeypatch)
+    agent.role_id = "imp"
+    from src.state.game_state import Team as _T
+
+    agent.team = _T.EVIL
+    agent.load_player_profile()
+    assert "伪装" in agent._rulebook_context or "保密" in agent._rulebook_context
+
+
+def test_rulebook_context_stable_within_game(tmp_path, monkeypatch):
+    """规则书注入同局内稳定：多次调用结果一致（前缀缓存安全）。"""
+    monkeypatch.setenv("BOTC_DATA_DIR", str(tmp_path))
+    agent = _make_agent(tmp_path, monkeypatch)
+    agent.role_id = "empath"
+    from src.state.game_state import Team as _T
+
+    agent.team = _T.GOOD
+    agent.load_player_profile()
+    first = agent._rulebook_context
+    agent.load_player_profile()
+    assert agent._rulebook_context == first
 
 
 # ---------------------------------------------------------------------------
