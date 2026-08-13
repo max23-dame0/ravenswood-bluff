@@ -151,3 +151,21 @@
 - **否决方案**：① 保持 enabled（live 空响应/JSON 解析失败高发，浪费 token）；② 完全删除 speak 的 LLM 调用（牺牲发言质量，草稿复用已处理常见场景，仍需 LLM 处理复杂局势）。
 - **回退/可逆方案**：改回 `"thinking": "enabled"` 即可恢复原策略；`_llm_strategy_for_action` 返回值可被单测断言。
 - **约束**：① 该策略面向 deepseek 等推理模型有效，切换非推理模型（如 GPT-4o）时需重新评估是否恢复 enabled；② `reasoning_effort=low` 保留（不破坏 `test_llm_strategy` 断言）；③ 工具调用主导（PLN-038 阶段A）是此优化的前提——工具路径不依赖 thinking。
+
+## D016: 工作流 + RAG 融入落地（PLN-041）
+
+- **日期**：2026-08-12
+- **决策**：① **检索基础设施**——新增 `src/agents/memory/retrieval/`（chunker 分块 / BM25 稀疏检索 / Faiss 稠密可选 / RRF 融合 / RetrievalStore 落盘 `data/agents/_retrieval/` / RetrievalPipeline 统一注入管线），依赖 `rank-bm25`（必装）+ `numpy`/`faiss-cpu`（可选，缺失自动降级 BM25-only）；② **规则书静态注入**——`src/content/rule_knowledge.py` 从 terms + night_order + RoleDefinition 导出结构化条目，`build_role_rulebook_context` 在 AIAgent setup 期注入 stable_context 首段（同局稳定、零缓存破坏），直接约束"角色能力边界/阵营红线"发言幻觉；③ **工作流引擎**——`src/agents/workflow/`（Workflow DSL：ToolCallNode/ConditionNode/ParallelNode + WorkflowEngine 调度/超时/重试 + WorkflowTrace 落盘回放），说书人裁决 6 工具编排为显式工作流试点（包装非重写、LLM 仅保留 choose_distortion 节点）；④ **玩家行动轨迹**——`ActionTrace` 落盘 `data/agents/{player_id}/games/{game_id}/action_trace.jsonl`，仅 live 后端（`BOTC_BACKEND != mock`）启用，mock 测试零污染；⑤ **评测与门禁**——`scripts/benchmark/retrieval_quality_benchmark.py`（Recall@k/MRR，BM25-only 实测 Recall@5=1.0/MRR=1.0）+ `scripts/acceptance/retrieval_workflow_acceptance.py`（检索质量 + 工作流轨迹双 gate），已登记进 `alpha1.1_acceptance.py`（10 gate 全绿）。
+- **原因**：用户要求"每次 agent 玩家决策/发言包装为工作流 + 引入 RAG 检索规则书/对局经验/网络经验减少幻觉"；可行性核查（PLN-041 §5）发现 Faiss 依赖未装实际不可用、玩家侧已有防幻觉防线（normalize/fallback/sanitize）、残余幻觉集中在发言内容层面——规则静态注入是最高性价比解。
+- **否决方案**：① 重写 `act()` 为声明式工作流（击穿 token 预算/草稿复用/前缀缓存/480+ 测试，风险不可接受——红线"包装非重写"）；② 动态 RAG 注入进 act()（破坏 D013/D014 同局稳定约束、烧 token）。
+- **回退/可逆方案**：全部为新增独立模块（retrieval/ workflow/ rule_knowledge.py）+ 两处最小挂接点（`load_player_profile` 规则注入、`_record_action_metric` trace 落盘），删除挂接点即完全回退；`rank-bm25` 依赖可从 pyproject 移除。
+- **约束**：① 规则注入只在 setup 期（stable_context 首段），禁止 act() 内动态重算；② 检索结果注入前必须过敏感过滤（`type=rule` 白名单放行，其余过 `is_sensitive`）；③ mock 环境检索评测默认 BM25-only（mock embeddings 无语义会污染 MRR）；④ trace 仅 live 落盘（`BOTC_TRACE_ACTIONS=1` 可强制）；⑤ 说书人真实信息计算永远走规则引擎，工作流 LLM 仅限 `choose_distortion`（`BOTC_ST_LLM_STRATEGY` 默认 off）；⑥ 新增 gate 已登记 `alpha1.1_acceptance.py`，全量 676 测试 + ruff 0 + 10/10 gate 为验收基线。
+
+## D017: 验收 flaky 根因修复 — persona_vote_bias 纳入 archetype 维度（2026-08-13）
+
+- **日期**：2026-08-13
+- **决策**：`DecisionEngine.persona_vote_bias`（good 阵营分支）在 decision_style 文案兜底**之前**，先按 `archetype.assertiveness` 定倾向：`high`（aggressive/paranoid/strategist）→ 投 yes；`low`（silent/cooperative/protector/outsider_vibe）→ 投 no；`neutral` 或无 archetype 时回退原文案判断。
+- **原因**：全量 slow 模式 6 项验收长期 flaky（wave3 / a3_memory / alpha3 / long_game_ai / ai_evaluation 等），根因是 **mock 下不同 archetype 投票行为趋同**：vote 走本地判定路径，suspicion 常落在 threshold±margin(0.06) 模糊带内，由 `persona_vote_bias` 兜底；而该函数只看**随机 pick 的 decision_style 文案**（与 archetype 弱相关，`refresh_persona_profile` 用 `_pick_stable` 从 6 个模板 pick），导致 aggressive/silent 全投 yes（`aggressive_vote_push_rate 1.0 <= 1.0`）、行为签名趋同（`persona_diversity_score 0.2`）。修复后：long_game_ai `aggressive_vote_push_rate` 恢复区分（1.0 vs 0.0）、ai_evaluation `persona_diversity_score` 达标；同时符合 PLN-040"差异化玩家活人感"目标（archetype 是稳定人格锚点，跨局/跨轮次一致）。
+- **否决方案**：① 放宽验收断言（治标，掩盖真实回归；项目已有 T1 洞察"mock 噪声失真"先例但 vote 趋同是行为缺陷而非噪声）；② 调 vote 场景信号强度（suspicion 需精确落 0.50-0.58 区间，脆弱不可维护）。
+- **回退/可逆方案**：仅改 `persona_vote_bias` 一个函数，删除 archetype 分支即回退原行为；不触碰 evil 分支（evil 保持原 decision_style 文案判定）。
+- **约束**：① 只改 good 阵营分支，evil 行为不变；② `archetype` 从 `persona_profile["archetype"]`（Archetype 实例）读取，该字段是稳定锚点且已被 `nomination_threshold_offset` 等消费，无新增依赖；③ 回归基线：全量 676 测试（含 slow）/ 0 failures + ruff 0 + format 0 + 10/10 聚合 gate + mock 8 人局 game_over。
