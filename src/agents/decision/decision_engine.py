@@ -747,12 +747,22 @@ class DecisionEngine:
     def persona_vote_bias(self, visible_state: AgentVisibleState) -> bool:
         agent = self._agent
         profile = agent.persona_profile or {}
-        bias = profile.get("decision_style", "")
+        bias = str(profile.get("decision_style", ""))
         nominee = visible_state.current_nominee
         if nominee == agent.player_id:
             return False
         if agent.team == "evil":
             return bias.startswith("谨慎") or bias.startswith("保持") or bias.startswith("会在")
+        # PLN-041 差异化修复：模糊带内先按 archetype 强势度定倾向。
+        # 原实现只看随机 pick 的 decision_style 文案（与 archetype 弱相关），
+        # 导致 aggressive/silent 在 vote 模糊带内行为趋同（验收 flaky 根因）。
+        # archetype 维度（assertiveness）是稳定人格锚点，跨局/跨轮次一致。
+        archetype = profile.get("archetype")
+        if isinstance(archetype, Archetype):
+            if archetype.assertiveness == "high":
+                return True
+            if archetype.assertiveness == "low":
+                return False
         return not bias.startswith("压迫") and not bias.startswith("果断")
 
     def find_most_suspicious_player(self, visible_state: AgentVisibleState) -> str | None:
@@ -1170,7 +1180,7 @@ class DecisionEngine:
                 )
             return {
                 "action": "speak",
-                "content": content,
+                "content": agent._sanitize_public_speech_content(content, visible_state),
                 "tone": "defensive",
                 "reasoning": f"兜底辩解，保持角色风格 {role_name}。({reason})",
             }
@@ -1261,7 +1271,7 @@ class DecisionEngine:
             )
         return {
             "action": "speak",
-            "content": content,
+            "content": agent._sanitize_public_speech_content(content, visible_state),
             "tone": "calm",
             "reasoning": f"兜底发言，保持角色风格 {role_name}。({reason})",
         }

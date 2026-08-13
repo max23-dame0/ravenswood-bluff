@@ -45,10 +45,7 @@ def test_strip_leading_wo_xian_shuo(tmp_path, monkeypatch):
         sanitizer._strip_mechanical_opener("我先说个结论吧，P1 说自己是厨师。")
         == "P1 说自己是厨师。"
     )
-    assert (
-        sanitizer._strip_mechanical_opener("我先说句心里话，我有点慌。")
-        == "我有点慌。"
-    )
+    assert sanitizer._strip_mechanical_opener("我先说句心里话，我有点慌。") == "我有点慌。"
 
 
 def test_strip_xing_ba(tmp_path, monkeypatch):
@@ -118,3 +115,45 @@ def test_sanitize_applies_opener_strip(tmp_path, monkeypatch):
     visible = agent._build_visible_state(state)
     out = sanitizer.sanitize_public_speech_content("行，先听大家说。", visible)
     assert out == "先听大家说。"
+
+
+# ---------------------------------------------------------------------------
+# fallback 发言路径也应用剥离（2026-08-10：persona_fallback_speech 曾绕过）
+# ---------------------------------------------------------------------------
+
+
+def test_fallback_speech_strips_mechanical_opener(tmp_path, monkeypatch):
+    """fallback 兜底发言同样不应以'这么说吧，'等固定口头应答开头。"""
+    from src.agents.ai_agent import AIAgent
+    from src.agents.persona.persona import Persona
+    from src.state.game_state import GamePhase, GameState, PlayerState, Team
+    from tests.doubles import CapturingBackend
+
+    monkeypatch.setenv("BOTC_DATA_DIR", str(tmp_path))
+    agent = AIAgent(
+        player_id="p1",
+        name="AgentP1",
+        backend=CapturingBackend(content="{}"),
+        persona=Persona(description="谨慎", speaking_style="平稳"),
+    )
+    agent.set_game_context("game-sanitizer-fallback")
+    state = GameState(
+        game_id="game-sanitizer-fallback",
+        phase=GamePhase.DAY_DISCUSSION,
+        round_number=1,
+        day_number=1,
+        players=(
+            PlayerState(player_id="p1", name="A", role_id="chef", team=Team.GOOD),
+            PlayerState(player_id="p2", name="B", role_id="imp", team=Team.EVIL),
+        ),
+    )
+    agent.synchronize_role(state.get_player("p1"))
+    visible = agent._build_visible_state(state)
+    legal = agent._build_legal_action_context(state, visible)
+    result = agent._fallback_decision(visible, legal, "speak", reason="test-fallback")
+    content = result.get("content", "")
+    # 机械开场剥离应应用于 fallback 路径
+    assert not content.lstrip().startswith(
+        ("行，", "行吧", "我先说个结论", "我先说句心里话", "我先说", "这么说吧，")
+    )
+    assert content  # 非空
