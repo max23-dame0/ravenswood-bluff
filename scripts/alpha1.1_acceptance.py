@@ -201,6 +201,14 @@ def build_gates(args: argparse.Namespace) -> list[Gate]:
             ["scripts/acceptance/alpha1_rules_acceptance.py"],
             args.gate_timeout_seconds,
         ),
+        Gate(
+            "retrieval quality + workflow trace",
+            ["scripts/acceptance/retrieval_workflow_acceptance.py"],
+            args.gate_timeout_seconds,
+            skip_reason=None
+            if _script_exists("scripts/acceptance/retrieval_workflow_acceptance.py")
+            else "script not yet implemented",
+        ),
     ]
     return gates
 
