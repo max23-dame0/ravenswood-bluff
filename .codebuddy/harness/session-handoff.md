@@ -7,6 +7,36 @@
 
 ## 会话交接记录
 
+### 会话 2026-08-12（PLN-041 工作流 + RAG 融入全量实施）
+
+**背景 (Context)**
+承接「PLN-041 工作流与 RAG 融入」：用户要求按 SpecForge 工作流逐项完成任务，全部功能须经单测与实测，且完成后做 harness 治理与文档治理。计划文档已在前两轮完成可行性核查（§5）与任务板（§9）。
+
+**进展 (Progress)**
+- **检索基础设施**：`src/agents/memory/retrieval/`（chunker 分块 / BM25 稀疏检索 / Faiss 稠密可选 + RRF 融合 / RetrievalStore 落盘 `data/agents/_retrieval/` / RetrievalPipeline 统一注入管线：retrieve→敏感过滤→门控→注入）；依赖 `rank-bm25`（必装）+ numpy/faiss-cpu（可选，缺失自动降级 BM25-only）。
+- **规则书静态注入（防幻觉核心）**：`src/content/rule_knowledge.py` 从 terms + night_order + RoleDefinition 导出 22 角色结构化条目；`build_role_rulebook_context` 在 AIAgent `load_player_profile` setup 期注入 stable_context 首段（同局稳定、零缓存破坏）。
+- **工作流引擎**：`src/agents/workflow/`（Workflow DSL：ToolCallNode/ConditionNode/ParallelNode + WorkflowEngine 调度/超时/重试 + WorkflowTrace 落盘回放）；说书人裁决 6 工具编排为显式工作流试点（`storyteller_workflows.py`，包装非重写、LLM 仅限 choose_distortion、默认路径零 LLM）；玩家行动轨迹 `ActionTrace`（`data/agents/{player_id}/games/{game_id}/action_trace.jsonl`，仅 live 落盘，mock 零污染）。
+- **评测与门禁**：`scripts/benchmark/retrieval_quality_benchmark.py`（Recall@5=1.0/MRR=1.0）+ `scripts/acceptance/retrieval_workflow_acceptance.py`（检索质量 + 工作流轨迹双 gate）已登记进 `alpha1.1_acceptance.py`。
+- **治理收尾**：DECISIONS 新增 D016；PROGRESS 任务 24 ✅ + 验证状态表 + 会话记录；PLN-041 status draft→published + 任务板全勾选。
+
+**验证 (Verification)**
+- `pytest tests -q` 全量（含 slow）= **676 passed / 0 failed / 0 errors**（2026-08-13 D017 修复后）；ruff check 0；ruff format 0（保留 ruff 0.16.1 格式改动，用户确认）；`check_doc_health.py` PASSED；`alpha1.1_acceptance.py` **10/10 全绿**；mock 8 人局 game_over 且 trace 零污染。
+- 此前「6 项 slow 验收基线 flaky」已由 D017 修复：根因是 `persona_vote_bias` 与 archetype 无关导致 vote 模糊带内行为趋同，非 mock 噪声。
+
+**阻断 (Blockers)**
+- 无技术阻断。**未提交改动较多**（新增 retrieval/workflow/rule_knowledge + 6 个测试文件 + ai_agent 挂接 + 文档），等用户确认后 commit（用户偏好：提交须确认）。
+
+**下一步 (Next Steps)**
+1. 用户确认后按逻辑分组 commit（建议：基础设施 / 注入 / 工作流 / gate 与文档 4 组）。
+2. （可选）live 后端检索抽查（`--dense` 需真实 embeddings）。
+3. （可选）网络玩家分析经验知识源人工整理后走同一条索引管线。
+
+**确认 (Confirmed by)**
+- 填写人：coding agent（2026-08-12）
+- 确认人（下一会话）：________
+
+---
+
 ### 会话 2026-07-31-04（规范化整理收尾验证）
 
 **背景 (Context)**
