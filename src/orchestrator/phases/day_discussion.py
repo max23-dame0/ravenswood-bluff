@@ -205,9 +205,7 @@ class DayDiscussionHandler:
                         )
                         if action:
                             action["speech_source"] = (
-                                "cache_refined"
-                                if refine_draft
-                                else "cache_finalized_draft_reuse"
+                                "cache_refined" if refine_draft else "cache_finalized_draft_reuse"
                             )
                     else:
                         action = await self._o._timed_act(

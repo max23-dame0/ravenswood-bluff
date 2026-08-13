@@ -131,9 +131,7 @@ def _entry_is_fallback(entry: dict[str, Any]) -> bool:
     return action.get("fallback") is True
 
 
-def aggregate_player_fingerprint(
-    entries: list[dict[str, Any]], player_id: str
-) -> dict[str, float]:
+def aggregate_player_fingerprint(entries: list[dict[str, Any]], player_id: str) -> dict[str, float]:
     """从单个玩家的全部 thought_trace 记录聚合行为指纹向量。"""
     speak_lens: list[float] = []
     speak_count = 0
@@ -153,7 +151,9 @@ def aggregate_player_fingerprint(
             continue
         total_actions += 1
         action = entry.get("action") or {}
-        action_type = entry.get("action_type") or action.get("action_type") or action.get("action") or ""
+        action_type = (
+            entry.get("action_type") or action.get("action_type") or action.get("action") or ""
+        )
         at = str(action_type)
 
         if at in ("speak", "defense_speech") or (at == "speak"):
@@ -212,7 +212,7 @@ def aggregate_player_fingerprint(
 def euclidean_distance(a: dict[str, float], b: dict[str, float]) -> float:
     """两指纹向量的归一化欧氏距离（各维均已在 0~1，除以 sqrt(ndim) 归一到 0~1）。"""
     squared = sum((a[dim] - b[dim]) ** 2 for dim in FINGERPRINT_DIMS)
-    return round((squared ** 0.5) / (len(FINGERPRINT_DIMS) ** 0.5), 4)
+    return round((squared**0.5) / (len(FINGERPRINT_DIMS) ** 0.5), 4)
 
 
 # ---------------------------------------------------------------------------
@@ -334,7 +334,11 @@ def run_benchmark(
     for pid in all_players:
         vecs = [game[pid] for game in normalized_by_game if pid in game]
         if len(vecs) >= 2:
-            ds = [euclidean_distance(vecs[i], vecs[j]) for i in range(len(vecs)) for j in range(i + 1, len(vecs))]
+            ds = [
+                euclidean_distance(vecs[i], vecs[j])
+                for i in range(len(vecs))
+                for j in range(i + 1, len(vecs))
+            ]
             stability[pid] = round(sum(ds) / len(ds), 4)
         else:
             stability[pid] = None
@@ -394,7 +398,9 @@ def print_summary(report: dict[str, Any]) -> None:
     print("\n" + "=" * 60)
     print("AI 玩家行为指纹基准（PLN-040 T1）")
     print("=" * 60)
-    print(f"对局数: {report['meta']['games']} | 玩家数: {report['meta']['player_count']} | seed: {report['meta']['seed']}")
+    print(
+        f"对局数: {report['meta']['games']} | 玩家数: {report['meta']['player_count']} | seed: {report['meta']['seed']}"
+    )
     print(f"指纹维度: {len(report['fingerprint_dims'])}")
     print(f"两两距离样本: {ds['pair_count']}")
     print(f"  mean_distance: {ds['mean_distance']}")

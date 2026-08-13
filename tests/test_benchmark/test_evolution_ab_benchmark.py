@@ -35,9 +35,7 @@ def bench_mod() -> ModuleType:
     return module
 
 
-def _outcome(
-    bench_mod: ModuleType, winner: str, player_teams: list[str]
-) -> object:
+def _outcome(bench_mod: ModuleType, winner: str, player_teams: list[str]) -> object:
     return bench_mod.GameOutcome(
         game_id="g",
         winner=winner,

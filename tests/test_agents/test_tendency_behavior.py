@@ -99,9 +99,7 @@ def test_persona_profile_applies_tendency(tmp_path, monkeypatch):
         phase=GamePhase.DAY_DISCUSSION,
         round_number=1,
         day_number=1,
-        players=(
-            PlayerState(player_id="p1", name="A", role_id="washerwoman", team=Team.GOOD),
-        ),
+        players=(PlayerState(player_id="p1", name="A", role_id="washerwoman", team=Team.GOOD),),
     )
     agent.synchronize_role(state.get_player("p1"))
     profile = agent.persona_profile or {}
@@ -120,9 +118,7 @@ def test_persona_profile_conservative(tmp_path, monkeypatch):
         phase=GamePhase.DAY_DISCUSSION,
         round_number=1,
         day_number=1,
-        players=(
-            PlayerState(player_id="p1", name="A", role_id="washerwoman", team=Team.GOOD),
-        ),
+        players=(PlayerState(player_id="p1", name="A", role_id="washerwoman", team=Team.GOOD),),
     )
     agent.synchronize_role(state.get_player("p1"))
     profile = agent.persona_profile or {}

@@ -249,7 +249,8 @@ class OpenAIBackend(LLMBackend):
                     if scavenged:
                         tool_calls = scavenged
                         logger.info(
-                            "[Scavenge] 从 thinking/content 文本恢复 %d 个 tool call", len(scavenged)
+                            "[Scavenge] 从 thinking/content 文本恢复 %d 个 tool call",
+                            len(scavenged),
                         )
 
         usage = {
@@ -322,9 +323,7 @@ class OpenAIBackend(LLMBackend):
         return results
 
     @staticmethod
-    def _scavenge_tool_calls_from_text(
-        text: str, known_names: set[str]
-    ) -> list[ToolCall]:
+    def _scavenge_tool_calls_from_text(text: str, known_names: set[str]) -> list[ToolCall]:
         """从 thinking/content 文本中恢复被写成 JSON 的 tool call。
 
         支持两种形态：

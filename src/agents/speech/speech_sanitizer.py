@@ -211,9 +211,7 @@ class SpeechSanitizer:
                 return self._objective_public_paraphrase(summaries[-1], visible_state)
         return ""
 
-    def _objective_public_paraphrase(
-        self, summary: str, visible_state: AgentVisibleState
-    ) -> str:
+    def _objective_public_paraphrase(self, summary: str, visible_state: AgentVisibleState) -> str:
         """把数据格式的记忆摘要转述为口语化发言（角色声明/死亡等客观信息）。
 
         输入示例："P2 公开跳身份为 士兵" / "P1 死亡，原因：night"

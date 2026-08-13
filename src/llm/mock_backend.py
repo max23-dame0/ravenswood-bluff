@@ -78,8 +78,10 @@ class MockBackend(LLMBackend):
         player_ids = self._extract_player_ids(system_prompt)
         # PLN-039 三层前缀把"当前需要执行的动作类型"移到 user 末条，仅扫 system 提取不到
         # → 补扫 messages，确保 vote/nomination/night 等动作能被 mock 正确响应（T3.5）
-        prompt_all = system_prompt + "\n" + "\n".join(
-            str(m.content) for m in messages if getattr(m, "content", None)
+        prompt_all = (
+            system_prompt
+            + "\n"
+            + "\n".join(str(m.content) for m in messages if getattr(m, "content", None))
         )
         action_type = self._extract_action_type(prompt_all)
 

@@ -6,6 +6,7 @@
 3. 同 Agent 请求间 user1 一致比例（user1 是否已稳定）
 4. 分类对比：命中率 vs 静态段占比（gap = 可提升空间）
 """
+
 import json
 import sys
 from collections import defaultdict
@@ -64,8 +65,10 @@ for r in resps:
 
 # 1) 静态段占比：system / (system + user1) 相对 prompt 理论上限
 print("=== 1) 各分类静态段占比（system / system+user1 占请求比例）===")
-print(f"{'cat':12s} {'n':>4s} {'avg_prompt':>10s} {'avg_sys':>9s} {'avg_u1':>8s} "
-      f"{'static%':>8s} {'命中率%':>8s} {'gap%':>7s}")
+print(
+    f"{'cat':12s} {'n':>4s} {'avg_prompt':>10s} {'avg_sys':>9s} {'avg_u1':>8s} "
+    f"{'static%':>8s} {'命中率%':>8s} {'gap%':>7s}"
+)
 for cat in sorted(cat_reqs, key=lambda c: -len(cat_reqs[c])):
     req_list = cat_reqs[cat]
     total_p = total_s = total_u1 = 0
@@ -87,8 +90,10 @@ for cat in sorted(cat_reqs, key=lambda c: -len(cat_reqs[c])):
             hit += usage.get("prompt_cache_hit_tokens", 0) or 0
             miss += usage.get("prompt_cache_miss_tokens", 0) or 0
     hit_rate = hit / (hit + miss) * 100 if hit + miss else 0
-    print(f"{cat:12s} {n:4d} {total_p/n:10.0f} {total_s/n:9.0f} {total_u1/n:8.0f} "
-          f"{static_pct:7.1f}% {hit_rate:7.1f}% {max(0, static_pct - hit_rate):6.1f}%")
+    print(
+        f"{cat:12s} {n:4d} {total_p / n:10.0f} {total_s / n:9.0f} {total_u1 / n:8.0f} "
+        f"{static_pct:7.1f}% {hit_rate:7.1f}% {max(0, static_pct - hit_rate):6.1f}%"
+    )
 
 # 2) 同 Agent 请求间 system 一致性（act/draft/reflect/archive）
 print()

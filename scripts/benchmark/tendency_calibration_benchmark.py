@@ -39,17 +39,34 @@ def _load_t1() -> Any:
     return module
 
 
-def _preset_tendencies(player_ids: list[str], scenario: str, rng: random.Random) -> dict[str, dict[str, float]]:
+def _preset_tendencies(
+    player_ids: list[str], scenario: str, rng: random.Random
+) -> dict[str, dict[str, float]]:
     """按场景为每个玩家生成 tendency 四维。"""
     presets: dict[str, dict[str, float]] = {}
     for idx, pid in enumerate(player_ids):
         if scenario == "baseline":
-            presets[pid] = {"aggression": 0.5, "risk_taking": 0.5, "talkativeness": 0.5, "caution": 0.5}
+            presets[pid] = {
+                "aggression": 0.5,
+                "risk_taking": 0.5,
+                "talkativeness": 0.5,
+                "caution": 0.5,
+            }
         elif scenario == "polarized":
             if idx % 2 == 0:
-                presets[pid] = {"aggression": 0.85, "risk_taking": 0.8, "talkativeness": 0.85, "caution": 0.2}
+                presets[pid] = {
+                    "aggression": 0.85,
+                    "risk_taking": 0.8,
+                    "talkativeness": 0.85,
+                    "caution": 0.2,
+                }
             else:
-                presets[pid] = {"aggression": 0.2, "risk_taking": 0.2, "talkativeness": 0.25, "caution": 0.9}
+                presets[pid] = {
+                    "aggression": 0.2,
+                    "risk_taking": 0.2,
+                    "talkativeness": 0.25,
+                    "caution": 0.9,
+                }
         elif scenario == "mixed":
             presets[pid] = {
                 "aggression": round(rng.uniform(0.05, 0.95), 3),
@@ -136,7 +153,17 @@ def main() -> int:
     for scenario in ("baseline", "polarized", "mixed"):
         print(f"\n>>> 场景 {scenario}: 跑 {args.games} 局 mock...")
         try:
-            results.append(_run_scenario(t1, scenario, args.games, args.player_count, args.seed, tmp_data_dir, args.timeout))
+            results.append(
+                _run_scenario(
+                    t1,
+                    scenario,
+                    args.games,
+                    args.player_count,
+                    args.seed,
+                    tmp_data_dir,
+                    args.timeout,
+                )
+            )
         except Exception as exc:
             print(f"  场景 {scenario} 失败: {exc}")
             results.append({"scenario": scenario, "error": str(exc)})
@@ -161,10 +188,14 @@ def main() -> int:
         mix = stats["mixed"]["mean_distance"]
         print("-" * 60)
         print(f"  基线(均衡) mean={base:.4f}")
-        print(f"  极化 mean={pol:.4f}  Delta={pol - base:+.4f}  "
-              + ("[OK] 差异化生效" if pol > base else "[WARN] 未显著拉开"))
-        print(f"  混合 mean={mix:.4f}  Delta={mix - base:+.4f}  "
-              + ("[OK] 差异化生效" if mix > base else "[WARN] 未显著拉开"))
+        print(
+            f"  极化 mean={pol:.4f}  Delta={pol - base:+.4f}  "
+            + ("[OK] 差异化生效" if pol > base else "[WARN] 未显著拉开")
+        )
+        print(
+            f"  混合 mean={mix:.4f}  Delta={mix - base:+.4f}  "
+            + ("[OK] 差异化生效" if mix > base else "[WARN] 未显著拉开")
+        )
     print("=" * 60 + "\n")
     return 0
 

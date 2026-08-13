@@ -138,7 +138,11 @@ def test_score_all_correct_pass(tmp_path, exp) -> None:
 def test_score_random_guess_fail(tmp_path, exp) -> None:
     """25 条标注、全猜错 → guess_rate=0 且样本量不足 30 → FAIL。"""
     samples_path = _write_samples(tmp_path)
-    lines = [f"g1_{p}_{i}\tP1" if p != "p1" else f"g1_{p}_{i}\tP2" for p in ("p1", "p2", "p3", "p4", "p5") for i in range(5)]
+    lines = [
+        f"g1_{p}_{i}\tP1" if p != "p1" else f"g1_{p}_{i}\tP2"
+        for p in ("p1", "p2", "p3", "p4", "p5")
+        for i in range(5)
+    ]
     labels_path = _write_labels(tmp_path, lines)
     result = exp.score_labels(samples_path, labels_path)
     assert result["total_labels"] == 25

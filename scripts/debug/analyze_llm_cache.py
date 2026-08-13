@@ -3,6 +3,7 @@
 用法：python scripts/debug/analyze_llm_cache.py [llm.jsonl 路径]
 默认读取 runtime_game_logs/recent_1/llm.jsonl。
 """
+
 import json
 import sys
 
@@ -130,9 +131,7 @@ for r in resps:
     player = m.group(1).strip() if m else "(unknown)"
     bucket = draft_by_player if cat == "draft" else act_by_player
     bucket.setdefault(player, set()).add(sysp)
-print(
-    f"draft 覆盖 player 数={len(draft_by_player)}, act 覆盖 player 数={len(act_by_player)}"
-)
+print(f"draft 覆盖 player 数={len(draft_by_player)}, act 覆盖 player 数={len(act_by_player)}")
 all_ok = True
 for player in sorted(set(draft_by_player) | set(act_by_player)):
     d_var = len(draft_by_player.get(player, set()))
@@ -151,11 +150,11 @@ for player in sorted(set(draft_by_player) | set(act_by_player)):
             f"player={player!r}: draft变体={d_var} act变体={a_var} "
             f"（缺 {('draft' if d_var == 0 else 'act')}，无法同 agent 比对）"
         )
-print(f"T3.1 判定（同 agent draft==act 完全一致）: {'PASS' if all_ok else 'FAIL（有同 agent 不一致）'}")
-# 全局静态层共享验证（任意一个 system 即可）
-sample = next(
-    (s for bucket in (draft_by_player, act_by_player) for s in bucket.values() if s), ""
+print(
+    f"T3.1 判定（同 agent draft==act 完全一致）: {'PASS' if all_ok else 'FAIL（有同 agent 不一致）'}"
 )
+# 全局静态层共享验证（任意一个 system 即可）
+sample = next((s for bucket in (draft_by_player, act_by_player) for s in bucket.values() if s), "")
 if sample:
     first = next(iter(sample))
     layer = first[: first.index("【玩家名单】")] if "【玩家名单】" in first else ""

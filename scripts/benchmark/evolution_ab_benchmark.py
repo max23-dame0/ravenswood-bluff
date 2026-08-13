@@ -195,9 +195,7 @@ async def _run_group(
             _fresh_data_dir(data_dir, "agents")
         print(f"  [{name}] 测试局 {i + 1}/{test_games}...")
         outcomes.append(
-            await _play_full_game(
-                player_count=player_count, seed=seed_base + i, timeout=timeout
-            )
+            await _play_full_game(player_count=player_count, seed=seed_base + i, timeout=timeout)
         )
     return outcomes
 
@@ -214,9 +212,7 @@ async def _run_evolution(
     _set_env(data_dir, seed_base)
     for i in range(evolve_games):
         print(f"  [进化] 局 {i + 1}/{evolve_games}...")
-        await _play_full_game(
-            player_count=player_count, seed=seed_base + i, timeout=timeout
-        )
+        await _play_full_game(player_count=player_count, seed=seed_base + i, timeout=timeout)
 
 
 def run_ab(
@@ -233,8 +229,12 @@ def run_ab(
     print("\n=== 对照组（冷启动，每局前清空档案） ===")
     control_outcomes = asyncio.run(
         _run_group(
-            control_dir, "control", test_games=test_games,
-            player_count=player_count, seed_base=seed, timeout=timeout,
+            control_dir,
+            "control",
+            test_games=test_games,
+            player_count=player_count,
+            seed_base=seed,
+            timeout=timeout,
             fresh_each_game=True,
         )
     )
@@ -242,15 +242,22 @@ def run_ab(
     print("\n=== 实验组（先进化 K 局，再测试） ===")
     asyncio.run(
         _run_evolution(
-            evolved_dir, evolve_games=evolve_games,
-            player_count=player_count, seed_base=seed, timeout=timeout,
+            evolved_dir,
+            evolve_games=evolve_games,
+            player_count=player_count,
+            seed_base=seed,
+            timeout=timeout,
         )
     )
     # 实验组测试期保留进化档案（不清理），验证进化注入的持续效果
     evolved_outcomes = asyncio.run(
         _run_group(
-            evolved_dir, "evolved", test_games=test_games,
-            player_count=player_count, seed_base=seed, timeout=timeout,
+            evolved_dir,
+            "evolved",
+            test_games=test_games,
+            player_count=player_count,
+            seed_base=seed,
+            timeout=timeout,
             fresh_each_game=False,
         )
     )
@@ -308,12 +315,18 @@ def main() -> int:
     print("进化有效性 A/B 基准（PLN-040 T4）")
     print("=" * 60)
     c, e, d = report["control"], report["evolved"], report["delta"]
-    print(f"  对照组（冷启动）: 胜率 {c['player_win_rate']:.2%}  Elo {c['elo_mean']}  (局 {c['finished_games']}/{c['games']})")
-    print(f"  实验组（进化 K={report['meta']['evolve_games']}）: 胜率 {e['player_win_rate']:.2%}  Elo {e['elo_mean']}  (局 {e['finished_games']}/{e['games']})")
+    print(
+        f"  对照组（冷启动）: 胜率 {c['player_win_rate']:.2%}  Elo {c['elo_mean']}  (局 {c['finished_games']}/{c['games']})"
+    )
+    print(
+        f"  实验组（进化 K={report['meta']['evolve_games']}）: 胜率 {e['player_win_rate']:.2%}  Elo {e['elo_mean']}  (局 {e['finished_games']}/{e['games']})"
+    )
     print(f"  胜率差分: {d['win_rate_pp']:+.2f}pp  Elo 差分: {d['elo']:+.1f}")
     verdict = "PASS" if d["win_rate_pp"] >= 5.0 or d["elo"] >= 25.0 else "FAIL"
-    print(f"  结论: [{'PASS' if verdict == 'PASS' else 'FAIL'}]  "
-          + ("进化组显著优于冷启动" if verdict == "PASS" else "进化未显著提升（输出诊断）"))
+    print(
+        f"  结论: [{'PASS' if verdict == 'PASS' else 'FAIL'}]  "
+        + ("进化组显著优于冷启动" if verdict == "PASS" else "进化未显著提升（输出诊断）")
+    )
     print("=" * 60 + "\n")
 
     out_path = Path("tmp_work/evolution_ab_report.json")

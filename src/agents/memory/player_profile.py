@@ -281,14 +281,21 @@ class PlayerProfileStore:
                 return "略弱"
             return "中等"
 
-        labels.append(f"攻击性{_level(t['aggression'])}"
-                      + ("（主动施压、抢占节奏）" if t["aggression"] >= 0.6 else ""))
-        labels.append(f"冒险度{_level(t['risk_taking'])}"
-                      + ("（敢冒险换收益）" if t["risk_taking"] >= 0.6 else ""))
-        labels.append(f"健谈度{_level(t['talkativeness'])}"
-                      + ("（乐于发言带动讨论）" if t["talkativeness"] >= 0.6 else ""))
-        labels.append(f"谨慎度{_level(t['caution'])}"
-                      + ("（保护关键信息）" if t["caution"] >= 0.6 else ""))
+        labels.append(
+            f"攻击性{_level(t['aggression'])}"
+            + ("（主动施压、抢占节奏）" if t["aggression"] >= 0.6 else "")
+        )
+        labels.append(
+            f"冒险度{_level(t['risk_taking'])}"
+            + ("（敢冒险换收益）" if t["risk_taking"] >= 0.6 else "")
+        )
+        labels.append(
+            f"健谈度{_level(t['talkativeness'])}"
+            + ("（乐于发言带动讨论）" if t["talkativeness"] >= 0.6 else "")
+        )
+        labels.append(
+            f"谨慎度{_level(t['caution'])}" + ("（保护关键信息）" if t["caution"] >= 0.6 else "")
+        )
         return "你的打法倾向：" + "；".join(labels)
 
     # ------------------------------------------------------------------

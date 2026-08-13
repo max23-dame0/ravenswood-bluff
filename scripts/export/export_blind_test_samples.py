@@ -168,12 +168,7 @@ def _tsv_content(content: str) -> str:
     TSV 以换行分行、tab 分列，发言内容若含 \n 会把一行拆成多行、
     含 \t 会错列，破坏标注表单结构。
     """
-    return (
-        content.replace("\r\n", " ")
-        .replace("\n", " ")
-        .replace("\r", " ")
-        .replace("\t", " ")
-    )
+    return content.replace("\r\n", " ").replace("\n", " ").replace("\r", " ").replace("\t", " ")
 
 
 def export_samples(
@@ -333,9 +328,7 @@ def score_labels(samples_path: str | Path, labels_path: str | Path) -> dict[str,
             pid: {
                 "correct": by_player_correct.get(pid, 0),
                 "total": by_player_total.get(pid, 0),
-                "rate": round(
-                    by_player_correct.get(pid, 0) / by_player_total.get(pid, 0), 4
-                )
+                "rate": round(by_player_correct.get(pid, 0) / by_player_total.get(pid, 0), 4)
                 if by_player_total.get(pid, 0)
                 else 0.0,
             }
@@ -350,20 +343,32 @@ def main() -> int:
     sub = parser.add_subparsers(dest="command")
 
     export_p = sub.add_parser("export", help="导出盲测样本")
-    export_p.add_argument("--backend", choices=["mock", "live"], default="mock",
-                          help="对局后端：mock（固定文案，流程测试）/ live（真实 LLM，真人盲测用）")
+    export_p.add_argument(
+        "--backend",
+        choices=["mock", "live"],
+        default="mock",
+        help="对局后端：mock（固定文案，流程测试）/ live（真实 LLM，真人盲测用）",
+    )
     export_p.add_argument("--games", type=int, default=2)
     export_p.add_argument("--player-count", type=int, default=5)
     export_p.add_argument("--seed", type=int, default=42)
-    export_p.add_argument("--timeout", type=int, default=180, help="live 局单局超时（mock 默认 120）")
+    export_p.add_argument(
+        "--timeout", type=int, default=180, help="live 局单局超时（mock 默认 120）"
+    )
     export_p.add_argument("--max-speeches-per-player", type=int, default=6)
-    export_p.add_argument("--min-length", type=int, default=30,
-                          help="过滤少于该字数的发言（方案 A：滤掉 live 偶发 fallback 短机械句，默认 30）")
+    export_p.add_argument(
+        "--min-length",
+        type=int,
+        default=30,
+        help="过滤少于该字数的发言（方案 A：滤掉 live 偶发 fallback 短机械句，默认 30）",
+    )
     export_p.add_argument("--out-dir", default="data/blind")
 
     score_p = sub.add_parser("score", help="统计标注结果")
     score_p.add_argument("--samples", default="data/blind/samples.json")
-    score_p.add_argument("--labels", required=True, help="标注结果文件（sample_id<TAB>anon_player 每行）")
+    score_p.add_argument(
+        "--labels", required=True, help="标注结果文件（sample_id<TAB>anon_player 每行）"
+    )
 
     args = parser.parse_args()
     if args.command == "score":
@@ -371,9 +376,13 @@ def main() -> int:
         print("\n" + "=" * 60)
         print("盲测标注结果（PLN-040 T5 M3）")
         print("=" * 60)
-        print(f"  标注数: {result['total_labels']} | 正确: {result['correct']} | 猜中率: {result['guess_rate']:.2%}")
-        print(f"  随机基线: 20% | 结论: [{'PASS' if result['verdict'] == 'PASS' else 'FAIL'}] "
-              + ("显著高于随机" if result["verdict"] == "PASS" else "未高于随机基线"))
+        print(
+            f"  标注数: {result['total_labels']} | 正确: {result['correct']} | 猜中率: {result['guess_rate']:.2%}"
+        )
+        print(
+            f"  随机基线: 20% | 结论: [{'PASS' if result['verdict'] == 'PASS' else 'FAIL'}] "
+            + ("显著高于随机" if result["verdict"] == "PASS" else "未高于随机基线")
+        )
         for pid, st in result["by_player"].items():
             print(f"    {pid}: {st['correct']}/{st['total']} = {st['rate']:.0%}")
         print("=" * 60 + "\n")
@@ -393,14 +402,18 @@ def main() -> int:
     print("\n" + "=" * 60)
     print("导出结果")
     print("=" * 60)
-    print(f"  对局数: {result['meta']['games']} | 玩家数: {result['meta']['player_count']} | 后端: {args.backend}")
+    print(
+        f"  对局数: {result['meta']['games']} | 玩家数: {result['meta']['player_count']} | 后端: {args.backend}"
+    )
     print(f"  样本总数: {result['total_samples']}")
     print(f"  每玩家发言数: {result['per_player_counts']}")
     print(f"  匿名映射: {result['anon_map']}")
     print(f"  输出目录: {result['out_dir']}")
     print("  文件: samples.json / labeling.tsv / summary.json")
     print("  随机基线: 20%（5 选 1）")
-    print("  * 标注后运行: python scripts/export/export_blind_test_samples.py score --labels <标注文件>")
+    print(
+        "  * 标注后运行: python scripts/export/export_blind_test_samples.py score --labels <标注文件>"
+    )
     print("=" * 60 + "\n")
     return 0
 
