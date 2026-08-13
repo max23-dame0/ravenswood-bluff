@@ -1,111 +1,74 @@
 # 鸦木布拉夫小镇 (Ravenswood Bluff) 项目长期记忆
 
-> 最后更新：2026-08-04
-> 仓库：`d:/ravenswood-bluff` | 分支：`main`
-> **硬上限**：200 行。超出时 AI 需自行精简历史记录，将细节移入子文件。
+> 最后更新：2026-08-13 | 仓库：`d:/ravenswood-bluff` | 分支：`main`
+> **硬上限**：200 行。超出时精简 Auto Memory 历史，细节移入 DECISIONS/子文件。
 
 ## ⚠️ 启动链
 
-你是 coding agent。读取本文件后，**必须**依次读取：
-
 ```
-MEMORY.md（本文件）→ AGENTS.md（操作手册）→ PROGRESS.md → DECISIONS.md
+MEMORY.md（本文件）→ AGENTS.md → PROGRESS.md → DECISIONS.md → 按模块读 .codebuddy/rules/
 ```
-
-再根据任务模块加载 `.codebuddy/rules/` 下对应的规则文件。
-
----
 
 ## 1. 项目定位
 
-基于多 Agent + 状态机驱动的《血染钟楼》(Blood on the Clocktower, Trouble Brewing 剧本) 社交推演引擎。LLM 驱动的 AI 玩家与 AI/人类说书人，配合通过浏览器 WebSocket UI 的人类玩家共同对局。当前阶段 **Alpha 1.2（Agent 原生重构版）**：AI 玩家演进为受控自主 Agent（行动工具化 + 世界感知查询化 + 记忆工具化 + 跨局玩家进化），token 控制达成。
+多 Agent + 状态机驱动的《血染钟楼》(Trouble Brewing) 社交推演引擎。当前 **Alpha 1.2「觉醒之鸦」**：AI 玩家为受控自主 Agent（行动工具化 + 世界感知查询化 + 记忆工具化 + 跨局玩家进化 + 工作流/RAG + 认知工作流 PLN-041/042）。
 
 ## 2. 技术栈
 
-- 语言/运行时：Python 3.11+（建议 venv，依赖见 `pyproject.toml`）
-- Web 框架：FastAPI + WebSocket + Pydantic v2
-- 持久化：aiosqlite（SQLite）
-- LLM 抽象：`OpenAI` 兼容接口 / `MockBackend`（模式匹配，离线）
-- 测试：pytest + pytest-asyncio（`asyncio_mode=auto`）；ruff 做 lint
-- 许可：MIT
+Python 3.11+ / FastAPI+WebSocket / Pydantic v2 / aiosqlite / LLMBackend 抽象（openai/mock）/ pytest+pytest-asyncio（auto）/ ruff。许可 MIT。
 
 ## 3. 模块速查
 
 | 模块 | 路径 | 职责 |
 |------|------|------|
-| 智能体 | `src/agents/` | AI 玩家(storyteller)；`ai_agent.py`/`storyteller_agent.py` 为 facade，分别委托 9 个子模块 |
-| 规则引擎 | `src/engine/` | 阶段机、规则校验、角色能力、剧本分发、数据采集 |
-| 编排 | `src/orchestrator/` | `game_loop.py` 为 facade；EventBus、InformationBroker、各阶段处理器 |
-| 状态 | `src/state/` | 不可变 GameState、SQLite 持久化、事件日志、快照 |
-| LLM | `src/llm/` | `LLMBackend` 抽象（openai / mock） |
-| API | `src/api/` | FastAPI + WebSocket server |
-| 内容 | `src/content/` | 剧本与术语定义 |
-| 测试 | `tests/` | 单元/集成/验收（默认 MockBackend）；替身单一来源 `tests/doubles.py`；深度参考 `docs/reference/test-system.md` |
-| 脚本 | `scripts/` | 验收门禁、导出、模拟、基准 |
+| 智能体 | `src/agents/` | AI 玩家(storyteller)；`ai_agent.py`/`storyteller_agent.py` facade 委托子模块（decision/prompt/speech/memory/reasoning/workflow/…） |
+| 规则引擎 | `src/engine/` | 阶段机、规则校验、角色能力、剧本、数据采集 |
+| 编排 | `src/orchestrator/` | `game_loop.py` facade；EventBus、InformationBroker、阶段处理器 |
+| 状态 | `src/state/` | 不可变 GameState、SQLite、事件日志、快照 |
+| LLM | `src/llm/` | LLMBackend（openai/mock） |
+| 内容 | `src/content/` | 剧本/术语/规则知识库（rule_knowledge.py，PLN-041） |
+| 测试 | `tests/` | 替身唯一源 `tests/doubles.py`；深度参考 `docs/reference/test-system.md` |
+| 脚本 | `scripts/` | 顶层 4 入口，其余 acceptance/benchmark/export/debug（子目录用 `parents[2]`） |
 
 ## 4. 核心基础设施
 
-- **不可变状态机**：`GameState`(frozen Pydantic) 为唯一真相源；所有迁移经 `with_update*` 返回新快照。
-- **事件总线 + 信息代理**：所有状态变更经 `EventBus.publish`；`InformationBroker` 按 `Visibility` 枚举过滤，产出 `AgentVisibleState`。
-- **双 facade 上帝对象**：`ai_agent.py`(~1100)、`game_loop.py`(~766) 仅做路由，逻辑在各自子模块（改行为进子模块）。
-- **难度系统**：`DifficultyPreset` 五轴（competence/deception/volatility/expressiveness/information_openness）× 4 预设。
+- 不可变状态机：GameState frozen，迁移经 `with_*` 工厂。
+- EventBus + InformationBroker：按 Visibility 过滤产出 AgentVisibleState（Agent 绝不直接见 GameState）。
+- 双 facade 仅路由：改行为进子模块。
+- 难度系统：DifficultyPreset 五轴 × 4 预设。
+- 前缀缓存体系（D013/D014）：三层前缀 = system 全局静态层 + user 首条 stable_context（规则书/跨局记忆，同局稳定）+ user 末条动态内容；观点/检索只进 user 段。
+- 工作流（D016）：Workflow DSL/引擎/trace；说书人 LLM 仅限 choose_distortion；认知工作流（D018）recall→reason→speak→record 全确定性，开关 `BOTC_COGNITIVE_SPEAK` 默认 off。
 
-## 5. 关键状态与术语
+## 5. 术语
 
 ```
 GamePhase: SETUP → FIRST_NIGHT → DAY_DISCUSSION → NOMINATION → VOTING → EXECUTION → NIGHT → GAME_OVER
 Visibility: PUBLIC / TEAM_EVIL / TEAM_GOOD / PRIVATE / STORYTELLER_ONLY
-Team: GOOD(镇民/外来者) / EVIL(爪牙/恶魔)
-DifficultyLevel: CASUAL / STANDARD / MASTER / CHAOS
-后端: mock(离线) / openai(Live) / auto
 胜负: 恶魔全亡→GOOD；仅剩≤2活且含恶魔→EVIL；市长特例(3活且今日未处决→GOOD)
+落盘约定: thoughts/viewpoints/action_trace 仅 live（BOTC_BACKEND!=mock）；BOTC_DATA_DIR 重定向
 ```
 
 ## 6. 硬约束
 
-- GameState 不可变；用 `with_update / with_player_update / with_event / with_message`。
-- Agent 只接收 `AgentVisibleState`，绝不直接传 `GameState`。
-- 事件 `visibility` 必须正确；`TEAM_EVIL` 不得入 `PUBLIC`。
-- 改 Agent/Orchestrator 行为 → 改对应子模块，勿堆在 facade。
+- GameState 不可变；Agent 只收 AgentVisibleState；事件 visibility 正确（TEAM_EVIL 不入 PUBLIC）。
 - 白天发言顺序处理，禁 `asyncio.gather` 最终发言。
-- 双超时预算：orchestrator 预算必须 > agent 预算。
-- Good AI 绝不得注入 evil strategy 提示（先查 `player.team`）。
+- 双超时预算：orchestrator > agent。Good AI 不得吃 evil 策略。
+- 仅 mock 通过 ≠ 完成；live 需真人验收。
+- **提交/推送必须经用户确认**（铁律）；完成后汇报清单与验证状态。
 
-## 7. 禁止事项
-
-- ❌ 直接赋值 `state.players[idx].field`（用 `with_player_update`）
-- ❌ 将 `GameState` 直传 Agent
-- ❌ 泄露 evil 信息到 PUBLIC 可见事件
-- ❌ 在 facade 文件内堆逻辑
-- ❌ 并行 `asyncio.gather` 白天最终发言
-- ❌ 仅靠 mock 通过即宣称完成（需 live 真人验收）
-
----
-
-## 🤖 Auto Memory（AI 自主维护）
-
-> 以下区域由 AI 在会话中自动追加。每次发现重要模式、踩坑经验、偏好决定时，AI 应将关键信息追加到此区域。
-> **管理规则**：随时可追加（日期 + 内容）；超过 50 行自行精简；用户可自然语言控制"记住 X / 忘掉 Y"；不要把已明确的信息重复写入。
+## 🤖 Auto Memory
 
 <!-- AUTO_MEMORY_START -->
-- 2026-08-07 用户提交/推送偏好（铁律）：**提交与推送必须经用户确认**。完成任务后先汇报改动清单与验证状态，**禁止习惯性 git commit / git push**；仅当用户明确说"提交/推送/commit/push"时才执行。git tag 同理需确认。
-- 2026-08-03 用户进程管理偏好（铁律）：**不要重复开进程**——同一服务/工具已启动过就不再重复启动；任务完成后及时终止不再需要的进程（python/pytest/uvicorn 等），防止堆积占用 CPU/内存/端口。启动新进程前先确认是否已有同名或同端口进程在运行；结束后核对端口是否释放。跑测试时用一次性 `python -c "subprocess.run(...)"` 阻塞式执行，避免残留后台进程。
-- 2026-08-04 PLN-039 第二轮缓存优化 T1-T6 已完成（`common_rules.build_global_static_layer()` 全局静态层 + `prompt_factory.build_stable_system_prompt()` 双层 system + act tools 全量固定 + 草稿复用 act 前缀 + reflect/think/archive/说书人前置全局层）。验证全绿（480 passed + ruff 0 + benchmark PASS + mock 8 人局 game_over + live 8 人局命中率 **53.19%** 达标，reasoning 0/fallback 0）。⚠️ 真实总 token 370,931 > 基线 187,423（输入膨胀 +132%），计费当量估算 +12.8%。**已精简全局层工具文本**：`tool_schema_text()` 只保留"工具名+一句话用途"（参数细节由 tools 参数提供），全局层 2,361 → **1,522 字符（-35.5%）**，仍 ≥1,500；证据 RPT-014。**thinking 结论**：工具调用主导路径本就不烧 reasoning，JSON fallback 开 thinking 有害（D015：fallback 5.9%→0%、total -62%），关闭不影响表现，仅切非推理模型需重估。已提交 3 commit（`c79a7ae` token-opt-cache / `02b4996` 阶段 E / `53a2f84` alpha1.2），工作区 clean，未 push。
-- 2026-08-04 环境踩坑：本机新建 `.venv` 后遇 pydantic-core 2.47.0 与 pydantic 2.13.4 不兼容（`No module named 'pydantic_core._pydantic_core'`），强制装回 **pydantic-core==2.46.4** 修复；随后 live 测试又遇 `No module named 'jiter.jiter'`，强制重装 **jiter**（0.16.0 cp312 win）修复。本机跑测试用 `.\.venv\Scripts\python.exe -m pytest`，PowerShell 下输出重定向到文件再用 read_file 查看（CLIXML 干扰）。live 局调试日志轮换在 `runtime_game_logs/recent_N/llm.jsonl`。
-<!-- AI 在此区域之下追加记忆，保留此标记以便定位 -->
-- 2026-07-31 测试系统治理：① 代码去重——`DummyBackend` 等替身统一至 `tests/doubles.py`（唯一源），`conftest.py` re-export，3 个回归/推理测试文件改为 import；`DummyBackend` 加可配置 `content`（默认中文串，回归用 `content="{}"` 保持旧行为）。② 文档——新增 `.codebuddy/rules/tests.md`（测试规则）、`docs/reference/test-system.md`（测试系统参考，含 9 gate 验收）、`docs/reference/tech-traps.md` 增 T10-T12；`AGENTS.md`/`DECISIONS.md`(D007/D008)/`MEMORY.md` 同步接入。详见 `DECISIONS.md` D007(测试策略 MockBackend-first+门禁为发布 blocker)、D008(替身统一)。
-<!-- AI 在此区域之下追加记忆，保留此标记以便定位 -->
-- 2026-07-31 代码与文件规范化整理（P0-P5）完成并验证全绿：① 目录约定见 `DECISIONS.md` D010——根目录只留 `simulate_game.py`；`scripts/` 顶层仅放 4 个入口，其余分 `acceptance/`(27)/`benchmark/`(5)/`export/`(5)/`debug/`(3)，**子目录脚本用 `parents[2]`**；`tests/` 按被测模块分子目录（`test_simulate_game.py` 例外留根）；`docs/` 分 plans/releases/reviews/guides/reference 五类，但**被代码硬编码写入的文档必须留 `docs/` 根**（`frontend_acceptance.md`、`alpha-1.0-benchmark-results.md`、`alpha-1.1-evidence/`）。② **移动脚本的最大坑（D011）**：除聚合入口外，「叶子脚本调用兄弟脚本」的 subprocess 路径也必须同步，本次漏掉造成 9 个测试断链；`run_script(name)` 的 `name` 语义统一为「相对 `scripts/` 根」。③ ruff 阶段一（E4/E7/E9/F/W，ignore E501）已零告警，`scripts/**` 全局豁免 E402（`sys.path` bootstrap 模式）；format 已 100% 归一，pre-commit + CI 均为硬门禁。④ 验证基线：`pytest tests -q` = **447 passed / 0 failed**，`scripts/alpha1.1_acceptance.py` = **exit 0（9/9）**。
-
-- 2026-07-31 文档治理收尾（doc-governance 增强 + 健康核对）：① 清理上轮治理遗留临时脚本（`.codebuddy/tmp_*.ps1/.py` 与 `docs/.gov_body.md`）；② 增强——`docs/README.md` §7 登记 29 个 `alpha-1.1-evidence/` 证据文件名（frontmatter 豁免），新增 `scripts/check_doc_health.py`（frontmatter+死链校验，绝对路径为非致命告警、`--strict` 升级为失败）作 CI 门禁；③ 健康核对——AGENTS/CLAUDE/MEMORY/DECISIONS 路径均有效（`docs/` 已重组为 plans/reference/releases/reviews/，参考文档在 `docs/reference/`）；④ 修复历史文档中的绝对机器路径断链（原指向不存在的 `鸦木布拉夫小镇` 路径，曾被误清空为 `]()`，已用相对路径修复，含 `game_loop.py`/`server.py` 等源码链接与中文描述性文档链接）。
-- 教训（PowerShell 5.1 脚本）：① 读 `.ps1` 按 ANSI 而非 UTF-8，含中文会乱码致解析失败——脚本避免中文或显式写 BOM；② 相对链接改写用「文件深度 + 仓库相对路径」手动计算，勿用 `System.IO.Path.GetRelativePath`（本机 .NET Framework 无此方法会抛 MethodNotFound）；③ 批量改写语料前先备份/可回退，先小规模验证再全量。
-- 2026-07-31 ruff 阶段二全部启用（D009 收官）：`select` = E4/E7/E9/F/W/I/UP/B/SIM；`ignore` = E501 + **UP042**（`str,Enum`→`StrEnum` 改 `str()` 行为，禁自动修）。**flaky 模式（重要）**：`GameState.game_id` 默认 `uuid.uuid4()`；任何用 `GameState()` 构造状态而**未固定 `game_id`** 的测试，其 `AgentVisibleState.game_id` 随机 → `DecisionNoise` 噪声种子随机 → 依赖阈值的决策（如提名）跨运行随机成败。**测试补丁**：构造器必须固定 `game_id`。另：`nomination_voting.py` 的提名循环内定义异步函数若引用循环变量（`player`/`action_type`），须用**默认参在定义时捕获**（`player_id=player.player_id`），否则 asyncio 任务真正运行时取到循环末值（B023 闭包延迟绑定真 bug）。基线：`ruff check src tests scripts` = 0 告警；`pytest tests -q` = 447 passed / 0 failed。
-- 2026-08-12 PLN-041 工作流 + RAG 融入全量实施完成（DECISIONS D016）：① 检索基础设施 `src/agents/memory/retrieval/`（chunker/BM25 必装/faiss 可选+RRF/RetrievalStore 落盘 `data/agents/_retrieval/`/RetrievalPipeline 统一注入）；② 规则书静态注入 `src/content/rule_knowledge.py` + `build_role_rulebook_context` 在 `load_player_profile` setup 期注入 stable_context 首段（防幻觉核心，零缓存破坏）；③ Workflow DSL/引擎/trace + 说书人裁决 6 工具工作流试点（包装非重写、LLM 仅 choose_distortion）+ 玩家 ActionTrace（`action_trace.jsonl` 仅 live 落盘，`BOTC_BACKEND=mock` 或 `BOTC_TRACE_ACTIONS=0` 关闭）；④ 评测 gate：`scripts/benchmark/retrieval_quality_benchmark.py`（BM25-only Recall@5=1.0/MRR=1.0）+ `scripts/acceptance/retrieval_workflow_acceptance.py` 已入 `alpha1.1_acceptance.py`（10/10）。验证：657 全绿 + ruff 0 + doc health PASS + mock 8 人局 game_over。踩坑：① rank_bm25 对出现于半数文档的高频词 IDF=0，小语料测试必然 miss——测试用真实 22 条规则语料；② `is_sensitive` 含裸词「恶魔」，规则书文本会被误杀——管线对 `type=rule` 白名单放行；③ mock embeddings（长度向量）无语义会污染 RRF 排序——评测默认 BM25-only；④ trace 类名黑名单不可靠（PassiveBackend 漏网）——改按 `BOTC_BACKEND` env 判定。
-- 2026-08-13 D017 验收 flaky 根因修复：全量 slow 6 项（wave3/a3_memory/alpha3/long_game_ai/ai_evaluation）失败根因 = `DecisionEngine.persona_vote_bias` 只看随机 pick 的 decision_style 文案（与 archetype 弱相关）→ vote 模糊带（suspicion∈threshold±0.06）内 aggressive/silent 全投 yes（`1.0<=1.0`）、行为签名趋同（`persona_diversity_score 0.2`）。修复：good 分支先按 `archetype.assertiveness` 定倾向（high→yes、low→no、neutral 回退文案），evil 分支不动。**修复后全量 676（含 slow）/0 failed** + ruff 0 + format 0 + 10/10 gate + mock 8 人局 game_over。教训：验收断言失败先查「行为是否真的差异化」再放宽断言——本问题不是噪声而是生产行为缺陷（archetype 未参与 vote 模糊带兜底）。
+- 2026-08-07 用户提交/推送偏好（铁律）：提交/推送/tag 必须经用户明确确认，禁止习惯性 commit/push。
+- 2026-08-03 进程管理偏好（铁律）：不重复开进程；任务完及时终止；跑测试用一次性阻塞 subprocess；结束核对端口释放。
+- 2026-08-04 环境踩坑：本机 .venv 需 pydantic-core==2.46.4 + 重装 jiter；跑测试用 `.\.venv\Scripts\python.exe -m pytest`；PowerShell 输出重定向到文件再 read_file（CLIXML 干扰）；live 调试日志 `runtime_game_logs/recent_N/llm.jsonl`。
+- 2026-08-04 PLN-039/alpha1.2 live 优化：双层 system + 全局静态层（tool 文本 1522 字符）+ 草稿复用；D015 关 speak/defense thinking（token -62%、fallback→0）；live 命中率 ≥43%；真实总 token 370,931 > 基线（输入膨胀，任务板标权衡）。
+- 2026-08-12 PLN-041 完成（D016）：retrieval/（BM25 必装 + faiss 可选 + RRF + 敏感过滤 + type=rule 白名单）、workflow/（DSL/引擎/trace + 说书人试点 + ActionTrace 仅 live）、rule_knowledge.py（setup 期 stable_context 首段注入，防幻觉核心）、检索 gate（Recall@5=1.0/MRR=1.0）入 10/10 门禁。踩坑：rank_bm25 高频词 IDF=0 小语料必 miss（用真实 22 条规则语料）；「恶魔」裸词误杀规则文本（type=rule 白名单）；mock embeddings 污染 RRF（评测 BM25-only）；trace 开关按 BOTC_BACKEND 判定。
+- 2026-08-13 D017 验收 flaky 根因：persona_vote_bias 只看随机 decision_style 文案 → vote 模糊带行为趋同。修复：good 分支先按 archetype.assertiveness（high→yes/low→no）。全量 676 全绿。教训：验收失败先查"行为是否真差异化"再放宽断言。
+- 2026-08-13 PLN-042 完成（D018）：reasoning/（viewpoint 观点-证据 + viewpoint_engine 确定性置信度/门控 0.45/强断言降级）+ cognitive_workflow + act() 认知块（**orchestrator 全走 act()，挂 act_with_strategy 不生效**）+ build_memory_snapshot 排除阵营私密 + 观点摘要经 strategic_thought 进 user 段。live 5 人局实测：观点 5 玩家落盘、fallback=0、A/B 论证式 vs 断言式。踩坑：pytest-asyncio 需显式 marker；safe-delete 拦截 basetemp（>50 文件）→ 每次唯一 basetemp（时间戳）；simulate_game 用 `--backend live` 参数（env 不生效）+ `--timeout-seconds 600`；PowerShell 中文内联脚本乱码 → 文件 + `-X utf8`。
+- 2026-08-13 CR + 验收（本次会话，报告 `docs/reviews/cr-review-pln041-042-2026-08-13.md`）：六项验收全过（692 快测/ruff 0/format 0/doc PASS/10-10 gate/mock 8 人局 game_over + 零污染/认知专项 35+）。**3 项 P1 待修**：① extract_evidence 双重循环（1 条 hard 文本×8 source，置信度虚高封顶，测试 `>=` 断言掩盖）；② 门控失效（2 条 soft=0.47≥0.45，强断言不降级）；③ BOTC_VIEWPOINTS 单独开不生效（store 创建只看 cognitive_speak_enabled）。10 项 P2（见报告）。结论：可提交，建议随 PLN-042 commit 修 P1。另：pytest 9.1.1 `-q` 不打印 summary 行，计数用 `-rA` 行统计 + RC。
 <!-- AUTO_MEMORY_END -->
-
----
 
 ## 下一步
 
-读完本文件 → 立即读 `AGENTS.md`（含会话工作流、编码规范、分层规则加载指引）。
+读 `AGENTS.md` → `PROGRESS.md` → `DECISIONS.md`。

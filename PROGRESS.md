@@ -33,6 +33,7 @@
 | 22 | **PLN-040 T6 收尾验证**：全量回归 + mock 8 人局 + live 抽查 + 文档 published | 实施 | 🟢 已完成（2026-08-10：pytest 全绿 + ruff 0 + alpha1.1 9/9 + token 基准 PASS + doc health PASS + mock 8 人局 game_over + live 5 人局 day_1 fallback=0 发言自然差异化明显；PLN-040 status→published） | — | 无 |
 | 23 | **修复说书人档案 await bug**：`game_loop.py` 局末 `await` 同步方法 `finalize_game_profile`（dict 不可 await，TypeError 被吞，说书人档案从未经 game_loop 落盘；2026-08-04 PLN-038 阶段 E 引入） | 修复 | 🟡 已验证待提交（去掉 await 后 mock 8 人局说书人档案成功落盘 games_conducted=110，无 warning） | 提交（等待用户确认） | 无 |
 | 24 | **PLN-041 工作流 + RAG 融入**：检索基础设施（chunker/BM25/Faiss+RRF/持久化/统一管线）+ 规则知识库 setup 静态注入 + Workflow DSL/引擎/trace + 说书人裁决工作流试点 + 玩家行动轨迹（live 落盘）+ 检索质量 gate + 10/10 聚合 gate | 实施 | ✅ 已完成（2026-08-13，676 全量全绿 + ruff 0 + format 0 + doc health PASS + mock 8 人局 game_over + 检索 gate Recall@5=1.0/MRR=1.0；DECISIONS D016/D017 已登记） | 待用户确认后 commit | 无 |
+| 25 | **PLN-042 认知工作流**：观点-证据模型 + 认知工作流（recall→reason→speak→record）+ speak 试点开关 + 严格回归 + live 实测 | 实施 | ✅ 已完成（2026-08-13，692 快速单测全绿 + ruff 0 + format 0 + doc health PASS + mock 8 人局 game_over + **live 实测**：观点 5 玩家落盘、分级正确、fallback=0、A/B 论证式 vs 断言式；DECISIONS D018 + RPT-018） | 待用户确认后 commit | 无 |
 
 ## 当前验证状态
 
@@ -122,3 +123,4 @@
 | 2026-08-12 | **PLN-041 工作流 + RAG 融入可行性分析**：读计划文档 + 逐条核对代码（数据语料 2652/29163 属实；纠偏：Faiss 依赖未装实际不可用、玩家侧已有防幻觉防线、网络经验为新知识源）；重排落地顺序为规则静态注入 > 检索注入 > 工作流化；计划文档补 frontmatter + §5-§8 章节并入 docs 索引 | doc health PASS | 按 §7 实施 | .codebuddy/memory/2026-08-12.md |
 | 2026-08-12 | **PLN-041 全量实施完成**：检索基础设施（chunker/BM25/Faiss+RRF/持久化/统一管线）+ 规则知识库 setup 静态注入（stable_context 首段）+ Workflow DSL/引擎/trace + 说书人裁决工作流试点（包装非重写）+ 玩家行动轨迹（live 落盘 mock 零污染）+ 检索质量 gate（Recall@5=1.0/MRR=1.0）+ 聚合门禁 10/10 | 657 全绿 + ruff 0 + format 0 + doc health PASS + mock 8 人局 game_over | 用户确认后 commit | 本文件 |
 | 2026-08-13 | **验收 flaky 根因修复（D017）**：6 项 slow 验收失败根因 = `persona_vote_bias` 只看随机 pick 的 decision_style 文案、与 archetype 无关 → vote 模糊带内 aggressive/silent 行为趋同（1.0<=1.0、persona_diversity 0.2）。修复：good 分支先按 `archetype.assertiveness`（high→yes/low→no）定倾向。**全量 676（含 slow）/0 failed** + ruff 0 + 10/10 gate + mock 8 人局 game_over | 676 全量全绿 + 10/10 gate PASS + mock 8 人局 game_over | 用户确认后 commit（含 PLN-041 全部改动） | 本文件 |
+| 2026-08-13 | **PLN-042 认知工作流全量完成**：观点-证据模型（hard/soft 分级 + 置信度门控）+ 认知工作流（recall→reason→speak→record）+ AIAgent act() 接入（开关默认 off）+ **live 实测**（DeepSeek 5 人局：观点 5 玩家落盘、fallback=0、A/B 论证式发言）；DECISIONS D018 + RPT-018 | 692 快速单测全绿 + ruff 0 + doc health PASS + mock 8 人局 game_over + live 五条验收全过 | 用户确认后 commit | 本文件 |

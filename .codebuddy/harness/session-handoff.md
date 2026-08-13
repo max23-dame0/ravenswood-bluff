@@ -7,6 +7,38 @@
 
 ## 会话交接记录
 
+### 会话 2026-08-13（PLN-042 认知工作流全量实施 + live 实测）
+
+**背景 (Context)**
+承接 PLN-042：用户要求把"观点-证据层 + 人类式决策/发言工作流"写成计划文档，按 SpecForge TDD 逐项实施，严格验收，最后 live 实测确保实际效果。
+
+**进展 (Progress)**
+- **T1-T4（35 新测试）**：`src/agents/reasoning/`（viewpoint.py 观点-证据模型 + viewpoint_engine.py 确定性置信度/门控）+ `src/agents/workflow/cognitive_workflow.py`（recall→reason→speak→record）+ AIAgent act() 认知块（开关 `BOTC_COGNITIVE_SPEAK` 默认 off）+ build_memory_snapshot（排除阵营私密）。
+- **T5 回归**：快速单测 692 全绿 + ruff 0 + format 0 + doc health PASS + 10/10 gate + mock 8 人局 game_over（viewpoints 零污染）。
+- **T6 live 实测**（DeepSeek 5 人局 day_1）：观点 5 玩家落盘（分级 0.95 vs 0.59-0.65）、fallback=0、A/B 对比开启=论证式（隐藏底牌）vs 关闭=断言式（直接亮牌）。
+- **文档**：DECISIONS D018 + RPT-018 + PLN-042 published + PROGRESS 任务 25 ✅。
+
+**关键踩坑（已固化 MEMORY.md）**
+① **orchestrator 全部走 `agent.act()`，不经 `act_with_strategy`**——认知块最初挂错位置 live 0 落盘；② pytest-asyncio auto 未生效需显式 `@pytest.mark.asyncio` + await；③ safe-delete 拦截 basetemp 清理（>50 文件）→ 每次唯一 basetemp（时间戳）；④ `simulate_game.py` 用 `--backend live` 参数（env 不生效）+ `--timeout-seconds 600`；⑤ PowerShell 中文内联脚本乱码 → 脚本文件 + `-X utf8`。
+
+**验证 (Verification)**
+- 692 快速单测 + ruff 0 + format 0 + doc health PASS + `alpha1.1_acceptance.py` **10/10** + mock 8 人局 game_over + live 五条验收全过（RPT-018）。
+- ⚠️ 全量含 slow 时 `test_storyteller_acceptance` 并发 240s 超时（已知 slow 并发 flaky，单独跑通过）。
+
+**阻断 (Blockers)**
+- 无。**未提交改动**：PLN-042 全部（reasoning/cognitive_workflow/ai_agent + 4 测试文件）+ PLN-041 遗留 + D017 + 文档治理，等用户确认后 commit。
+
+**下一步 (Next Steps)**
+1. 用户确认后分组 commit（PLN-042 建议：reasoning 基础设施 / 认知工作流 / AIAgent 接入 / 文档 4 组）。
+2. 观点演化接入 act() 主循环（update_with_new_evidence/supersede 已实现未接入）。
+3. 动态 RAG 进 recall 节点（局内前人发言检索，token 成本评估）。
+
+**确认 (Confirmed by)**
+- 填写人：coding agent（2026-08-13）
+- 确认人（下一会话）：________
+
+---
+
 ### 会话 2026-08-12（PLN-041 工作流 + RAG 融入全量实施）
 
 **背景 (Context)**

@@ -102,6 +102,7 @@ docs/
 | PLN-039 | [Prompt 前缀缓存命中率优化方案与任务板](plans/prompt-cache-optimization-plan.md) | [Delta] | 2026-08-04 | `docs/plans/prompt-cache-optimization-plan.md` |
 | PLN-040 | [差异化玩家进化 + 量化基准方案与任务板](plans/pln040-player-distinctness-plan.md) | [Delta] | 2026-08-07 | `docs/plans/pln040-player-distinctness-plan.md` |
 | PLN-041 | [工作流与 RAG 融入计划（含可行性核查）](plans/血染钟楼_工作流与RAG融入计划_2026-08-12.md) | [Delta] | 2026-08-12 | `docs/plans/血染钟楼_工作流与RAG融入计划_2026-08-12.md` |
+| PLN-042 | [认知工作流：观点-证据层 + 人类式决策/发言工作流](plans/pln042-cognitive-workflow-plan.md) | [Delta] | 2026-08-13 | `docs/plans/pln042-cognitive-workflow-plan.md` |
 
 ### 审查 / 移交（Delta）
 
@@ -115,6 +116,7 @@ docs/
 | REV-006 | [Alpha 0.2 AI 智能重构移交文档 (Handover Document)](reviews/HANDOVER_ALPHA_0.2.md) | [Delta] | 2026-04-21 | `docs/reviews/HANDOVER_ALPHA_0.2.md` |
 | REV-007 | [Agent 原生重构 CR 审查报告](reviews/agent-native-redesign-cr-review-2026-08-03.md) | [Delta] | 2026-08-03 | `docs/reviews/agent-native-redesign-cr-review-2026-08-03.md` |
 | REV-008 | [PLN-039 缓存命中率优化 CR 审查报告（修复指引版）](reviews/pln039-cache-opt-cr-review-2026-08-04.md) | [Delta] | 2026-08-04 | `docs/reviews/pln039-cache-opt-cr-review-2026-08-04.md` |
+| REV-009 | [CR 与测试验收提示词：PLN-041/042 未提交改动](reviews/cr-prompt-pln041-042-2026-08-13.md) | [Delta] | 2026-08-13 | `docs/reviews/cr-prompt-pln041-042-2026-08-13.md` |
 
 ### 发布（Delta）
 
@@ -150,6 +152,7 @@ docs/
 | RPT-015 | [PLN-040 T3 tendency 标定实验结果](alpha-1.2-evidence/pln040-t3-tendency-calibration-2026-08-07.md) | [Delta] | 2026-08-07 | `docs/alpha-1.2-evidence/pln040-t3-tendency-calibration-2026-08-07.md` |
 | RPT-016 | [PLN-040 T4 进化有效性 A/B 基准结果](alpha-1.2-evidence/pln040-t4-evolution-ab-2026-08-07.md) | [Delta] | 2026-08-07 | `docs/alpha-1.2-evidence/pln040-t4-evolution-ab-2026-08-07.md` |
 | RPT-017 | [PLN-041 工作流 + RAG 融入实施与验证报告](alpha-1.2-evidence/pln041-workflow-rag-report-2026-08-13.md) | [Delta] | 2026-08-13 | `docs/alpha-1.2-evidence/pln041-workflow-rag-report-2026-08-13.md` |
+| RPT-018 | [PLN-042 认知工作流实施与 live 实测报告](alpha-1.2-evidence/pln042-cognitive-workflow-report-2026-08-13.md) | [Delta] | 2026-08-13 | `docs/alpha-1.2-evidence/pln042-cognitive-workflow-report-2026-08-13.md` |
 
 ### 参考 / 指南（Cold）
 

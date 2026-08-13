@@ -169,3 +169,12 @@
 - **否决方案**：① 放宽验收断言（治标，掩盖真实回归；项目已有 T1 洞察"mock 噪声失真"先例但 vote 趋同是行为缺陷而非噪声）；② 调 vote 场景信号强度（suspicion 需精确落 0.50-0.58 区间，脆弱不可维护）。
 - **回退/可逆方案**：仅改 `persona_vote_bias` 一个函数，删除 archetype 分支即回退原行为；不触碰 evil 分支（evil 保持原 decision_style 文案判定）。
 - **约束**：① 只改 good 阵营分支，evil 行为不变；② `archetype` 从 `persona_profile["archetype"]`（Archetype 实例）读取，该字段是稳定锚点且已被 `nomination_threshold_offset` 等消费，无新增依赖；③ 回归基线：全量 676 测试（含 slow）/ 0 failures + ruff 0 + format 0 + 10/10 聚合 gate + mock 8 人局 game_over。
+
+## D018: 认知工作流落地（PLN-042）— 观点-证据层 + 人类式决策/发言工作流
+
+- **日期**：2026-08-13
+- **决策**：① **观点-证据模型**——`src/agents/reasoning/viewpoint.py`（Evidence hard/soft 分级 + Viewpoint 断言/证据链/置信度/状态 + ViewpointStore 落盘 `data/agents/{player_id}/games/{game_id}/viewpoints.jsonl`，仅 live）；② **确定性证据引擎**——`viewpoint_engine.py` 硬证据高权重、软证据低权重、置信度公式封顶 0.95、门控要求 **hard_count ≥ 1**（纯软印象一律拦截，防止"软印象当硬事实"）、强断言（"一定是"）自动降级为"可能"——**幻觉在生成前拦截**；③ **认知工作流**——`cognitive_workflow.py` 显式节点 recall→reason→speak→record（复用 Workflow 引擎 + trace），LLM 不参与论证数值（确定性红线）；④ **AIAgent 集成**——认知块挂在 `act()` 开头（orchestrator 全部走 act()，不经 act_with_strategy），`build_memory_snapshot` 排除阵营私密类别，观点摘要并入 strategic_thought 注入 user 段；开关 `BOTC_COGNITIVE_SPEAK` **默认 off**（mock 全量零回归）。
+- **原因**：用户愿景（2026-08-13）——agent 决策/发言/行动应形成人类式完整工作流：先基于印象与前人发言**建立观点和逻辑链**，再推导行动；RAG 作为真实可信信息来源保证。live 实测验证：观点落盘 5/5 玩家、fallback=0、A/B 对比开启后发言从"断言式"（直接亮底牌）变为"论证式"（依据+前人说辞+隐藏信息）。（初版实测"硬证据 0.95 vs 软印象 0.59-0.65"中的 0.95 系 P1-1 证据提取双重循环 bug 的虚高效应，修复后单条硬证据置信度 ≈0.52、两条 ≈0.69，分级区分度恢复——见 RPT-018 修正注。）
+- **否决方案**：① 让 LLM 直接生成"观点链"（数值不可审计、确定性红线被破——置信度/门控必须确定性计算）；② 认知块挂 `act_with_strategy`（orchestrator 从不调用该方法，live 实测 0 落盘证明）；③ 动态 RAG 进 recall 节点（本阶段不做，token 成本未评估，列为后续建议）。
+- **回退/可逆方案**：全部为新增独立模块（reasoning/ cognitive_workflow）+ act() 一处认知块（开关关闭即完全回退）；viewpoints.jsonl 与 action_trace/thoughts 同约定（仅 live）。
+- **约束**：① 开关默认 off，开启仅影响 speak/defense_speech；② 置信度/门控/证据分级全确定性；③ 快照排除 evil_teammates/evil_bluffs（信息隔离）；④ 观点摘要只进 user 段（system 前缀稳定，D013/D014）；⑤ 回归基线：快速单测 696 全绿（CR P1 修复后）+ ruff 0 + format 0 + doc health PASS + 10/10 gate + mock 8 人局 game_over + live 实测（RPT-018）。
