@@ -48,6 +48,7 @@ from src.agents.prompt.prompt_factory import PromptFactory
 from src.agents.reasoning.viewpoint import viewpoint_enabled
 from src.agents.speech.speech_sanitizer import SpeechSanitizer
 from src.agents.strategy.evil_strategy import EvilStrategy
+from src.agents.workflow.action_workflows import workflow_actions_enabled
 from src.agents.workflow.cognitive_workflow import cognitive_speak_enabled
 from src.content.trouble_brewing_terms import get_role_name
 from src.engine.data_collector import GameDataCollector
@@ -580,6 +581,21 @@ class AIAgent(
         legal_context = legal_context or AgentActionLegalContext()
         self._prime_social_graph_from_state(visible_state)
 
+        # PLN-043 T3：全动作声明式工作流路由（BOTC_WORKFLOW_ACTIONS=1 开启）。
+        # 开启时所有动作走 recall→decide→validate→record 工作流（decide 复用
+        # 既有决策原语，行为与 act() 一致）；关闭时走原路径零差异。
+        if workflow_actions_enabled():
+            try:
+                from src.agents.workflow.action_workflows import run_action_workflow
+
+                wf_decision = await run_action_workflow(
+                    self, visible_state, legal_context, action_type, **kwargs
+                )
+                if wf_decision.get("action"):
+                    return wf_decision
+            except Exception as _wf_exc:  # noqa: BLE001 - 工作流失败回退原路径
+                logger.warning("[%s] 动作工作流失败，回退原路径: %s", self.name, _wf_exc)
+
         # PLN-042 T4：认知工作流——speak/defense_speech 先形成观点链再发言。
         # orchestrator 全部走 act()（不经 act_with_strategy），故挂在此处；
         # 草稿复用路径（0 次 LLM）也先落盘观点；非草稿路径把观点摘要
@@ -614,69 +630,133 @@ class AIAgent(
                 logger.warning("[%s] 认知工作流失败（已跳过）: %s", self.name, _cog_exc)
 
         if self._should_use_local_low_value_action(action_type):
-            decision = self._local_low_value_decision(visible_state, legal_context, action_type)
-            self._record_action_metric(
-                visible_state,
-                action_type,
-                model="local-heuristic",
-                latency_ms=0,
-                fallback_used=False,
-            )
-            return decision
+            return await self._decide_local_low_value(visible_state, legal_context, action_type)
 
-        slayer_target = None
-        if self._can_attempt_slayer_shot(visible_state, legal_context, action_type):
-            slayer_target = self._select_slayer_shot_target(visible_state)
-            if slayer_target:
-                target_id, suspicion = slayer_target
-                target_name = self._player_name_from_visible_state(target_id, visible_state)
-                logger.info(
-                    "[%s] 主动决定发动猎手技能: target=%s suspicion=%.2f",
-                    self.name,
-                    target_id,
-                    suspicion,
-                )
-                self._record_action_metric(
-                    visible_state,
-                    "slayer_shot",
-                    latency_ms=0,
-                    fallback_used=False,
-                )
-                return {
-                    "action": "slayer_shot",
-                    "target": target_id,
-                    "reasoning": f"我是猎手，当前对 {target_name} 的恶魔怀疑度极高（{suspicion:.2f}），决定白天主动开枪。",
-                }
+        # 猎手主动开枪（本地判定，零 LLM）
+        slayer_decision = await self._decide_slayer_shot(visible_state, legal_context, action_type)
+        if slayer_decision is not None:
+            return slayer_decision
 
         # PLN-037 P0-4.3 + 方案B：有效草稿直接复用，跳过第二次 LLM（speak 输出减半）。
         # 仅当 refinement_mode=False（该 AI 是本轮首位发言者，无人插话）才直接复用；
         # refinement_mode=True（本轮已有人发言）时走下方完整 LLM，基于最新局势精炼草稿。
         cached_speech_draft = str(kwargs.get("cached_speech_draft") or "").strip()
+        draft_decision = self._draft_reuse_decision(
+            visible_state, action_type, cached_speech_draft, refinement_mode=refinement_mode
+        )
+        if draft_decision is not None:
+            return draft_decision
+
+        # LLM 工具调用决策主路径（记忆检索 / 三层前缀 prompt / normalize / fallback）
+        return await self._decide_via_llm(visible_state, legal_context, action_type, **kwargs)
+
+    # ------------------------------------------------------------------
+    # PLN-043 T1：决策原语（工作流节点可独立调用的决策单元）
+    # 语义与 act() 内联段完全一致（纯提取，行为零变更）；act() 默认路径
+    # 按原顺序调用这些原语，696 测试为回归门禁。
+    # ------------------------------------------------------------------
+
+    async def _decide_local_low_value(
+        self,
+        visible_state: AgentVisibleState,
+        legal_context: AgentActionLegalContext,
+        action_type: str,
+    ) -> dict[str, Any]:
+        """原语：本地低价值决策（vote/nomination_intent，零 LLM）。"""
+        decision = self._local_low_value_decision(visible_state, legal_context, action_type)
+        self._record_action_metric(
+            visible_state,
+            action_type,
+            model="local-heuristic",
+            latency_ms=0,
+            fallback_used=False,
+        )
+        return decision
+
+    async def _decide_slayer_shot(
+        self,
+        visible_state: AgentVisibleState,
+        legal_context: AgentActionLegalContext,
+        action_type: str,
+    ) -> dict[str, Any] | None:
+        """原语：猎手主动开枪判定（本地，零 LLM）。不触发返回 None。"""
+        if not self._can_attempt_slayer_shot(visible_state, legal_context, action_type):
+            return None
+        slayer_target = self._select_slayer_shot_target(visible_state)
+        if not slayer_target:
+            return None
+        target_id, suspicion = slayer_target
+        target_name = self._player_name_from_visible_state(target_id, visible_state)
+        logger.info(
+            "[%s] 主动决定发动猎手技能: target=%s suspicion=%.2f",
+            self.name,
+            target_id,
+            suspicion,
+        )
+        self._record_action_metric(
+            visible_state,
+            "slayer_shot",
+            latency_ms=0,
+            fallback_used=False,
+        )
+        return {
+            "action": "slayer_shot",
+            "target": target_id,
+            "reasoning": f"我是猎手，当前对 {target_name} 的恶魔怀疑度极高（{suspicion:.2f}），决定白天主动开枪。",
+        }
+
+    def _draft_reuse_decision(
+        self,
+        visible_state: AgentVisibleState,
+        action_type: str,
+        cached_speech_draft: str,
+        refinement_mode: bool = False,
+    ) -> dict[str, Any] | None:
+        """原语：草稿直接复用（speak/defense_speech，0 次 LLM）。无草稿返回 None。
+
+        refinement_mode=True（本轮已有人发言）时跳过草稿复用，走完整 LLM
+        基于最新局势精炼草稿（与原 act() 内联条件 `and not refinement_mode` 等价）。
+        """
         if (
-            cached_speech_draft
-            and action_type in {"speak", "defense_speech"}
-            and not refinement_mode
+            not cached_speech_draft
+            or action_type not in {"speak", "defense_speech"}
+            or refinement_mode
         ):
-            content = self._sanitize_public_speech_content(cached_speech_draft, visible_state)
-            self._record_action_metric(
-                visible_state,
-                action_type,
-                model="draft-reuse",
-                latency_ms=0,
-                fallback_used=False,
-                speech_source="cache_finalized_draft_reuse",
-                tool_used=False,
-            )
-            return {
-                "action": "speak",
-                "content": content,
-                "tone": "calm" if action_type == "speak" else "defensive",
-                "reasoning": "复用预生成草稿（P0-4.3，跳过二次 LLM）。",
-                "speech_source": "cache_finalized_draft_reuse",
-            }
+            return None
+        content = self._sanitize_public_speech_content(cached_speech_draft, visible_state)
+        self._record_action_metric(
+            visible_state,
+            action_type,
+            model="draft-reuse",
+            latency_ms=0,
+            fallback_used=False,
+            speech_source="cache_finalized_draft_reuse",
+            tool_used=False,
+        )
+        return {
+            "action": "speak",
+            "content": content,
+            "tone": "calm" if action_type == "speak" else "defensive",
+            "reasoning": "复用预生成草稿（P0-4.3，跳过二次 LLM）。",
+            "speech_source": "cache_finalized_draft_reuse",
+        }
+
+    async def _decide_via_llm(
+        self,
+        visible_state: AgentVisibleState,
+        legal_context: AgentActionLegalContext,
+        action_type: str,
+        **kwargs,
+    ) -> dict[str, Any]:
+        """原语：LLM 工具调用决策 + normalize/fallback + 记录（主路径核心）。
+
+        与 act() 原内联段行为完全一致（记忆检索 / 三层前缀 prompt / tool calling /
+        JSON fallback / 草稿兜底 / 超时兜底）。
+        """
+        refinement_mode = bool(kwargs.get("refinement_mode"))
+        cached_speech_draft = str(kwargs.get("cached_speech_draft") or "").strip()
 
         # W3-C: 语义记忆检索 (Task B)
-        # refinement_mode 时跳过向量检索 — 省掉 embedding API 调用
         search_query = f"{action_type} {kwargs.get('target', '')}"
         if refinement_mode:
             retrieved_items = []
@@ -742,7 +822,6 @@ class AIAgent(
 
         perceived_role = self.perceived_role_id or self.role_id
         action_context = self._build_action_context(visible_state, legal_context, action_type)
-        cached_speech_draft = str(kwargs.get("cached_speech_draft") or "").strip()
         strategic_thought = str(kwargs.get("strategic_thought") or "").strip()
         if strategic_thought and action_type in {
             "speak",
@@ -763,15 +842,9 @@ class AIAgent(
             )
         action_style_block = self._build_action_style_block(action_type, visible_state)
 
-        # PLN-039 T1/T3：system 双层重组（全局静态层 + Agent 局部静态层）。
-        #   system = 层1(全局绝对静态：公共规则+核心原则+8工具schema+输出格式，跨Agent逐token一致)
-        #          + 层2(Agent局部静态：玩家名单+身份+稳定人格锚点+目标，同Agent整局稳定)
-        #   user1  = 跨局玩家记忆（同局稳定）
-        #   user2  = 全部动态内容（本局记忆/局势/动作格式/动作类型/JSON schema）后置，最大化稳定前缀。
-        # 变化点后置是 DeepSeek 前缀缓存命中的关键：任何变化点都会截断完整前缀缓存。
         stable_rules = self._build_stable_system_prompt(visible_state)
 
-        # 稳定长上下文（规则书 + 跨局玩家记忆，同局内逐 token 稳定）作为 user 首条（D013 约束③ / PLN-041 T9）
+        # 稳定长上下文（规则书 + 跨局玩家记忆，同局内逐 token 稳定）作为 user 首条
         rulebook = self._rulebook_context.strip()
         rulebook_block = f"\n【你的角色规则书】\n{rulebook}\n" if rulebook else ""
         long_term = self._long_term_summary.strip()
@@ -781,7 +854,6 @@ class AIAgent(
             or "【跨局记忆】本局新玩家，尚无跨局记忆。"
         )
 
-        # 逐次变化内容（本局记忆 + 局势 + 动作格式）全部后置为 user 末条，最大化可缓存前缀
         dynamic_context = f"""【你的记忆与档案】
 {episodic_text}
 
@@ -813,9 +885,7 @@ class AIAgent(
             from src.llm.base_backend import Message
 
             strategy = self._llm_strategy_for_action(action_type)
-            # PLN-039 T2：tools 全量固定传递（8 个工具恒定），消除 tools 参数导致的缓存前缀变化。
             tool_defs = GameActionToolRegistry.all_tool_defs()
-            # 三层前缀：稳定规则层(system) → 稳定长上下文(user) → 逐次变化短内容(user)
             backend_call = self.backend.generate(
                 system_prompt=stable_rules,
                 messages=[
@@ -851,7 +921,6 @@ class AIAgent(
                     visible_state, legal_context, action_type, tool_decision
                 )
                 fallback_reason = self._pending_fallback_reason
-                # per-player 思考记录（工具调用路径同样记录 reasoning + 决策，2026-08-05）
                 self._append_player_thought_log(
                     visible_state,
                     decision,
@@ -874,7 +943,7 @@ class AIAgent(
                     tool_used=True,
                 )
                 return decision
-            # JSON fallback；content 为空时尝试从 reasoning_content（DeepSeek thinking）恢复决策 JSON
+            # JSON fallback；content 为空时尝试从 reasoning_content 恢复决策 JSON
             response_text = response.content or ""
             if not str(response_text).strip():
                 response_text = self._extract_decision_from_reasoning(
@@ -884,7 +953,7 @@ class AIAgent(
             decision = self._normalize_decision(visible_state, legal_context, action_type, decision)
             fallback_reason = self._pending_fallback_reason
 
-            # 思考轨迹：data_collector（全局） + per-player 对局落盘（独立于 data_collector）
+            # 思考轨迹：data_collector（全局） + per-player 对局落盘
             llm_thought = str(getattr(response, "reasoning_content", "") or "").strip()
             thought = decision.get("reasoning", "")
             if self.data_collector:
