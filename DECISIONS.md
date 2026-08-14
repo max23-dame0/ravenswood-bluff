@@ -177,4 +177,13 @@
 - **原因**：用户愿景（2026-08-13）——agent 决策/发言/行动应形成人类式完整工作流：先基于印象与前人发言**建立观点和逻辑链**，再推导行动；RAG 作为真实可信信息来源保证。live 实测验证：观点落盘 5/5 玩家、fallback=0、A/B 对比开启后发言从"断言式"（直接亮底牌）变为"论证式"（依据+前人说辞+隐藏信息）。（初版实测"硬证据 0.95 vs 软印象 0.59-0.65"中的 0.95 系 P1-1 证据提取双重循环 bug 的虚高效应，修复后单条硬证据置信度 ≈0.52、两条 ≈0.69，分级区分度恢复——见 RPT-018 修正注。）
 - **否决方案**：① 让 LLM 直接生成"观点链"（数值不可审计、确定性红线被破——置信度/门控必须确定性计算）；② 认知块挂 `act_with_strategy`（orchestrator 从不调用该方法，live 实测 0 落盘证明）；③ 动态 RAG 进 recall 节点（本阶段不做，token 成本未评估，列为后续建议）。
 - **回退/可逆方案**：全部为新增独立模块（reasoning/ cognitive_workflow）+ act() 一处认知块（开关关闭即完全回退）；viewpoints.jsonl 与 action_trace/thoughts 同约定（仅 live）。
-- **约束**：① 开关默认 off，开启仅影响 speak/defense_speech；② 置信度/门控/证据分级全确定性；③ 快照排除 evil_teammates/evil_bluffs（信息隔离）；④ 观点摘要只进 user 段（system 前缀稳定，D013/D014）；⑤ 回归基线：快速单测 696 全绿（CR P1 修复后）+ ruff 0 + format 0 + doc health PASS + 10/10 gate + mock 8 人局 game_over + live 实测（RPT-018）。
+- **约束**：① 开关默认 off，开启仅影响 speak/defense_speech；② 置信度/门控/证据分级全确定性；③ 快照排除 evil_teammates/evil_bluffs（信息隔离）；④ 观点摘要只进 user 段（system 前缀稳定，D013/D014）；⑤ 回归基线：快速单测 710 全绿（含 PLN-043 新增 14）+ ruff 0 + format 0 + doc health PASS + 10/10 gate + mock 8 人局 game_over + live 实测（RPT-018/019）。
+
+## D019: 全动作声明式工作流（PLN-043）— agent 决策统一工作流化
+
+- **日期**：2026-08-14
+- **决策**：① **决策原语化**——`act()` 内部 4 阶段提取为独立原语（`_decide_local_low_value` / `_decide_slayer_shot` / `_draft_reuse_decision` / `_decide_via_llm`），`act()` 默认路径按原顺序调用（纯提取、行为零变更，696 既有测试为门禁）；② **动作工作流工厂**——`src/agents/workflow/action_workflows.py` 为 8 种动作声明 Workflow（recall→decide→validate→record），decide 节点复用决策原语（**包装非重写**：不重新实现决策逻辑）；③ **执行器路由**——`act()` 开头 `BOTC_WORKFLOW_ACTIONS=1` 路由（默认 off，失败回退原路径）；④ **观点演化闭环**——record 节点把决策 reasoning 回写观点库：有激活观点则 update/supersede，无则**创建软印象观点**（不 gate 不注入发言，仅作演化起点）；⑤ **token 分级**——vote/nomination_intent 零 LLM（本地启发式），reason 全确定性零 LLM。
+- **原因**：用户诉求（2026-08-14）——把认知工作流推广到全部动作，所有 agent 决策统一为声明式工作流（人类式"先思考再说话"的显式编排）。live 实测（RPT-019）：52 个动作 trace 覆盖 4 类工作流、节点完整（recall/decide/validate/record）、fallback=0、**观点演化闭环生效**（11 条观点全由决策创建、6 条被后续决策更新）；mock 开关 off 零污染零回归。
+- **否决方案**：① 每个动作独立 Workflow + 全新决策实现（重复实现决策逻辑，违反包装非重写、回归风险高）；② 无开关强制全动作工作流化（mock/存量行为回归不可控）；③ record 只回写不创建（live 无认知 speak 时观点库恒空，演化闭环无源——初版实装的缺陷，已修复）。
+- **回退/可逆方案**：全部为新增模块（action_workflows.py + 4 原语方法）+ act() 一处路由（开关关闭即完全回退）；原语与 act() 原逻辑逐行等价，696 测试守护。
+- **约束**：① 开关默认 off；② decide 复用原语（禁重新实现）；③ 观点回写只取 reasoning 文本（敏感过滤）；④ 观点摘要只进 user 段（D013/D014）；⑤ 回归基线：快速单测 710 全绿 + ruff 0 + format 0 + doc health PASS + 10/10 gate + mock 8 人局 game_over + live 实测（RPT-019）。
